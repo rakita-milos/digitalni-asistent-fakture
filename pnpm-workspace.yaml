@@ -1,0 +1,15 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# pnpm 10+ blokira postinstall skripte zavisnosti osim ako nisu eksplicitno dozvoljene.
+# Potrebno za Prisma engine, SWC (dekoratori u NestJS testovima) i Tailwind oxide.
+onlyBuiltDependencies:
+  - '@prisma/client'
+  - '@prisma/engines'
+  - '@swc/core'
+  - '@tailwindcss/oxide'
+  - esbuild
+  - prisma
+  - sharp
+  - unrs-resolver

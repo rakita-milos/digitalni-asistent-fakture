@@ -1,0 +1,4 @@
+# Pogodnost za korijen repoa: `docker compose up -d` radi iz korijena.
+# Izvor istine je infra/docker-compose.yml (MASTER PROMPT §3).
+include:
+  - infra/docker-compose.yml

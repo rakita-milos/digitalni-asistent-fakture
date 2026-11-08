@@ -1,0 +1,39 @@
+# zavisnosti
+node_modules/
+.pnpm-store/
+
+# build izlazi
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+coverage/
+
+# turbo
+.turbo/
+
+# okruženja i tajne
+.env
+.env.*
+!.env.example
+*.keystore
+!android/app/debug.keystore
+
+# React Native / Android
+apps/mobile/android/.gradle/
+apps/mobile/android/app/build/
+apps/mobile/android/build/
+apps/mobile/android/local.properties
+apps/mobile/android/.idea/
+*.hprof
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# ostalo
+*.log
+.tools/

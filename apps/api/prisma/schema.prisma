@@ -1,0 +1,418 @@
+// Prisma šema — MASTER PROMPT §5 (15 tabela, 5 enuma, propisani indeksi).
+//
+// Konvencije iz specifikacije:
+//  - ID = UUID v7 (string)          -> @default(uuid(7)) @db.Uuid
+//  - novac = BigInt u feningu       -> *Fening polja
+//  - datumi = timestamptz           -> @db.Timestamptz(3)
+//  - kolone u bazi su snake_case    -> @map / @@map (TS sloj ostaje camelCase)
+//  - meko brisanje samo customers/items -> archivedAt
+//
+// Odluke donesene na kickoff-u (Sprint 0):
+//  - TransactionType je definisan, ali NEMA kolonu u invoices (dolazi uz VOID/REFUND, Sprint 5).
+//  - company_id postoji SAMO gdje ga §5 eksplicitno navodi (npr. NEMA u invoice_lines,
+//    payments, reminders, fiscal_records, devices, sync_queue) — scope se dobija join-om.
+//  - role/status/plan/op/kind/entity su String jer §5 ne definiše enum vrijednosti za njih.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Enumi (§5)
+// ─────────────────────────────────────────────────────────────
+
+enum InvoiceType {
+  SALE
+  ADVANCE
+}
+
+/// Rezervisano za VOID/REFUND tok (Sprint 5). U Sprintu 0 nema kolone koja ga koristi.
+enum TransactionType {
+  SALE
+  REFUND
+  VOID
+}
+
+enum InvoiceStatus {
+  DRAFT
+  PENDING_FISCAL
+  ISSUED
+  SENT
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  TRANSFER
+  VOUCHER
+  OTHER
+}
+
+enum ReminderStatus {
+  SCHEDULED
+  SENT
+  FAILED
+  CANCELLED
+}
+
+// ─────────────────────────────────────────────────────────────
+// 1. companies
+// ─────────────────────────────────────────────────────────────
+
+model Company {
+  id                 String    @id @default(uuid(7)) @db.Uuid
+  name               String
+  jib                String    @unique
+  address            String
+  city               String
+  phone              String
+  email              String
+  logoUrl            String?   @map("logo_url")
+  efdId              String?   @map("efd_id")
+  efdConnectedAt     DateTime? @map("efd_connected_at") @db.Timestamptz(3)
+  numberingPrefix    String    @map("numbering_prefix")
+  numberingYear      Int       @map("numbering_year")
+  numberingNext      Int       @map("numbering_next")
+  defaultDueDays     Int       @map("default_due_days")
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  users              User[]
+  customers          Customer[]
+  items              Item[]
+  taxRates           TaxRate[]
+  invoices           Invoice[]
+  reminderSettings   ReminderSetting?
+  auditLogs          AuditLog[]
+  subscriptions      Subscription[]
+
+  @@map("companies")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 2. users
+// ─────────────────────────────────────────────────────────────
+
+model User {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  companyId    String    @map("company_id") @db.Uuid
+  email        String
+  phone        String
+  passwordHash String    @map("password_hash")
+  pinHash      String?   @map("pin_hash")
+  /// owner | worker | accountant | agency (§7.10) — vrijednosti nisu enum u §5.
+  role         String
+  /// aktivan | blokiran — vrijednosti nisu enum u §5.
+  status       String
+  lastLoginAt  DateTime? @map("last_login_at") @db.Timestamptz(3)
+
+  company      Company   @relation(fields: [companyId], references: [id])
+  devices      Device[]
+  invoices     Invoice[] @relation("InvoiceCreatedBy")
+  payments     Payment[] @relation("PaymentCreatedBy")
+  auditLogs    AuditLog[]
+
+  @@unique([companyId, email])
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 3. devices
+// ─────────────────────────────────────────────────────────────
+
+model Device {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  /// android | ios
+  platform   String
+  pushToken  String?   @map("push_token")
+  appVersion String?   @map("app_version")
+  lastSeenAt DateTime? @map("last_seen_at") @db.Timestamptz(3)
+
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  syncQueue  SyncQueue[]
+
+  @@index([userId])
+  @@map("devices")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 4. customers
+// ─────────────────────────────────────────────────────────────
+
+model Customer {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  companyId  String    @map("company_id") @db.Uuid
+  name       String
+  jib        String?
+  vatId      String?   @map("vat_id")
+  address    String?
+  city       String?
+  phone      String?
+  email      String?
+  note       String?
+  archivedAt DateTime? @map("archived_at") @db.Timestamptz(3)
+
+  company    Company   @relation(fields: [companyId], references: [id])
+  invoices   Invoice[]
+
+  @@index([companyId])
+  @@map("customers")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 5. items
+// ─────────────────────────────────────────────────────────────
+
+model Item {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  companyId   String    @map("company_id") @db.Uuid
+  name        String
+  unit        String
+  priceFening BigInt    @map("price_fening")
+  taxRateBp   Int       @map("tax_rate_bp")
+  archivedAt  DateTime? @map("archived_at") @db.Timestamptz(3)
+
+  company     Company   @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+  @@map("items")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 6. tax_rates
+// ─────────────────────────────────────────────────────────────
+
+model TaxRate {
+  id        String  @id @default(uuid(7)) @db.Uuid
+  companyId String  @map("company_id") @db.Uuid
+  name      String
+  rateBp    Int     @map("rate_bp")
+  sufCode   String  @map("suf_code")
+  active    Boolean
+
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+  @@map("tax_rates")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 7. invoices
+// ─────────────────────────────────────────────────────────────
+
+model Invoice {
+  id              String        @id @default(uuid(7)) @db.Uuid
+  companyId       String        @map("company_id") @db.Uuid
+  customerId      String        @map("customer_id") @db.Uuid
+  number          String
+  type            InvoiceType
+  status          InvoiceStatus
+  issueDate       DateTime      @map("issue_date") @db.Timestamptz(3)
+  dueDate         DateTime      @map("due_date") @db.Timestamptz(3)
+  currency        String
+  subtotalFening  BigInt        @map("subtotal_fening")
+  taxFening       BigInt        @map("tax_fening")
+  totalFening     BigInt        @map("total_fening")
+  paidFening      BigInt        @default(0) @map("paid_fening")
+  note            String?
+  paymentMethod   PaymentMethod? @map("payment_method")
+  fiscalPfr       String?       @map("fiscal_pfr")
+  fiscalQrPayload String?       @map("fiscal_qr_payload")
+  fiscalAt        DateTime?     @map("fiscal_at") @db.Timestamptz(3)
+  originalInvoiceId String?     @map("original_invoice_id") @db.Uuid
+  createdBy       String?       @map("created_by") @db.Uuid
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+  /// Optimistička kontrola za offline sync (§4, Sprint 5).
+  version         Int           @default(1)
+
+  company         Company       @relation(fields: [companyId], references: [id])
+  customer        Customer      @relation(fields: [customerId], references: [id])
+  creator         User?         @relation("InvoiceCreatedBy", fields: [createdBy], references: [id])
+  originalInvoice Invoice?      @relation("InvoiceCorrections", fields: [originalInvoiceId], references: [id])
+  corrections     Invoice[]     @relation("InvoiceCorrections")
+  lines           InvoiceLine[]
+  payments        Payment[]
+  reminders       Reminder[]
+  fiscalRecords   FiscalRecord[]
+
+  @@unique([companyId, number])
+  @@index([companyId, status])
+  @@index([companyId, dueDate])
+  @@index([customerId])
+  @@map("invoices")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 8. invoice_lines
+// ─────────────────────────────────────────────────────────────
+
+model InvoiceLine {
+  id                  String   @id @default(uuid(7)) @db.Uuid
+  invoiceId           String   @map("invoice_id") @db.Uuid
+  position            Int
+  description         String
+  /// Količina × 1000 (3 decimale), npr. 1.5 => 1500.
+  qtyMilli            Int      @map("qty_milli")
+  unitPriceFening     BigInt   @map("unit_price_fening")
+  discountBp          Int      @map("discount_bp")
+  taxRateBp           Int      @map("tax_rate_bp")
+  lineSubtotalFening  BigInt   @map("line_subtotal_fening")
+  lineTaxFening       BigInt   @map("line_tax_fening")
+  lineTotalFening     BigInt   @map("line_total_fening")
+
+  invoice             Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("invoice_lines")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 9. payments
+// ─────────────────────────────────────────────────────────────
+
+model Payment {
+  id           String        @id @default(uuid(7)) @db.Uuid
+  invoiceId    String        @map("invoice_id") @db.Uuid
+  amountFening BigInt        @map("amount_fening")
+  method       PaymentMethod
+  paidAt       DateTime      @map("paid_at") @db.Timestamptz(3)
+  note         String?
+  createdBy    String?       @map("created_by") @db.Uuid
+
+  invoice      Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  creator      User?         @relation("PaymentCreatedBy", fields: [createdBy], references: [id])
+
+  @@index([invoiceId])
+  @@map("payments")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 10. reminders
+// ─────────────────────────────────────────────────────────────
+
+model Reminder {
+  id                String         @id @default(uuid(7)) @db.Uuid
+  invoiceId         String         @map("invoice_id") @db.Uuid
+  /// Vrsta podsjetnika (npr. before_due, on_due, after_due) — §5 ne definiše enum.
+  kind              String
+  scheduledAt       DateTime       @map("scheduled_at") @db.Timestamptz(3)
+  sentAt            DateTime?      @map("sent_at") @db.Timestamptz(3)
+  status            ReminderStatus
+  providerMessageId String?        @map("provider_message_id")
+  error             String?
+
+  invoice           Invoice        @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("reminders")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 11. reminder_settings
+// ─────────────────────────────────────────────────────────────
+
+model ReminderSetting {
+  id           String  @id @default(uuid(7)) @db.Uuid
+  companyId    String  @unique @map("company_id") @db.Uuid
+  enabled      Boolean
+  scheduleJson Json    @map("schedule_json")
+  templateJson Json    @map("template_json")
+  senderId     String? @map("sender_id")
+
+  company      Company @relation(fields: [companyId], references: [id])
+
+  @@map("reminder_settings")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 12. fiscal_records
+// ─────────────────────────────────────────────────────────────
+
+model FiscalRecord {
+  id               String   @id @default(uuid(7)) @db.Uuid
+  invoiceId        String   @map("invoice_id") @db.Uuid
+  pfr              String?
+  qrPayload        String?  @map("qr_payload")
+  esirRequestJson  Json?    @map("esir_request_json")
+  esirResponseJson Json?    @map("esir_response_json")
+  /// Vrijednost nije enum u §5 (npr. REQUESTED, ISSUED, FAILED).
+  status           String
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  invoice          Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("fiscal_records")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 13. sync_queue
+// ─────────────────────────────────────────────────────────────
+
+model SyncQueue {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  deviceId    String    @map("device_id") @db.Uuid
+  entity      String
+  entityId    String    @map("entity_id")
+  /// create | update | delete
+  op          String
+  payloadJson Json      @map("payload_json")
+  status      String
+  retryCount  Int       @default(0) @map("retry_count")
+  nextRetryAt DateTime? @map("next_retry_at") @db.Timestamptz(3)
+
+  device      Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId])
+  @@map("sync_queue")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 14. audit_log
+// ─────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  companyId String   @map("company_id") @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  action    String
+  entity    String
+  entityId  String?  @map("entity_id")
+  metaJson  Json?    @map("meta_json")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  company   Company  @relation(fields: [companyId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([companyId])
+  @@map("audit_log")
+}
+
+// ─────────────────────────────────────────────────────────────
+// 15. subscriptions
+// ─────────────────────────────────────────────────────────────
+
+model Subscription {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  companyId        String    @unique @map("company_id") @db.Uuid
+  /// Plan i status nisu enum u §5 (npr. trial, active, past_due, cancelled).
+  plan             String
+  status           String
+  trialEndsAt      DateTime? @map("trial_ends_at") @db.Timestamptz(3)
+  currentPeriodEnd DateTime? @map("current_period_end") @db.Timestamptz(3)
+  providerRef      String?   @map("provider_ref")
+
+  company          Company   @relation(fields: [companyId], references: [id])
+
+  @@map("subscriptions")
+}

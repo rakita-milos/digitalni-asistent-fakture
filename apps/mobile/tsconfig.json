@@ -1,0 +1,5 @@
+{
+  "extends": "@digitalni-asistent/config/tsconfig/react-native.json",
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules", "android"]
+}

@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+  PNPM_VERSION: '10.34.9'
+  TURBO_TELEMETRY_DISABLED: '1'
+
+jobs:
+  verify:
+    name: lint / typecheck / test / build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: digitalni
+          POSTGRES_PASSWORD: digitalni
+          POSTGRES_DB: digitalni_asistent
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U digitalni -d digitalni_asistent"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://digitalni:digitalni@localhost:5432/digitalni_asistent?schema=public
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Instalacija zavisnosti
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Testovi
+        run: pnpm test
+
+      - name: Build (web + api + shared)
+        run: pnpm build
+
+      - name: Prisma schema validacija
+        run: pnpm --filter api exec prisma validate
+
+      - name: Prisma migracije (deploy na CI bazu)
+        run: pnpm --filter api exec prisma migrate deploy
+
+      - name: Prisma status
+        run: pnpm --filter api exec prisma migrate status
+
+  compose:
+    name: docker compose config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validiraj docker-compose.yml
+        run: docker compose -f infra/docker-compose.yml config --quiet
