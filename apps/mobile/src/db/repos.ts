@@ -98,3 +98,13 @@ export async function saveCustomer(
 ): Promise<void> {
   await upsertCustomers(db, [{ ...customer, archivedAt: null }]);
 }
+
+/** `meta` tabela — lokalno stanje koje nije dio sync-a (npr. napredak setup-a). */
+export async function getMeta(db: SqlDb, key: string): Promise<string | null> {
+  const rows = await db.query<{ value: string }>('SELECT value FROM meta WHERE key = ?', [key]);
+  return rows[0]?.value ?? null;
+}
+
+export async function setMeta(db: SqlDb, key: string, value: string): Promise<void> {
+  await db.execute('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)', [key, value]);
+}

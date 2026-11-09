@@ -1,6 +1,8 @@
+import type { CreateTaxRateInput } from '@digitalni-asistent/shared';
+
 import { apiRequest } from './client';
 
-/** Katalog artikala i porezne stope — puni M-05 formu (§6: GET /items, GET /tax-rates). */
+/** Katalog artikala i porezne stope — pune M-05 formu i M-02 setup (§6). */
 
 export interface ItemDto {
   id: string;
@@ -34,4 +36,8 @@ export function listItems(limit = 100): Promise<ItemListResponse> {
 
 export function listTaxRates(): Promise<TaxRateListResponse> {
   return apiRequest<TaxRateListResponse>('/tax-rates');
+}
+
+export function createTaxRate(input: CreateTaxRateInput): Promise<TaxRateDto> {
+  return apiRequest<TaxRateDto>('/tax-rates', { method: 'POST', body: input });
 }

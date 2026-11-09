@@ -22,8 +22,10 @@ import {
   createPayment,
   getInvoice,
   issueInvoice,
+  refundInvoice,
   type InvoiceDetailDto,
 } from '../api/invoices';
+import { sendInvoiceReminder } from '../api/reminders';
 import {
   formatDate,
   formatFening,
@@ -52,8 +54,10 @@ export function InvoiceDetailScreen({ route }: Props) {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [paymentVisible, setPaymentVisible] = useState(false);
+  const [refundVisible, setRefundVisible] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -82,6 +86,7 @@ export function InvoiceDetailScreen({ route }: Props) {
 
     try {
       await issueInvoice(invoiceId);
+      setInfoMessage('Faktura je izdata i fiskalizovana.');
       await load();
     } catch (caught) {
       setActionError(
@@ -93,12 +98,31 @@ export function InvoiceDetailScreen({ route }: Props) {
     }
   }
 
+  async function handleRemind(): Promise<void> {
+    setActionError(null);
+    setInfoMessage(null);
+    setIsBusy(true);
+
+    try {
+      await sendInvoiceReminder(invoiceId);
+      setInfoMessage('Podsjetnik je poslan kupcu.');
+    } catch (caught) {
+      setActionError(
+        caught instanceof ApiError ? caught.message : 'Podsjetnik nije poslan. Provjerite mrežu.',
+      );
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
   async function handleCancel(): Promise<void> {
     setActionError(null);
+    setInfoMessage(null);
     setIsBusy(true);
 
     try {
       await cancelInvoice(invoiceId);
+      setInfoMessage('Faktura je poništena — kreira se VOID dokument.');
       await load();
     } catch (caught) {
       setActionError(
@@ -141,6 +165,9 @@ export function InvoiceDetailScreen({ route }: Props) {
   const isDraft = invoice.status === 'DRAFT';
   const isProforma = invoice.type === 'ADVANCE';
   const canPay = isPayable(invoice.status) && outstandingFening > 0;
+  const canRemind = isPayable(invoice.status);
+  const canRefund =
+    invoice.transactionType === 'SALE' && invoice.paidFening > 0 && invoice.status !== 'CANCELLED';
   const canCancel =
     invoice.transactionType === 'SALE' &&
     invoice.paidFening === 0 &&
@@ -284,6 +311,7 @@ export function InvoiceDetailScreen({ route }: Props) {
       ) : null}
 
       {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
+      {infoMessage ? <Text style={styles.successNotice}>{infoMessage}</Text> : null}
 
       {isDraft && !isProforma ? (
         <Pressable
@@ -309,6 +337,28 @@ export function InvoiceDetailScreen({ route }: Props) {
         </Pressable>
       ) : null}
 
+      {canRemind ? (
+        <Pressable
+          style={[styles.secondaryButton, isBusy && styles.buttonDisabled]}
+          onPress={() => void handleRemind()}
+          disabled={isBusy}
+          testID="detail-remind"
+        >
+          <Text style={styles.secondaryButtonText}>Pošalji podsjetnik (SMS)</Text>
+        </Pressable>
+      ) : null}
+
+      {canRefund ? (
+        <Pressable
+          style={[styles.secondaryButton, isBusy && styles.buttonDisabled]}
+          onPress={() => setRefundVisible(true)}
+          disabled={isBusy}
+          testID="detail-refund"
+        >
+          <Text style={styles.secondaryButtonText}>Refundiraj</Text>
+        </Pressable>
+      ) : null}
+
       {canCancel ? (
         <Pressable
           style={[styles.dangerButton, isBusy && styles.buttonDisabled]}
@@ -327,6 +377,20 @@ export function InvoiceDetailScreen({ route }: Props) {
           onClose={() => setPaymentVisible(false)}
           onSaved={() => {
             setPaymentVisible(false);
+            setInfoMessage('Naplata je sačuvana.');
+            void load();
+          }}
+        />
+      ) : null}
+
+      {refundVisible ? (
+        <RefundModal
+          invoiceId={invoice.id}
+          paidFening={invoice.paidFening}
+          onClose={() => setRefundVisible(false)}
+          onSaved={() => {
+            setRefundVisible(false);
+            setInfoMessage('Refundacija je kreirana (novi REFUND dokument).');
             void load();
           }}
         />
@@ -439,6 +503,96 @@ function PaymentModal({ invoiceId, outstandingFening, onClose, onSaved }: Paymen
   );
 }
 
+interface RefundModalProps {
+  invoiceId: string;
+  paidFening: number;
+  onClose: () => void;
+  onSaved: () => void;
+}
+
+/** Refundacija (§7.7): novi REFUND dokument, iznos ≤ naplaćeno (kumulativno provjerava API). */
+function RefundModal({ invoiceId, paidFening, onClose, onSaved }: RefundModalProps) {
+  const [amount, setAmount] = useState(() => feningToPriceInput(paidFening));
+  const [note, setNote] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  function handleSubmit(): void {
+    setError(null);
+    const amountFening = parsePriceFening(amount);
+
+    if (amountFening === null || amountFening < 1) {
+      setError('Unesite ispravan iznos veći od 0.');
+      return;
+    }
+    if (amountFening > paidFening) {
+      setError(`Refundacija ne može biti veća od naplaćenog (${formatFening(paidFening)}).`);
+      return;
+    }
+
+    setIsSaving(true);
+
+    void (async () => {
+      try {
+        await refundInvoice(invoiceId, {
+          amountFening,
+          ...(note.trim() ? { note: note.trim() } : {}),
+        });
+        onSaved();
+      } catch (caught) {
+        setError(caught instanceof ApiError ? caught.message : 'Refundacija nije uspjela.');
+        setIsSaving(false);
+      }
+    })();
+  }
+
+  return (
+    <Modal visible animationType="slide" transparent onRequestClose={onClose}>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalSheet}>
+          <Text style={styles.cardTitle}>Refundacija</Text>
+          <Text style={styles.metaSmall}>Naplaćeno: {formatFening(paidFening)}</Text>
+
+          <Text style={styles.label}>Iznos (KM)</Text>
+          <TextInput
+            style={styles.input}
+            value={amount}
+            onChangeText={setAmount}
+            keyboardType="decimal-pad"
+            testID="refund-amount"
+          />
+
+          <Text style={styles.label}>Napomena</Text>
+          <TextInput
+            style={styles.input}
+            value={note}
+            onChangeText={setNote}
+            maxLength={500}
+            placeholder="Opciono"
+          />
+
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+
+          <Pressable
+            style={[styles.primaryButton, isSaving && styles.buttonDisabled]}
+            onPress={handleSubmit}
+            disabled={isSaving}
+            testID="refund-save"
+          >
+            <Text style={styles.primaryButtonText}>
+              {isSaving ? 'Čuvanje…' : 'Sačuvaj refundaciju'}
+            </Text>
+          </Pressable>
+
+          <Pressable style={styles.linkButton} onPress={onClose} disabled={isSaving}>
+            <Text style={styles.linkButtonText}>Odustani</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB' },
   content: { padding: 16, paddingBottom: 32, gap: 8 },
@@ -516,6 +670,23 @@ const styles = StyleSheet.create({
     padding: 12,
     marginTop: 4,
   },
+  successNotice: {
+    backgroundColor: '#F0FDF4',
+    color: '#166534',
+    fontSize: 13,
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 8,
+  },
+  secondaryButton: {
+    borderWidth: 1,
+    borderColor: '#1D4ED8',
+    borderRadius: 10,
+    paddingVertical: 13,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  secondaryButtonText: { color: '#1D4ED8', fontSize: 15, fontWeight: '600' },
   label: { color: '#6B7280', fontSize: 12, marginTop: 10, marginBottom: 4 },
   input: {
     borderWidth: 1,

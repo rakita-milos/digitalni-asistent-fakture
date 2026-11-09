@@ -7,6 +7,7 @@ import {
   getInvoice,
   issueInvoice,
   listInvoices,
+  refundInvoice,
 } from './invoices';
 import { apiRequest } from './client';
 
@@ -100,6 +101,17 @@ describe('invoices API', () => {
     expect(apiRequestMock).toHaveBeenCalledWith('/invoices/invoice-1/cancel', {
       method: 'POST',
       body: {},
+    });
+  });
+
+  it('refundira fakturu (POST /invoices/:id/refund)', async () => {
+    apiRequestMock.mockResolvedValue({ id: 'refund-1' } as never);
+
+    await refundInvoice('invoice-1', { amountFening: 500, note: 'Djelimično' });
+
+    expect(apiRequestMock).toHaveBeenCalledWith('/invoices/invoice-1/refund', {
+      method: 'POST',
+      body: { amountFening: 500, note: 'Djelimično' },
     });
   });
 });

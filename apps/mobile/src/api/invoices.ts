@@ -1,4 +1,8 @@
-import type { CreateInvoiceInput, CreatePaymentInput } from '@digitalni-asistent/shared';
+import type {
+  CreateInvoiceInput,
+  CreatePaymentInput,
+  RefundInvoiceInput,
+} from '@digitalni-asistent/shared';
 
 import { apiRequest } from './client';
 
@@ -92,4 +96,12 @@ export function createPayment(id: string, input: CreatePaymentInput): Promise<Pa
 /** POST /invoices/:id/cancel — poništenje; vraća novi VOID dokument. */
 export function cancelInvoice(id: string): Promise<InvoiceDetailDto> {
   return apiRequest<InvoiceDetailDto>(`/invoices/${id}/cancel`, { method: 'POST', body: {} });
+}
+
+/** POST /invoices/:id/refund — refundacija; vraća novi REFUND dokument (§7.7). */
+export function refundInvoice(id: string, input: RefundInvoiceInput): Promise<InvoiceDetailDto> {
+  return apiRequest<InvoiceDetailDto>(`/invoices/${id}/refund`, {
+    method: 'POST',
+    body: input,
+  });
 }
