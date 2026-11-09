@@ -1,9 +1,13 @@
+import type { CreateInvoiceInput, CreatePaymentInput } from '@digitalni-asistent/shared';
+
 import { apiRequest } from './client';
 
 export interface InvoiceSummaryDto {
   id: string;
   number: string;
   status: string;
+  type: string;
+  transactionType: string;
   currency: string;
   issueDate: string;
   dueDate: string;
@@ -17,6 +21,46 @@ export interface InvoiceListResponse {
   total: number;
 }
 
+export interface InvoiceLineDto {
+  id: string;
+  position: number;
+  description: string;
+  qtyMilli: number;
+  unitPriceFening: number;
+  discountBp: number;
+  taxRateBp: number;
+  lineSubtotalFening: number;
+  lineTaxFening: number;
+  lineTotalFening: number;
+}
+
+export interface PaymentDto {
+  id: string;
+  amountFening: number;
+  method: string;
+  paidAt: string;
+  note: string | null;
+}
+
+/** GET /invoices/:id — detalj (§6). Iznosi su u feningu, datumi ISO stringovi. */
+export interface InvoiceDetailDto extends InvoiceSummaryDto {
+  subtotalFening: number;
+  taxFening: number;
+  note: string | null;
+  paymentMethod: string | null;
+  fiscalPfr: string | null;
+  fiscalQrPayload: string | null;
+  fiscalAt: string | null;
+  originalInvoiceId: string | null;
+  lines: InvoiceLineDto[];
+  payments: PaymentDto[];
+}
+
+export interface PaymentResult {
+  payment: PaymentDto;
+  invoice: InvoiceDetailDto;
+}
+
 export function listInvoices(
   params: { status?: string; limit?: number } = {},
 ): Promise<InvoiceListResponse> {
@@ -26,4 +70,26 @@ export function listInvoices(
 
   const suffix = query.toString();
   return apiRequest<InvoiceListResponse>(`/invoices${suffix ? `?${suffix}` : ''}`);
+}
+
+export function getInvoice(id: string): Promise<InvoiceDetailDto> {
+  return apiRequest<InvoiceDetailDto>(`/invoices/${id}`);
+}
+
+export function createInvoice(input: CreateInvoiceInput): Promise<InvoiceDetailDto> {
+  return apiRequest<InvoiceDetailDto>('/invoices', { method: 'POST', body: input });
+}
+
+/** POST /invoices/:id/issue — fiskalizacija + dodjela broja (§7.5). */
+export function issueInvoice(id: string): Promise<InvoiceDetailDto> {
+  return apiRequest<InvoiceDetailDto>(`/invoices/${id}/issue`, { method: 'POST', body: {} });
+}
+
+export function createPayment(id: string, input: CreatePaymentInput): Promise<PaymentResult> {
+  return apiRequest<PaymentResult>(`/invoices/${id}/payments`, { method: 'POST', body: input });
+}
+
+/** POST /invoices/:id/cancel — poništenje; vraća novi VOID dokument. */
+export function cancelInvoice(id: string): Promise<InvoiceDetailDto> {
+  return apiRequest<InvoiceDetailDto>(`/invoices/${id}/cancel`, { method: 'POST', body: {} });
 }

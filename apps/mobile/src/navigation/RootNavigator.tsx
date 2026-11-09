@@ -5,6 +5,8 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { CustomerFormScreen } from '../screens/CustomerFormScreen';
 import { CustomersScreen } from '../screens/CustomersScreen';
 import { HomeScreen } from '../screens/HomeScreen';
+import { InvoiceDetailScreen } from '../screens/InvoiceDetailScreen';
+import { InvoiceFormScreen } from '../screens/InvoiceFormScreen';
 import { InvoicesScreen } from '../screens/InvoicesScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { useAuthStore } from '../state/authStore';
@@ -13,6 +15,8 @@ export type RootStackParamList = {
   Login: undefined;
   Home: undefined;
   Invoices: undefined;
+  InvoiceForm: undefined;
+  InvoiceDetail: { invoiceId: string; notice?: string };
   Customers: undefined;
   CustomerForm: undefined;
 };
@@ -27,7 +31,7 @@ function SplashScreen() {
   );
 }
 
-/** M-01 (prijava), M-11 (kupci) i privremeni Home dok ne dođu M-03/M-04. */
+/** M-01 (prijava), M-03 (početna), M-04/M-05/M-08 (fakture), M-11 (kupci). */
 export function RootNavigator() {
   const status = useAuthStore((state) => state.status);
 
@@ -45,6 +49,16 @@ export function RootNavigator() {
               name="Invoices"
               component={InvoicesScreen}
               options={{ headerShown: true, title: 'Fakture' }}
+            />
+            <Stack.Screen
+              name="InvoiceForm"
+              component={InvoiceFormScreen}
+              options={{ headerShown: true, title: 'Nova faktura' }}
+            />
+            <Stack.Screen
+              name="InvoiceDetail"
+              component={InvoiceDetailScreen}
+              options={{ headerShown: true, title: 'Faktura' }}
             />
             <Stack.Screen
               name="Customers"

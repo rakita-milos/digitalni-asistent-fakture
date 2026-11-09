@@ -89,10 +89,18 @@ export function HomeScreen({ navigation }: Props) {
 
       <Pressable
         style={styles.primary}
+        onPress={() => navigation.navigate('InvoiceForm')}
+        testID="home-new-invoice"
+      >
+        <Text style={styles.primaryText}>+ Nova faktura</Text>
+      </Pressable>
+
+      <Pressable
+        style={styles.secondary}
         onPress={() => navigation.navigate('Invoices')}
         testID="home-invoices"
       >
-        <Text style={styles.primaryText}>Fakture</Text>
+        <Text style={styles.secondaryText}>Fakture</Text>
       </Pressable>
 
       <Pressable
