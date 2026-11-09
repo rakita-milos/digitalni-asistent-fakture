@@ -14,6 +14,9 @@ export default defineConfig({
     globals: true,
     pool: 'threads',
     fileParallelism: false,
+    // Bootstrap Nest aplikacije (Nest DI + Prisma + pdfkit/qrcode import) traje > 10 s na hladno.
+    hookTimeout: 60_000,
+    testTimeout: 30_000,
     setupFiles: ['test/setup.ts'],
   },
   plugins: [

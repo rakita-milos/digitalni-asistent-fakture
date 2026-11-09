@@ -15,6 +15,7 @@ const STATUS_TO_CODE: Partial<Record<number, ErrorCode>> = {
   [HttpStatus.UNPROCESSABLE_ENTITY]: ERROR_CODES.VALIDATION_ERROR,
   [HttpStatus.TOO_MANY_REQUESTS]: ERROR_CODES.RATE_LIMITED,
   [HttpStatus.SERVICE_UNAVAILABLE]: ERROR_CODES.SERVICE_UNAVAILABLE,
+  [HttpStatus.BAD_GATEWAY]: ERROR_CODES.BAD_GATEWAY,
 };
 
 const DEFAULT_MESSAGES: Partial<Record<number, string>> = {
@@ -25,6 +26,7 @@ const DEFAULT_MESSAGES: Partial<Record<number, string>> = {
   [HttpStatus.CONFLICT]: 'Konflikt',
   [HttpStatus.TOO_MANY_REQUESTS]: 'Previše pokušaja',
   [HttpStatus.SERVICE_UNAVAILABLE]: 'Servis privremeno nedostupan',
+  [HttpStatus.BAD_GATEWAY]: 'Fiskalizacija nije uspjela',
   [HttpStatus.INTERNAL_SERVER_ERROR]: 'Interna greška',
 };
 

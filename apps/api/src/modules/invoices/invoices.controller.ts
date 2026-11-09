@@ -6,9 +6,11 @@ import {
   Patch,
   Post,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
 
 import type {
   CreateInvoiceInput,
@@ -28,6 +30,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
+import { InvoicePdfService } from './invoice-pdf.service';
 import { InvoicesService } from './invoices.service';
 
 @ApiTags('invoices')
@@ -35,7 +38,10 @@ import { InvoicesService } from './invoices.service';
 @Controller('invoices')
 @UseGuards(JwtAuthGuard)
 export class InvoicesController {
-  constructor(private readonly invoices: InvoicesService) {}
+  constructor(
+    private readonly invoices: InvoicesService,
+    private readonly pdf: InvoicePdfService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Lista faktura (status, period, kupac, pretraga broja)' })
@@ -76,5 +82,31 @@ export class InvoicesController {
     @Body(new ZodValidationPipe(updateInvoiceSchema)) body: UpdateInvoiceInput,
   ) {
     return this.invoices.update(user.companyId, id, body);
+  }
+
+  @Post(':id/issue')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'worker')
+  @ApiOperation({ summary: 'Izdavanje: fiskalizacija (ESIR adapter) + dodjela broja' })
+  issue(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', new ZodValidationPipe(uuidV7Schema)) id: string,
+  ) {
+    return this.invoices.issue(user.companyId, user.id, id);
+  }
+
+  @Get(':id/pdf')
+  @ApiOperation({ summary: 'PDF računa (A4, PFR + QR)' })
+  async pdfDocument(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', new ZodValidationPipe(uuidV7Schema)) id: string,
+    @Res() response: Response,
+  ): Promise<void> {
+    const buffer = await this.pdf.render(user.companyId, id);
+
+    response.setHeader('Content-Type', 'application/pdf');
+    response.setHeader('Content-Disposition', `inline; filename="faktura-${id}.pdf"`);
+    response.setHeader('Content-Length', buffer.length.toString());
+    response.send(buffer);
   }
 }

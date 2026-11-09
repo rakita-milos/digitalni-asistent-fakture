@@ -36,6 +36,8 @@ const envSchema = z.object({
   JWT_REFRESH_TTL: z.string().default('30d'),
   RATE_LIMIT_ENABLED: z.enum(['true', 'false']).default('true'),
   SMS_PROVIDER: z.string().default('log'),
+  /// Fiskalizacija: 'mock' dok operater ne odgovori (G0); 'esir' nije implementiran.
+  ESIR_MODE: z.enum(['mock', 'esir']).default('mock'),
   OTP_TTL_SECONDS: z.coerce.number().int().min(60).max(3600).default(300),
 });
 

@@ -1,11 +1,11 @@
-# Digitalni Asistent — Sprint 0 + 1 + 2
+# Digitalni Asistent — Sprint 0–3
 
 SaaS za fakturisanje i naplatu za mikro-poduzeća u Republici Srpskoj.
 Jedini izvor istine za proizvod, model, API i pravila je
 [`MASTER_PROMPT_IZgradnja_Aplikacije.md`](../MASTER_PROMPT_IZgradnja_Aplikacije.md) (izvan repoa).
 
-Stanje: **Sprint 0** (kostur), **Sprint 1** (auth, firma, kupci, artikli) i **Sprint 2**
-(faktura: obračun, draft, lista, detalj — API + M-11 kupci na mobilnom).
+Stanje: **Sprint 0** (kostur), **Sprint 1** (auth, firma, kupci, artikli), **Sprint 2**
+(faktura: obračun, draft, lista, detalj) i **Sprint 3** (fiskalizacija mock, numeracija pri izdavanju, PDF/QR).
 
 ## Stack (fiksan, MASTER PROMPT §2)
 
@@ -16,7 +16,9 @@ Stanje: **Sprint 0** (kostur), **Sprint 1** (auth, firma, kupci, artikli) i **Sp
 | Web | Next.js App Router + Tailwind 4 | 15.5.x, Tailwind 4.3 |
 | API | NestJS + Swagger | 10.4.x |
 | ORM / baza | Prisma 6 + PostgreSQL 16 | Prisma 6.19.x |
-| Queue | Redis 7 (BullMQ dolazi u Sprintu 4) | redis:7-alpine |
+| Queue | Redis 7 (BullMQ dolazi u Sprintu 4/5) | redis:7-alpine |
+| PDF / QR | pdfkit + qrcode (DejaVu TTF) | 0.20.x / 1.5.x |
+| Fiskalizacija | ESIR adapter (mock do G0) | — |
 | Jezik | TypeScript strict | 5.9.3 |
 | Testovi | Vitest + Supertest (API/shared), Jest + RNTL-style renderer (mobile) | |
 
@@ -31,7 +33,7 @@ digitalni-asistent/
 │  │  │  └─ migrations/     # init + auth + numeracija po tipu (3 migracije)
 │  │  ├─ src/common/        # filter grešaka (§6), guardovi, Zod pipe
 │  │  ├─ src/config/        # validacija env varijabli
-│  │  ├─ src/modules/       # health, auth, company, customers, items, tax-rates, invoices
+│  │  ├─ src/modules/       # health, auth, company, customers, items, tax-rates, invoices, fiscal
 │  │  └─ test/              # e2e (Supertest + prava baza/Redis)
 │  ├─ web/                  # Next.js App Router (W-01…W-08: Sprint 4+)
 │  └─ mobile/               # React Native bare — M-01 prijava (Sprint 1)
@@ -116,11 +118,27 @@ API rute su bez globalnog prefiksa (`/auth`, `/company`, `/customers`…) — ta
 | GET / POST | `/tax-rates` | JWT | **POST nije u §6** — dodato u Sprintu 1 (setup korak „porezi“) |
 | GET / POST | `/invoices` | JWT | lista sa filterima (`status`, `from`/`to`, `customerId`, `q`) i paginacijom; POST = DRAFT |
 | GET / PATCH | `/invoices/:id` | JWT | detalj sa linijama; PATCH samo dok je `DRAFT` (409 inače) |
+| POST | `/invoices/:id/issue` | JWT | fiskalizacija preko ESIR adaptera + dodjela broja; `ADVANCE` (PRAČUN) se ne fiskalizuje |
+| GET | `/invoices/:id/pdf` | JWT | PDF (A4, PFR + QR 45 mm) — stream ili signed URL (vidi odluke) |
 | GET | `/health` | — | infra ruta (Docker/CI) |
 
 Sigurnost: argon2id hash lozinki, access 15 min / refresh 30 dana, refresh hash (SHA-256) u `devices`
 (tabela nema novu kolonu? ima: `refresh_token_hash`, `refresh_expires_at`), rate limiting u Redis-u,
 Zod validacija svakog ulaza, `company_id` scope na svakom upitu (IDOR zaštita).
+
+### Sprint 3 — fiskalizacija i PDF
+
+- **Fiskalni adapter** (`src/modules/fiscal`): interfejs `FiscalAdapter` + `MockFiscalAdapter`.
+  `ESIR_MODE=mock` (default) vraća placeholder PFR (`MOCK-{JIB}-{hex}`) i QR payload;
+  stvarni format zavisi od Pravilnika i odgovora operatera (G0). `ESIR_MODE=esir` namjerno pada pri startu
+  dok integracija ne postoji — bolje ne izdati račun nego izdati nefiskalni.
+- **Izdavanje** (`POST /invoices/:id/issue`): ESIR → pa tek onda `ISSUED`; ako ESIR padne, faktura ide u
+  `PENDING_FISCAL`, upisuje se `fiscal_records` sa statusom `FAILED` i vraća se 502 (`BAD_GATEWAY`).
+  Uspjeh upisuje `fiscal_records` + `audit_log` (`invoice.issue`) i dodjeljuje broj u istoj transakciji.
+- **Numeracija pri izdavanju:** `SELECT ... FOR UPDATE` na redu firme, brojači po tipu, reset na 1 za novu godinu,
+  `{year}-{seq:4}` (opciono `numbering_prefix`). Bez rupa — draftovi nikad ne troše broj.
+- **PDF** (`pdfkit` + `qrcode` + DejaVu TTF za č/ć/š/ž/đ): zaglavlje firme, kupac, tabela stavki,
+  osnovica/PDV/ukupno, PFR i QR 45 mm; `PRAČUN` oznaka za `ADVANCE`.
 
 ### Mobilna aplikacija (Sprint 1–2)
 
@@ -148,9 +166,9 @@ Zod validacija svakog ulaza, `company_id` scope na svakom upitu (IDOR zaštita).
 
 - `packages/shared` — 45 testova: Zod šeme auth/company/customer/item/taxRate/invoice, numeracija,
   JIB, telefon, UUID v7, enumi, error envelope.
-- `apps/api` — 38 testova: e2e auth (register/login/refresh/OTP), firma (owner vs worker), kupci,
-  IDOR izolacija, artikli, porezne stope, **fakture** (obračun, draft, filteri, detalj, DRAFT-only izmjena),
-  unit testovi obračuna (§7.3: base/discount/net/tax/total, half-up) i filtera grešaka.
+- `apps/api` — 45 testova: e2e auth, firma, kupci, IDOR, artikli, porezi, **fakture** (obračun, draft, filteri,
+  detalj, DRAFT-only izmjena), **fiskalizacija** (izdavanje + numeracija bez rupa, ponovno izdavanje 409,
+  PRAČUN 409, PDF sa PFR/QR, ESIR pad → `PENDING_FISCAL` + 502), unit testovi obračuna i filtera grešaka.
 - `apps/mobile` — 11 testova: API klijent, kupci API, auth store.
 
 E2E testovi koriste pravu bazu i Redis (CI ih diže kao service kontejnere) i `RATE_LIMIT_ENABLED=false`
@@ -185,11 +203,21 @@ Android Gradle build **nije** u CI-ju (dogovoreno: lint/typecheck/test za mobile
 11. **Numeracija (Sprint 2):** `unique(company_id, type, number)` + `companies.numbering_next_advance`;
     broj `{year}-{seq:4}` se dodjeljuje **pri izdavanju** (Sprint 3), a draft nosi privremeni `DRAFT-…` broj —
     tako nema rupa u zakonskoj numeraciji. `formatInvoiceNumber` je u `shared` i pokriven testovima.
+12. **Fiskalizacija (Sprint 3):** adapter pattern; `ESIR_MODE=mock` do G0. Faktura je `ISSUED` samo poslije
+    uspješnog ESIR odgovora; pad → `PENDING_FISCAL` + `fiscal_records(FAILED)` + 502. Retry queue (BullMQ)
+    dolazi u Sprintu 4/5.
+13. **PRAČUN se ne fiskalizuje** — `POST /invoices/:id/issue` vraća 409 za `ADVANCE`; konverzija PRAČUN → faktura
+    je poseban tok (Sprint 4), jer §6 nema rutu za konverziju.
+14. **PDF:** `GET /invoices/:id/pdf` za sada **streamuje** PDF (`application/pdf`). §6 traži signed URL preko R2;
+    to se uključuje kad budu R2 kredencijali (bez njih se ne može testirati).
 
 ## Otvorena pitanja (iz MASTER PROMPT-a, ne rješavati u kodu)
 
-- **Numeracija:** odluka donesena (po tipu, broj pri izdavanju), ali **alokator** broja (transakcija + brojači)
-  dolazi uz `POST /invoices/:id/issue` u Sprintu 3. Do tada su draftovi na `DRAFT-…`.
+- **Numeracija:** odluka donesena i alokator implementiran pri izdavanju; ostaje da se potvrdi format
+  sa računovođom/operaterom (prefix, dužina).
+- **PFR/QR format** — mock je placeholder; pravi sadržaj zavisi od Pravilnika (95/25) i ESIR odgovora (G0).
+- **R2 signed URL** — PDF se za sada streamuje; R2 upload dolazi uz kredencijale.
+- **Retry queue (BullMQ)** — `PENDING_FISCAL` se ne ponavlja automatski; queue je Sprint 4/5.
 - **JIB checksum** — za sada se provjerava samo 13 cifara.
 - **SMS provajder** i **brend** (ime/logo, `com.digitalniasistent` je privremeni applicationId).
 - **ESIR model (G0)** — do odgovora operatera radi se mock adapter (Sprint 3).
