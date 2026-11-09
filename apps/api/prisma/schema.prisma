@@ -221,6 +221,8 @@ model Invoice {
   customerId      String        @map("customer_id") @db.Uuid
   number          String
   type            InvoiceType
+  /// Sprint 5: SALE za običnu fakturu, VOID za storno, REFUND za refundaciju (§7.6–7.7).
+  transactionType TransactionType @default(SALE) @map("transaction_type")
   status          InvoiceStatus
   issueDate       DateTime      @map("issue_date") @db.Timestamptz(3)
   dueDate         DateTime      @map("due_date") @db.Timestamptz(3)

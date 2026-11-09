@@ -1,4 +1,4 @@
-# Digitalni Asistent — Sprint 0–4
+# Digitalni Asistent — Sprint 0–5
 
 SaaS za fakturisanje i naplatu za mikro-poduzeća u Republici Srpskoj.
 Jedini izvor istine za proizvod, model, API i pravila je
@@ -120,6 +120,8 @@ API rute su bez globalnog prefiksa (`/auth`, `/company`, `/customers`…) — ta
 | GET / PATCH | `/invoices/:id` | JWT | detalj sa linijama; PATCH samo dok je `DRAFT` (409 inače) |
 | POST | `/invoices/:id/issue` | JWT | fiskalizacija preko ESIR adaptera + dodjela broja; `ADVANCE` (PRAČUN) se ne fiskalizuje |
 | GET | `/invoices/:id/pdf` | JWT | PDF (A4, PFR + QR 45 mm) — stream ili signed URL (vidi odluke) |
+| POST | `/invoices/:id/cancel` | JWT | storno: novi VOID zapis sa brojem, original prelazi u `CANCELLED` |
+| POST | `/invoices/:id/refund` | JWT | refundacija: novi REFUND zapis, iznos ≤ naplaćeno |
 | POST | `/invoices/:id/payments` | JWT | naplata (puna/djelimična); preplata se odbija |
 | GET / PUT | `/reminder-settings` | owner | plan (max 4) i šablon podsjetnika |
 | POST | `/invoices/:id/remind` | JWT | ručni SMS podsjetnik |
@@ -158,6 +160,18 @@ Zod validacija svakog ulaza, `company_id` scope na svakom upitu (IDOR zaštita).
   `GET /reports/monthly` (izdato/naplaćeno po mjesecu).
 - **Mobilna**: M-03 Početna (KPI + aging) i M-04 Fakture (lista sa statusima).
 
+### Sprint 5 — poništenje i refundacija
+
+- **Šema:** `invoices.transaction_type` (`SALE`/`VOID`/`REFUND`) — kolona je dodata u Sprintu 5
+  (odluka iz kickoff-a), migracija `20261109120000_invoice_transaction_type`.
+- **Poništenje** (`POST /invoices/:id/cancel`): kreira **novi VOID zapis** sa sopstvenim brojem i kopijom
+  stavki/totala, vezan preko `original_invoice_id`; original ostaje u bazi, status → `CANCELLED`.
+  Dozvoljeno samo za izdatu fakturu bez naplate (plaćena → 409 „koristite refundaciju“).
+- **Refundacija** (`POST /invoices/:id/refund`): novi **REFUND zapis** (status `ISSUED`) sa jednom stavkom
+  „Refundacija po računu X“; iznos ≤ naplaćeno i kumulativno ograničen na naplaćeno; original ostaje `PAID`.
+- **Napomena:** VOID/REFUND zapisi se za sada **ne fiskalizuju** (storno fiskalizacija zavisi od modela operatera, G0);
+  PDV tretman refundacije je pojednostavljen (jedna stavka, stopa 0) — potvrditi sa računovođom.
+
 ### Mobilna aplikacija (Sprint 1–4)
 
 - M-01 Prijava (`src/screens/LoginScreen.tsx`) — React Hook Form + Zod šema iz `shared`.
@@ -177,7 +191,7 @@ Zod validacija svakog ulaza, `company_id` scope na svakom upitu (IDOR zaštita).
 |---|---|
 | `pnpm lint` | ESLint (flat config) u svim paketima |
 | `pnpm typecheck` | `tsc --noEmit` u svim paketima |
-| `pnpm test` | Vitest (shared, api) + Jest (mobile) |
+| `pnpm test` | Vitest (shared, api) + Jest (mobile) — sekvencijalno po paketima |
 | `pnpm build` | shared → api → web (mobile Gradle build nije u CI-ju) |
 | `pnpm format` / `format:check` | Prettier |
 | `pnpm db:*` | Docker baza, migracije, Prisma Studio |
@@ -186,10 +200,12 @@ Zod validacija svakog ulaza, `company_id` scope na svakom upitu (IDOR zaštita).
 
 - `packages/shared` — 45 testova: Zod šeme auth/company/customer/item/taxRate/invoice, numeracija,
   JIB, telefon, UUID v7, enumi, error envelope.
-- `apps/api` — 56 testova: e2e auth, firma, kupci, IDOR, artikli, porezi, fakture (obračun, draft, filteri,
+- `apps/api` — 62 testa: e2e auth, firma, kupci, IDOR, artikli, porezi, fakture (obračun, draft, filteri,
   DRAFT-only izmjena), fiskalizacija (izdavanje + numeracija bez rupa, PRAČUN 409, PDF, ESIR pad),
-  **naplata** (djelimična/puna, preplata 400, DRAFT 409, IDOR), **podsjetnici** (default podešavanja, šablon,
-  plan pri izdavanju, ručni SMS, plaćena faktura 409), **izvještaji** (aging, mjesečni), unit testovi obračuna.
+  naplata (djelimična/puna, preplata 400, DRAFT 409, IDOR), podsjetnici (default podešavanja, šablon,
+  plan pri izdavanju, ručni SMS, plaćena faktura 409), izvještaji (aging, mjesečni),
+  **storno/refundacija** (VOID zapis + broj, refund ≤ naplaćeno, kumulativno ograničenje, IDOR),
+  unit testovi obračuna.
 - `apps/mobile` — 13 testova: API klijent, kupci API, fakture API, auth store.
 
 E2E testovi koriste pravu bazu i Redis (CI ih diže kao service kontejnere) i `RATE_LIMIT_ENABLED=false`
@@ -235,6 +251,9 @@ Android Gradle build **nije** u CI-ju (dogovoreno: lint/typecheck/test za mobile
 16. **Šablon podsjetnika** koristi `{broj}`, `{iznos}`, `{rok}`, `{firma}`; `{broj}` i `{iznos}` su obavezni (§7.9).
 17. **Automatski podsjetnici** se planiraju (`SCHEDULED`) pri izdavanju; slanje radi worker u Sprintu 5.
     Opt-out kupca nema polje u §5, pa se za sada ne može poštovati.
+18. **VOID/REFUND su nova dokumenta** sa sopstvenim brojem i referencom; original se ne briše (§7.6–7.7).
+19. **VOID/REFUND se ne fiskalizuju** dok operater ne definiše storno model (G0); refundacija ima jednu stavku
+    sa stopom 0 (PDV tretman potvrditi sa računovođom).
 
 ## Otvorena pitanja (iz MASTER PROMPT-a, ne rješavati u kodu)
 
@@ -246,6 +265,8 @@ Android Gradle build **nije** u CI-ju (dogovoreno: lint/typecheck/test za mobile
 - **Kredit kupca pri preplati** — nema polja/tabele u §5; preplata se za sada odbija.
 - **Opt-out podsjetnika** — nema polja na `customers`/`users`; §7.9 traži da se poštuje.
 - **`Idempotency-Key`** (§21) — nije implementiran za POST fakture/naplate.
+- **Storno fiskalizacija** — VOID/REFUND zapisi nemaju PFR; zavisi od modela operatera (G0).
+- **PDV tretman refundacije** — pojednostavljena jedna stavka sa stopom 0; potvrditi sa računovođom.
 - **JIB checksum** — za sada se provjerava samo 13 cifara.
 - **SMS provajder** i **brend** (ime/logo, `com.digitalniasistent` je privremeni applicationId).
 - **ESIR model (G0)** — do odgovora operatera radi se mock adapter (Sprint 3).

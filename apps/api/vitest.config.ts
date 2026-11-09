@@ -12,7 +12,10 @@ export default defineConfig({
     environment: 'node',
     include: ['src/**/*.spec.ts', 'test/**/*.e2e-spec.ts'],
     globals: true,
-    pool: 'threads',
+    // Jedan fork za sve fajlove (manje procesa => stabilnije na Windowsu sa native modulima),
+    // a `fileParallelism: false` drži redoslijed jer testovi dijele bazu i truncate-uju je.
+    pool: 'forks',
+    poolOptions: { forks: { singleFork: true } },
     fileParallelism: false,
     // Bootstrap Nest aplikacije (Nest DI + Prisma + pdfkit/qrcode import) traje > 10 s na hladno.
     hookTimeout: 60_000,

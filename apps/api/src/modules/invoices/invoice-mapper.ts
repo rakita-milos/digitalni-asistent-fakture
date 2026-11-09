@@ -1,4 +1,9 @@
-import type { InvoiceStatus, InvoiceType, PaymentMethod } from '@prisma/client';
+import type {
+  InvoiceStatus,
+  InvoiceType,
+  PaymentMethod,
+  TransactionType,
+} from '@prisma/client';
 
 /**
  * BigInt (fening) → number za JSON odgovore. Vrijednosti su daleko ispod 2^53,
@@ -28,6 +33,7 @@ export interface InvoiceSummaryRow {
   customerId: string;
   number: string;
   type: InvoiceType;
+  transactionType: TransactionType;
   status: InvoiceStatus;
   issueDate: Date;
   dueDate: Date;
@@ -82,6 +88,7 @@ export function toInvoiceSummaryDto(invoice: InvoiceSummaryRow) {
     customer: invoice.customer,
     number: invoice.number,
     type: invoice.type,
+    transactionType: invoice.transactionType,
     status: invoice.status,
     issueDate: invoice.issueDate,
     dueDate: invoice.dueDate,

@@ -9,6 +9,7 @@ export * from './schemas/invoice';
 export * from './schemas/item';
 export * from './schemas/numbering';
 export * from './schemas/payment';
+export * from './schemas/refund';
 export * from './schemas/reminder';
 export * from './schemas/report';
 export * from './schemas/taxRate';

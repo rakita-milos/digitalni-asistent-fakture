@@ -15,11 +15,13 @@ import type { Response } from 'express';
 import type {
   CreateInvoiceInput,
   InvoiceListQuery,
+  RefundInvoiceInput,
   UpdateInvoiceInput,
 } from '@digitalni-asistent/shared';
 import {
   createInvoiceSchema,
   invoiceListQuerySchema,
+  refundInvoiceSchema,
   updateInvoiceSchema,
   uuidV7Schema,
 } from '@digitalni-asistent/shared';
@@ -93,6 +95,29 @@ export class InvoicesController {
     @Param('id', new ZodValidationPipe(uuidV7Schema)) id: string,
   ) {
     return this.invoices.issue(user.companyId, user.id, id);
+  }
+
+  @Post(':id/cancel')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'worker')
+  @ApiOperation({ summary: 'Poništenje: novi VOID zapis + original prelazi u CANCELLED' })
+  cancel(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', new ZodValidationPipe(uuidV7Schema)) id: string,
+  ) {
+    return this.invoices.cancel(user.companyId, user.id, id);
+  }
+
+  @Post(':id/refund')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'worker')
+  @ApiOperation({ summary: 'Refundacija: novi REFUND zapis (iznos ≤ naplaćeno)' })
+  refund(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', new ZodValidationPipe(uuidV7Schema)) id: string,
+    @Body(new ZodValidationPipe(refundInvoiceSchema)) body: RefundInvoiceInput,
+  ) {
+    return this.invoices.refund(user.companyId, user.id, id, body);
   }
 
   @Get(':id/pdf')

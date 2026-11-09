@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   HttpException,
   HttpStatus,
@@ -14,6 +15,7 @@ import type {
   CreateInvoiceInput,
   InvoiceLineInput,
   InvoiceListQuery,
+  RefundInvoiceInput,
   UpdateInvoiceInput,
 } from '@digitalni-asistent/shared';
 import { formatDraftNumber, formatInvoiceNumber } from '@digitalni-asistent/shared';
@@ -285,6 +287,188 @@ export class InvoicesService {
     });
 
     return toInvoiceDetailDto(updated);
+  }
+
+  /**
+   * POST /invoices/:id/cancel — poništenje (§7.6).
+   * Novi VOID zapis sa referencom na original; original ostaje, ali prelazi u CANCELLED.
+   */
+  async cancel(companyId: string, userId: string, invoiceId: string) {
+    const original = await this.prisma.invoice.findFirst({
+      where: { id: invoiceId, companyId },
+      include: { lines: true },
+    });
+
+    if (!original) {
+      throw new NotFoundException('Faktura nije pronađena');
+    }
+    if (original.transactionType !== 'SALE') {
+      throw new ConflictException('Storno dokument se ne može poništiti');
+    }
+    if (original.paidFening > 0n) {
+      throw new ConflictException('Faktura sa naplatom se ne poništava — koristite refundaciju');
+    }
+    if (!['ISSUED', 'SENT', 'PARTIALLY_PAID', 'OVERDUE'].includes(original.status)) {
+      throw new ConflictException('Poništiti se može samo izdata faktura');
+    }
+
+    const voidDocument = await this.prisma.$transaction(async (tx) => {
+      const number = await this.allocateNumber(tx, companyId, original.type);
+
+      const created = await tx.invoice.create({
+        data: {
+          companyId,
+          customerId: original.customerId,
+          number,
+          type: original.type,
+          transactionType: 'VOID',
+          status: 'CANCELLED',
+          issueDate: new Date(),
+          dueDate: new Date(),
+          currency: original.currency,
+          subtotalFening: original.subtotalFening,
+          taxFening: original.taxFening,
+          totalFening: original.totalFening,
+          paidFening: 0n,
+          note: `Storno računa ${original.number}`,
+          originalInvoiceId: original.id,
+          createdBy: userId,
+          lines: {
+            create: original.lines.map((line) => ({
+              position: line.position,
+              description: line.description,
+              qtyMilli: line.qtyMilli,
+              unitPriceFening: line.unitPriceFening,
+              discountBp: line.discountBp,
+              taxRateBp: line.taxRateBp,
+              lineSubtotalFening: line.lineSubtotalFening,
+              lineTaxFening: line.lineTaxFening,
+              lineTotalFening: line.lineTotalFening,
+            })),
+          },
+        },
+        include: detailInclude,
+      });
+
+      await tx.invoice.update({
+        where: { id: original.id },
+        data: { status: 'CANCELLED' },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          companyId,
+          userId,
+          action: 'invoice.cancel',
+          entity: 'invoice',
+          entityId: original.id,
+          metaJson: toJson({ voidInvoiceId: created.id, number }),
+        },
+      });
+
+      return created;
+    });
+
+    return toInvoiceDetailDto(voidDocument);
+  }
+
+  /**
+   * POST /invoices/:id/refund — refundacija (§7.7).
+   * Novi REFUND zapis sa referencom; iznos ≤ naplaćeno (i ≤ original).
+   */
+  async refund(
+    companyId: string,
+    userId: string,
+    invoiceId: string,
+    input: RefundInvoiceInput,
+  ) {
+    const original = await this.prisma.invoice.findFirst({
+      where: { id: invoiceId, companyId },
+    });
+
+    if (!original) {
+      throw new NotFoundException('Faktura nije pronađena');
+    }
+    if (original.transactionType !== 'SALE') {
+      throw new ConflictException('Refundacija se veže samo na originalnu fakturu');
+    }
+
+    const refundable = original.paidFening;
+    if (refundable <= 0n) {
+      throw new ConflictException('Nema naplaćenih sredstava za refundaciju');
+    }
+
+    const amount = BigInt(input.amountFening);
+
+    const refundDocument = await this.prisma.$transaction(async (tx) => {
+      const alreadyRefunded = await tx.invoice.aggregate({
+        where: { originalInvoiceId: original.id, transactionType: 'REFUND' },
+        _sum: { totalFening: true },
+      });
+      const refunded = alreadyRefunded._sum.totalFening ?? 0n;
+
+      if (refunded + amount > refundable) {
+        throw new BadRequestException({
+          message: [
+            `Refundacija prelazi naplaćeni iznos (preostalo ${((Number(refundable) - Number(refunded)) / 100).toFixed(2)} KM)`,
+          ],
+        });
+      }
+
+      const number = await this.allocateNumber(tx, companyId, original.type);
+
+      const created = await tx.invoice.create({
+        data: {
+          companyId,
+          customerId: original.customerId,
+          number,
+          type: original.type,
+          transactionType: 'REFUND',
+          status: 'ISSUED',
+          issueDate: new Date(),
+          dueDate: new Date(),
+          currency: original.currency,
+          subtotalFening: amount,
+          taxFening: 0n,
+          totalFening: amount,
+          paidFening: 0n,
+          note: input.note ?? `Refundacija po računu ${original.number}`,
+          originalInvoiceId: original.id,
+          createdBy: userId,
+          lines: {
+            create: [
+              {
+                position: 1,
+                description: `Refundacija po računu ${original.number}`,
+                qtyMilli: 1000,
+                unitPriceFening: amount,
+                discountBp: 0,
+                taxRateBp: 0,
+                lineSubtotalFening: amount,
+                lineTaxFening: 0n,
+                lineTotalFening: amount,
+              },
+            ],
+          },
+        },
+        include: detailInclude,
+      });
+
+      await tx.auditLog.create({
+        data: {
+          companyId,
+          userId,
+          action: 'invoice.refund',
+          entity: 'invoice',
+          entityId: original.id,
+          metaJson: toJson({ refundInvoiceId: created.id, number, amountFening: input.amountFening }),
+        },
+      });
+
+      return created;
+    });
+
+    return toInvoiceDetailDto(refundDocument);
   }
 
   /** Dodjela broja (§7.1): po firmi i tipu, monotono, bez rupa, reset na 1 svake godine. */
