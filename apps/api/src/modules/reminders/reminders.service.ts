@@ -12,26 +12,10 @@ import type { ListQuery } from '@digitalni-asistent/shared';
 
 import { PrismaService } from '../../prisma/prisma.service';
 import { SmsService } from '../auth/sms.service';
+import { formatDate, formatFening, renderTemplate } from './reminder-template';
 import { ReminderSettingsService } from './reminder-settings.service';
 
 const REMINDABLE_STATUSES = ['ISSUED', 'SENT', 'PARTIALLY_PAID', 'OVERDUE'] as const;
-
-function formatFening(value: bigint): string {
-  return `${(Number(value) / 100).toFixed(2)} KM`;
-}
-
-function formatDate(value: Date): string {
-  return new Intl.DateTimeFormat('bs-BA', {
-    timeZone: 'Europe/Sarajevo',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(value);
-}
-
-function renderTemplate(text: string, values: Record<string, string>): string {
-  return text.replace(/\{(broj|iznos|rok|firma)\}/g, (_match, key: string) => values[key] ?? '');
-}
 
 @Injectable()
 export class RemindersService {

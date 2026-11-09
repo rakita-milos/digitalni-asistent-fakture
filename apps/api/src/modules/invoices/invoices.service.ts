@@ -37,6 +37,10 @@ const detailInclude = {
   payments: { orderBy: { paidAt: 'desc' } },
 } satisfies Prisma.InvoiceInclude;
 
+type FiscalizableInvoice = Prisma.InvoiceGetPayload<{
+  include: { customer: true; lines: true; company: true };
+}>;
+
 @Injectable()
 export class InvoicesService {
   private readonly logger = new Logger(InvoicesService.name);
@@ -183,10 +187,7 @@ export class InvoicesService {
    * Redoslijed: ESIR odgovor → tek onda ISSUED; ako ESIR padne, faktura ostaje PENDING_FISCAL.
    */
   async issue(companyId: string, userId: string, invoiceId: string) {
-    const invoice = await this.prisma.invoice.findFirst({
-      where: { id: invoiceId, companyId },
-      include: { customer: true, lines: { orderBy: { position: 'asc' } }, company: true },
-    });
+    const invoice = await this.loadForFiscalization(companyId, invoiceId);
 
     if (!invoice) {
       throw new NotFoundException('Faktura nije pronađena');
@@ -199,6 +200,36 @@ export class InvoicesService {
         'PRAČUN se ne fiskalizuje — konverzija u fakturu dolazi u Sprintu 4',
       );
     }
+
+    const updated = await this.fiscalize(invoice, userId);
+    return toInvoiceDetailDto(updated);
+  }
+
+  /**
+   * Retry za PENDING_FISCAL (BullMQ worker). Vraća null ako faktura nije u PENDING_FISCAL.
+   * Backoff (1m/5m/15m/1h/6h) računa worker; ovdje se samo ponavlja fiskalizacija.
+   */
+  async retryPendingFiscal(companyId: string, invoiceId: string) {
+    const invoice = await this.loadForFiscalization(companyId, invoiceId);
+
+    if (!invoice || invoice.status !== 'PENDING_FISCAL') {
+      return null;
+    }
+
+    const updated = await this.fiscalize(invoice, invoice.createdBy);
+    this.logger.log(`Fiskalizacija ponovljena za ${invoice.id}: ${updated.number}`);
+    return toInvoiceDetailDto(updated);
+  }
+
+  private loadForFiscalization(companyId: string, invoiceId: string) {
+    return this.prisma.invoice.findFirst({
+      where: { id: invoiceId, companyId },
+      include: { customer: true, lines: { orderBy: { position: 'asc' } }, company: true },
+    });
+  }
+
+  private async fiscalize(invoice: FiscalizableInvoice, userId: string | null) {
+    const companyId = invoice.companyId;
 
     const fiscalData: FiscalInvoiceData = {
       number: invoice.number,
@@ -243,7 +274,7 @@ export class InvoicesService {
       );
     }
 
-    const updated = await this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx) => {
       const number = await this.allocateNumber(tx, companyId, invoice.type);
 
       const invoiceUpdated = await tx.invoice.update({
@@ -285,8 +316,6 @@ export class InvoicesService {
 
       return invoiceUpdated;
     });
-
-    return toInvoiceDetailDto(updated);
   }
 
   /**

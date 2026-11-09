@@ -95,6 +95,7 @@ pnpm db:studio                                     # Prisma Studio
 ```bash
 pnpm dev                       # turbo: shared (watch) + api + web
 pnpm --filter api dev          # samo API  -> http://localhost:3001 (Swagger: /docs)
+pnpm --filter api worker       # worker: podsjetnici + fiskalni retry (nakon `pnpm build`)
 pnpm --filter web dev          # samo web  -> http://localhost:3000
 pnpm --filter @digitalni-asistent/mobile start     # Metro
 pnpm --filter @digitalni-asistent/mobile android   # RN na emulator/uređaj
@@ -171,6 +172,11 @@ Zod validacija svakog ulaza, `company_id` scope na svakom upitu (IDOR zaštita).
   „Refundacija po računu X“; iznos ≤ naplaćeno i kumulativno ograničen na naplaćeno; original ostaje `PAID`.
 - **Napomena:** VOID/REFUND zapisi se za sada **ne fiskalizuju** (storno fiskalizacija zavisi od modela operatera, G0);
   PDV tretman refundacije je pojednostavljen (jedna stavka, stopa 0) — potvrditi sa računovođom.
+- **Worker (BullMQ)** — odvojen proces (`pnpm --filter api worker` nakon `pnpm build`):
+  - `reminders`: svakih 60 s šalje `SCHEDULED` podsjetnike kojima je vrijeme došlo; preskače plaćene/poništene
+    i kupce bez telefona (`CANCELLED`/`FAILED`);
+  - `fiscal-retry`: svakih 5 min ponavlja fiskalizaciju `PENDING_FISCAL` sa backoff-om **1m/5m/15m/1h/6h**
+    (§7.5), max 5 pokušaja, alarm u logu ako čeka > 3 dana.
 
 ### Mobilna aplikacija (Sprint 1–4)
 
@@ -200,11 +206,12 @@ Zod validacija svakog ulaza, `company_id` scope na svakom upitu (IDOR zaštita).
 
 - `packages/shared` — 45 testova: Zod šeme auth/company/customer/item/taxRate/invoice, numeracija,
   JIB, telefon, UUID v7, enumi, error envelope.
-- `apps/api` — 62 testa: e2e auth, firma, kupci, IDOR, artikli, porezi, fakture (obračun, draft, filteri,
+- `apps/api` — 68 testova: e2e auth, firma, kupci, IDOR, artikli, porezi, fakture (obračun, draft, filteri,
   DRAFT-only izmjena), fiskalizacija (izdavanje + numeracija bez rupa, PRAČUN 409, PDF, ESIR pad),
   naplata (djelimična/puna, preplata 400, DRAFT 409, IDOR), podsjetnici (default podešavanja, šablon,
   plan pri izdavanju, ručni SMS, plaćena faktura 409), izvještaji (aging, mjesečni),
-  **storno/refundacija** (VOID zapis + broj, refund ≤ naplaćeno, kumulativno ograničenje, IDOR),
+  storno/refundacija (VOID zapis + broj, refund ≤ naplaćeno, kumulativno ograničenje, IDOR),
+  **worker** (slanje podsjetnika, otkazivanje za plaćenu fakturu, fiskalni retry + backoff),
   unit testovi obračuna.
 - `apps/mobile` — 13 testova: API klijent, kupci API, fakture API, auth store.
 
@@ -241,10 +248,10 @@ Android Gradle build **nije** u CI-ju (dogovoreno: lint/typecheck/test za mobile
     broj `{year}-{seq:4}` se dodjeljuje **pri izdavanju** (Sprint 3), a draft nosi privremeni `DRAFT-…` broj —
     tako nema rupa u zakonskoj numeraciji. `formatInvoiceNumber` je u `shared` i pokriven testovima.
 12. **Fiskalizacija (Sprint 3):** adapter pattern; `ESIR_MODE=mock` do G0. Faktura je `ISSUED` samo poslije
-    uspješnog ESIR odgovora; pad → `PENDING_FISCAL` + `fiscal_records(FAILED)` + 502. Retry queue (BullMQ)
-    dolazi u Sprintu 4/5.
+    uspješnog ESIR odgovora; pad → `PENDING_FISCAL` + `fiscal_records(FAILED)` + 502. Retry radi worker
+    (Sprint 5) sa backoff-om iz §7.5.
 13. **PRAČUN se ne fiskalizuje** — `POST /invoices/:id/issue` vraća 409 za `ADVANCE`; konverzija PRAČUN → faktura
-    je poseban tok (Sprint 4), jer §6 nema rutu za konverziju.
+    je poseban tok (nema rute u §6).
 14. **PDF:** `GET /invoices/:id/pdf` za sada **streamuje** PDF (`application/pdf`). §6 traži signed URL preko R2;
     to se uključuje kad budu R2 kredencijali (bez njih se ne može testirati).
 15. **Preplata se odbija** (400): §7.8 traži `paid_fening ≤ total_fening`, a kredit kupca nema polje u §5.
@@ -254,6 +261,8 @@ Android Gradle build **nije** u CI-ju (dogovoreno: lint/typecheck/test za mobile
 18. **VOID/REFUND su nova dokumenta** sa sopstvenim brojem i referencom; original se ne briše (§7.6–7.7).
 19. **VOID/REFUND se ne fiskalizuju** dok operater ne definiše storno model (G0); refundacija ima jednu stavku
     sa stopom 0 (PDV tretman potvrditi sa računovođom).
+20. **Worker** je odvojen proces (BullMQ 6, `upsertJobScheduler`): podsjetnici 60 s, fiskalni retry 5 min
+    uz backoff iz §7.5; worker se ne pokreće u testovima (testira se direktno `scan()`).
 
 ## Otvorena pitanja (iz MASTER PROMPT-a, ne rješavati u kodu)
 
@@ -261,9 +270,10 @@ Android Gradle build **nije** u CI-ju (dogovoreno: lint/typecheck/test za mobile
   sa računovođom/operaterom (prefix, dužina).
 - **PFR/QR format** — mock je placeholder; pravi sadržaj zavisi od Pravilnika (95/25) i ESIR odgovora (G0).
 - **R2 signed URL** — PDF se za sada streamuje; R2 upload dolazi uz kredencijale.
-- **Retry queue (BullMQ)** — `PENDING_FISCAL` se ne ponavlja automatski; queue je Sprint 5.
-- **Kredit kupca pri preplati** — nema polja/tabele u §5; preplata se za sada odbija.
-- **Opt-out podsjetnika** — nema polja na `customers`/`users`; §7.9 traži da se poštuje.
+- **Retry queue** — worker postoji, ali `PENDING_FISCAL` stariji od 5 dana ostaje bez automatskog retryja
+  (max 5 pokušaja) — potreban ručni ishod/alarm u Sentry (Sprint 6).
+- **Opt-out podsjetnika** — nema polja na kupcu (§7.9 traži da se poštuje).
+- **Kredit kupca pri preplati** — nema polja/tabele u §5; preplata se odbija.
 - **`Idempotency-Key`** (§21) — nije implementiran za POST fakture/naplate.
 - **Storno fiskalizacija** — VOID/REFUND zapisi nemaju PFR; zavisi od modela operatera (G0).
 - **PDV tretman refundacije** — pojednostavljena jedna stavka sa stopom 0; potvrditi sa računovođom.
