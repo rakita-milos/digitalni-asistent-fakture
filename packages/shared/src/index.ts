@@ -12,5 +12,6 @@ export * from './schemas/payment';
 export * from './schemas/refund';
 export * from './schemas/reminder';
 export * from './schemas/report';
+export * from './schemas/sync';
 export * from './schemas/taxRate';
 export * from './validation';

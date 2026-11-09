@@ -48,9 +48,9 @@ export class CustomersService {
     return customer;
   }
 
-  async create(companyId: string, input: CreateCustomerInput) {
+  async create(companyId: string, input: CreateCustomerInput, id?: string) {
     return this.prisma.customer.create({
-      data: { companyId, ...input },
+      data: { ...(id ? { id } : {}), companyId, ...input },
     });
   }
 

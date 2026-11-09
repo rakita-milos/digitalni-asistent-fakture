@@ -9,6 +9,7 @@ import { ItemsModule } from './modules/items/items.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { RemindersModule } from './modules/reminders/reminders.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { SyncModule } from './modules/sync/sync.module';
 import { TaxRatesModule } from './modules/tax-rates/tax-rates.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
@@ -26,6 +27,7 @@ import { RedisModule } from './redis/redis.module';
     PaymentsModule,
     RemindersModule,
     ReportsModule,
+    SyncModule,
     TaxRatesModule,
   ],
 })

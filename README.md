@@ -129,6 +129,8 @@ API rute su bez globalnog prefiksa (`/auth`, `/company`, `/customers`…) — ta
 | GET | `/reminders` | JWT | lista podsjetnika firme |
 | GET | `/reports/receivables` | JWT | aging: current, 1-30, 31-60, 61-90, 90+ |
 | GET | `/reports/monthly` | JWT | izdato / naplaćeno po mjesecu |
+| POST | `/sync/push` | JWT | batch offline operacija (customer/invoice, idempotentno po `entityId`) |
+| GET | `/sync/pull` | JWT | delta kupaca i faktura (fakture od `since`) |
 | GET | `/health` | — | infra ruta (Docker/CI) |
 
 Sigurnost: argon2id hash lozinki, access 15 min / refresh 30 dana, refresh hash (SHA-256) u `devices`
@@ -177,6 +179,10 @@ Zod validacija svakog ulaza, `company_id` scope na svakom upitu (IDOR zaštita).
     i kupce bez telefona (`CANCELLED`/`FAILED`);
   - `fiscal-retry`: svakih 5 min ponavlja fiskalizaciju `PENDING_FISCAL` sa backoff-om **1m/5m/15m/1h/6h**
     (§7.5), max 5 pokušaja, alarm u logu ako čeka > 3 dana.
+- **Offline sync (API)** — `POST /sync/push` prima batch `{ entity, op, entityId, payload }` (max 100):
+  `entityId` je klijentski UUID v7 i **idempotency ključ**; svaka operacija dobija `sync_queue` zapis
+  (`DONE`/`FAILED`). Podržano: `customer` create/update i `invoice` create (DRAFT, sa klijentskim ID-jem).
+  `GET /sync/pull?since=` vraća kupce (sve aktivne — model nema `updatedAt`) i fakture promijenjene poslije `since`.
 
 ### Mobilna aplikacija (Sprint 1–4)
 
@@ -206,12 +212,13 @@ Zod validacija svakog ulaza, `company_id` scope na svakom upitu (IDOR zaštita).
 
 - `packages/shared` — 45 testova: Zod šeme auth/company/customer/item/taxRate/invoice, numeracija,
   JIB, telefon, UUID v7, enumi, error envelope.
-- `apps/api` — 68 testova: e2e auth, firma, kupci, IDOR, artikli, porezi, fakture (obračun, draft, filteri,
+- `apps/api` — 73 testa: e2e auth, firma, kupci, IDOR, artikli, porezi, fakture (obračun, draft, filteri,
   DRAFT-only izmjena), fiskalizacija (izdavanje + numeracija bez rupa, PRAČUN 409, PDF, ESIR pad),
   naplata (djelimična/puna, preplata 400, DRAFT 409, IDOR), podsjetnici (default podešavanja, šablon,
   plan pri izdavanju, ručni SMS, plaćena faktura 409), izvještaji (aging, mjesečni),
   storno/refundacija (VOID zapis + broj, refund ≤ naplaćeno, kumulativno ograničenje, IDOR),
-  **worker** (slanje podsjetnika, otkazivanje za plaćenu fakturu, fiskalni retry + backoff),
+  worker (slanje podsjetnika, otkazivanje za plaćenu fakturu, fiskalni retry + backoff),
+  **sync** (batch, idempotencija, failed bez rušenja batch-a, tuđi kupac, pull + `since`),
   unit testovi obračuna.
 - `apps/mobile` — 13 testova: API klijent, kupci API, fakture API, auth store.
 
@@ -263,6 +270,8 @@ Android Gradle build **nije** u CI-ju (dogovoreno: lint/typecheck/test za mobile
     sa stopom 0 (PDV tretman potvrditi sa računovođom).
 20. **Worker** je odvojen proces (BullMQ 6, `upsertJobScheduler`): podsjetnici 60 s, fiskalni retry 5 min
     uz backoff iz §7.5; worker se ne pokreće u testovima (testira se direktno `scan()`).
+21. **Sync:** `entityId` (UUID v7) je idempotency ključ; faktura se kroz sync samo **kreira** (DRAFT),
+    izmjena ide kroz postojeće rute. Kupci se vraćaju svi (model nema `updatedAt`), fakture delta po `updatedAt`.
 
 ## Otvorena pitanja (iz MASTER PROMPT-a, ne rješavati u kodu)
 
@@ -274,6 +283,8 @@ Android Gradle build **nije** u CI-ju (dogovoreno: lint/typecheck/test za mobile
   (max 5 pokušaja) — potreban ručni ishod/alarm u Sentry (Sprint 6).
 - **Opt-out podsjetnika** — nema polja na kupcu (§7.9 traži da se poštuje).
 - **Kredit kupca pri preplati** — nema polja/tabele u §5; preplata se odbija.
+- **Mobilni offline još nije implementiran** — API sync postoji (`/sync/push`, `/sync/pull`), ali `op-sqlite`,
+  lokalni `sync_queue` i offline UI dolaze u sljedećem koraku.
 - **`Idempotency-Key`** (§21) — nije implementiran za POST fakture/naplate.
 - **Storno fiskalizacija** — VOID/REFUND zapisi nemaju PFR; zavisi od modela operatera (G0).
 - **PDV tretman refundacije** — pojednostavljena jedna stavka sa stopom 0; potvrditi sa računovođom.

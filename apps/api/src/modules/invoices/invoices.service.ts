@@ -50,8 +50,8 @@ export class InvoicesService {
     @Inject(FISCAL_ADAPTER) private readonly fiscal: FiscalAdapter,
   ) {}
 
-  /** POST /invoices — kreira DRAFT fakturu (§6). */
-  async create(companyId: string, userId: string, input: CreateInvoiceInput) {
+  /** POST /invoices — kreira DRAFT fakturu (§6). `id` se koristi za offline sync (klijentski UUID v7). */
+  async create(companyId: string, userId: string, input: CreateInvoiceInput, id?: string) {
     await this.ensureCustomer(companyId, input.customerId);
 
     const lines = calculateLines(input.lines);
@@ -59,6 +59,7 @@ export class InvoicesService {
 
     const invoice = await this.prisma.invoice.create({
       data: {
+        ...(id ? { id } : {}),
         companyId,
         customerId: input.customerId,
         number: this.createDraftNumber(),
