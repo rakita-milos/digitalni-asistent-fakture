@@ -1,6 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useState } from 'react';import {
+import { useCallback, useState } from 'react';
+import {
   ActivityIndicator,
   FlatList,
   Pressable,
@@ -11,43 +12,51 @@ import { useCallback, useState } from 'react';import {
 } from 'react-native';
 
 import type { RootStackParamList } from '../navigation/RootNavigator';
-import { listCustomers, type CustomerDto } from '../api/customers';
-import { ApiError } from '../api/client';
+import { getDb } from '../db/localDb';
+import { listCustomers, type LocalCustomer } from '../db/repos';
+import { flushQueue, pullAndMerge } from '../sync/syncEngine';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Customers'>;
 
-/** M-11 Kupci — lista sa pretragom (server-side `?q`). */
+/**
+ * M-11 Kupci — offline-first: lista se čita iz lokalne SQLite baze,
+ * a pull/flush se puštaju u pozadini (bez blokiranja UI-ja).
+ */
 export function CustomersScreen({ navigation }: Props) {
   const [query, setQuery] = useState('');
-  const [customers, setCustomers] = useState<CustomerDto[]>([]);
-  const [total, setTotal] = useState(0);
+  const [customers, setCustomers] = useState<LocalCustomer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [isOffline, setIsOffline] = useState(false);
 
-  const load = useCallback(async (search: string) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await listCustomers({ q: search.trim() || undefined });
-      setCustomers(response.items);
-      setTotal(response.total);
-    } catch (caught) {
-      setError(
-        caught instanceof ApiError ? caught.message : 'Kupci nisu učitani. Provjerite mrežu.',
-      );
-    } finally {
-      setIsLoading(false);
-    }
+  const loadLocal = useCallback(async (search: string) => {
+    const db = getDb();
+    const rows = await listCustomers(db, search);
+    setCustomers(rows);
+    setIsLoading(false);
   }, []);
 
-  // Učitava pri fokusu ekrana (i poslije dodavanja kupca) uz debounce za pretragu.
+  const sync = useCallback(
+    async (search: string) => {
+      try {
+        const db = getDb();
+        await pullAndMerge(db);
+        await flushQueue(db);
+        setIsOffline(false);
+        await loadLocal(search);
+      } catch {
+        // Bez mreže se nastavlja sa lokalnim podacima (§4: sve osim fiskalizacije radi offline).
+        setIsOffline(true);
+      }
+    },
+    [loadLocal],
+  );
+
   useFocusEffect(
     useCallback(() => {
-      const timeout = setTimeout(() => {
-        void load(query);
-      }, 300);
-      return () => clearTimeout(timeout);
-    }, [query, load]),
+      void loadLocal(query);
+      void sync(query);
+      return undefined;
+    }, [loadLocal, sync, query]),
   );
 
   return (
@@ -55,13 +64,16 @@ export function CustomersScreen({ navigation }: Props) {
       <TextInput
         style={styles.search}
         value={query}
-        onChangeText={setQuery}
+        onChangeText={(value) => {
+          setQuery(value);
+          void loadLocal(value);
+        }}
         placeholder="Traži po imenu, JIB-u, telefonu…"
         autoCapitalize="none"
         testID="customers-search"
       />
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {isOffline ? <Text style={styles.offline}>Offline — prikaz lokalnih podataka</Text> : null}
 
       {isLoading ? (
         <ActivityIndicator style={styles.loader} color="#1D4ED8" />
@@ -81,7 +93,7 @@ export function CustomersScreen({ navigation }: Props) {
         />
       )}
 
-      <Text style={styles.total}>Ukupno: {total}</Text>
+      <Text style={styles.total}>Ukupno: {customers.length}</Text>
 
       <Pressable
         style={styles.button}
@@ -106,6 +118,7 @@ const styles = StyleSheet.create({
     color: '#1F2937',
   },
   loader: { marginTop: 24 },
+  offline: { color: '#B45309', fontSize: 12, marginTop: 8 },
   row: {
     backgroundColor: '#FFFFFF',
     borderRadius: 10,
@@ -115,7 +128,6 @@ const styles = StyleSheet.create({
   name: { color: '#1F2937', fontSize: 15, fontWeight: '600' },
   meta: { color: '#6B7280', fontSize: 13, marginTop: 2 },
   empty: { color: '#6B7280', marginTop: 24, textAlign: 'center' },
-  error: { color: '#B91C1C', marginTop: 12 },
   total: { color: '#6B7280', fontSize: 12, marginTop: 12 },
   button: {
     backgroundColor: '#1D4ED8',

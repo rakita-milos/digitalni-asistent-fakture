@@ -15,8 +15,10 @@ import {
 import { createCustomerSchema } from '@digitalni-asistent/shared';
 
 import type { RootStackParamList } from '../navigation/RootNavigator';
-import { createCustomer } from '../api/customers';
-import { ApiError } from '../api/client';
+import { getDb } from '../db/localDb';
+import { saveCustomer } from '../db/repos';
+import { enqueueOperation, flushQueue } from '../sync/syncEngine';
+import { uuidv7 } from '../utils/uuid';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CustomerForm'>;
 
@@ -28,7 +30,10 @@ interface CustomerFormValues {
   city: string;
 }
 
-/** Dodavanje kupca — iste Zod šeme kao API (§2: RHF + Zod). */
+/**
+ * Dodavanje kupca — offline-first: upis u lokalnu bazu + queue, pa push kad je mreža.
+ * Iste Zod šeme kao API (§2).
+ */
 export function CustomerFormScreen({ navigation }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -54,11 +59,35 @@ export function CustomerFormScreen({ navigation }: Props) {
     }
 
     setIsSaving(true);
+    const entityId = uuidv7();
+
     try {
-      await createCustomer(parsed.data);
+      const db = getDb();
+      await saveCustomer(db, {
+        id: entityId,
+        name: parsed.data.name,
+        jib: parsed.data.jib ?? null,
+        vatId: parsed.data.vatId ?? null,
+        address: parsed.data.address ?? null,
+        city: parsed.data.city ?? null,
+        phone: parsed.data.phone ?? null,
+        email: parsed.data.email ?? null,
+        note: parsed.data.note ?? null,
+      });
+
+      await enqueueOperation(db, {
+        entity: 'customer',
+        op: 'create',
+        entityId,
+        payload: parsed.data,
+      });
+
+      // Ako je mreža dostupna, odmah flush; u suprotnom operacija ostaje u queue-u.
+      await flushQueue(db).catch(() => undefined);
+
       navigation.goBack();
     } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : 'Kupac nije sačuvan.');
+      setError(caught instanceof Error ? caught.message : 'Kupac nije sačuvan.');
     } finally {
       setIsSaving(false);
     }
@@ -88,6 +117,10 @@ export function CustomerFormScreen({ navigation }: Props) {
         >
           <Text style={styles.buttonText}>{isSaving ? 'Čuvam…' : 'Sačuvaj kupca'}</Text>
         </Pressable>
+
+        <Text style={styles.note}>
+          Kupac se čuva lokalno i šalje na server kada je mreža dostupna.
+        </Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -146,4 +179,5 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.6 },
   buttonText: { color: '#FFFFFF', fontWeight: '600' },
+  note: { color: '#6B7280', fontSize: 12, marginTop: 12 },
 });

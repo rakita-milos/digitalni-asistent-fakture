@@ -184,13 +184,16 @@ Zod validacija svakog ulaza, `company_id` scope na svakom upitu (IDOR zaštita).
   (`DONE`/`FAILED`). Podržano: `customer` create/update i `invoice` create (DRAFT, sa klijentskim ID-jem).
   `GET /sync/pull?since=` vraća kupce (sve aktivne — model nema `updatedAt`) i fakture promijenjene poslije `since`.
 
-### Mobilna aplikacija (Sprint 1–4)
+### Mobilna aplikacija (Sprint 1–5)
 
 - M-01 Prijava (`src/screens/LoginScreen.tsx`) — React Hook Form + Zod šema iz `shared`.
 - M-03 Početna (`src/screens/HomeScreen.tsx`) — ukupno potraživanje + aging buckets iz `/reports/receivables`.
 - M-04 Fakture (`src/screens/InvoicesScreen.tsx`) — lista sa brojem, kupcem, rokom, iznosom i statusom.
-- M-11 Kupci (`src/screens/CustomersScreen.tsx`) — lista, pretraga (`?q`), osvježavanje pri fokusu;
-  dodavanje kroz `CustomerFormScreen.tsx` (iste Zod šeme kao API).
+- M-11 Kupci (`src/screens/CustomersScreen.tsx`) — **offline-first**: lista iz lokalne SQLite baze, pretraga lokalno,
+  pull/flush u pozadini; dodavanje radi bez mreže (lokalni upis + queue).
+- **Offline sloj** (`src/db`, `src/sync`): op-sqlite (`customers`, `invoices`, `sync_queue`, `meta`),
+  `pullAndMerge` (delta po `lastSyncAt`), `flushQueue` (push PENDING operacija, brisanje applied/duplicate,
+  označavanje failed). Faktura ekran je za sada online-only.
 - Navigacija: React Navigation 7 (native stack), `RootNavigator` bira ekran po auth stanju.
 - Tokeni: Keychain/Keystore preko `react-native-keychain` (§10, **ne** AsyncStorage);
   token se postavlja u API klijent pri prijavi i pri restore-u.
@@ -220,7 +223,7 @@ Zod validacija svakog ulaza, `company_id` scope na svakom upitu (IDOR zaštita).
   worker (slanje podsjetnika, otkazivanje za plaćenu fakturu, fiskalni retry + backoff),
   **sync** (batch, idempotencija, failed bez rušenja batch-a, tuđi kupac, pull + `since`),
   unit testovi obračuna.
-- `apps/mobile` — 13 testova: API klijent, kupci API, fakture API, auth store.
+- `apps/mobile` — 18 testova: API klijent, kupci API, fakture API, auth store, sync engine (uuid v7, mapiranje rezultata).
 
 E2E testovi koriste pravu bazu i Redis (CI ih diže kao service kontejnere) i `RATE_LIMIT_ENABLED=false`
 da brojači ne bi uticali na tok testova.
@@ -272,6 +275,8 @@ Android Gradle build **nije** u CI-ju (dogovoreno: lint/typecheck/test za mobile
     uz backoff iz §7.5; worker se ne pokreće u testovima (testira se direktno `scan()`).
 21. **Sync:** `entityId` (UUID v7) je idempotency ključ; faktura se kroz sync samo **kreira** (DRAFT),
     izmjena ide kroz postojeće rute. Kupci se vraćaju svi (model nema `updatedAt`), fakture delta po `updatedAt`.
+22. **Mobilni offline (Sprint 5):** kupci su lokal-first (op-sqlite + `sync_queue`), fakture i dalje online;
+    `pullAndMerge` koristi `serverTime` kao sljedeći `since`, a neuspjeli push ostavlja red u queue-u.
 
 ## Otvorena pitanja (iz MASTER PROMPT-a, ne rješavati u kodu)
 
@@ -283,8 +288,9 @@ Android Gradle build **nije** u CI-ju (dogovoreno: lint/typecheck/test za mobile
   (max 5 pokušaja) — potreban ručni ishod/alarm u Sentry (Sprint 6).
 - **Opt-out podsjetnika** — nema polja na kupcu (§7.9 traži da se poštuje).
 - **Kredit kupca pri preplati** — nema polja/tabele u §5; preplata se odbija.
-- **Mobilni offline još nije implementiran** — API sync postoji (`/sync/push`, `/sync/pull`), ali `op-sqlite`,
-  lokalni `sync_queue` i offline UI dolaze u sljedećem koraku.
+- **Mobilni offline još nije verifikovan na uređaju** — op-sqlite i offline tok su implementirani i typecheck-ovani,
+  ali nisu pokrenuti na Android emulatoru (nema JDK/SDK u ovom okruženju).
+- **Faktura ekran je online-only** — offline kreiranje faktura (M-05) dolazi uz sync proširenje.
 - **`Idempotency-Key`** (§21) — nije implementiran za POST fakture/naplate.
 - **Storno fiskalizacija** — VOID/REFUND zapisi nemaju PFR; zavisi od modela operatera (G0).
 - **PDV tretman refundacije** — pojednostavljena jedna stavka sa stopom 0; potvrditi sa računovođom.
