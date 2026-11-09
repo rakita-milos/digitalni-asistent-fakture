@@ -2,6 +2,8 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
+import { CustomerFormScreen } from '../screens/CustomerFormScreen';
+import { CustomersScreen } from '../screens/CustomersScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { useAuthStore } from '../state/authStore';
@@ -9,6 +11,8 @@ import { useAuthStore } from '../state/authStore';
 export type RootStackParamList = {
   Login: undefined;
   Home: undefined;
+  Customers: undefined;
+  CustomerForm: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -21,7 +25,7 @@ function SplashScreen() {
   );
 }
 
-/** M-01 (prijava) i privremeni Home dok ne dođu M-03/M-04 (Sprint 2+). */
+/** M-01 (prijava), M-11 (kupci) i privremeni Home dok ne dođu M-03/M-04. */
 export function RootNavigator() {
   const status = useAuthStore((state) => state.status);
 
@@ -33,7 +37,19 @@ export function RootNavigator() {
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {status === 'signedIn' ? (
-          <Stack.Screen name="Home" component={HomeScreen} />
+          <>
+            <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen
+              name="Customers"
+              component={CustomersScreen}
+              options={{ headerShown: true, title: 'Kupci' }}
+            />
+            <Stack.Screen
+              name="CustomerForm"
+              component={CustomerFormScreen}
+              options={{ headerShown: true, title: 'Novi kupac' }}
+            />
+          </>
         ) : (
           <Stack.Screen name="Login" component={LoginScreen} />
         )}

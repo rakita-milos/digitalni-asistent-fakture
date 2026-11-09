@@ -1,10 +1,9 @@
-import { create } from 'zustand';
-
 import type { AuthSession } from '@digitalni-asistent/shared';
 
-import { ApiError } from '../api/client';
 import { login as loginRequest } from '../api/auth';
+import { ApiError, setAccessToken } from '../api/client';
 import { clearSession, loadSession, saveSession } from '../storage/secureStorage';
+import { create } from 'zustand';
 
 type AuthStatus = 'loading' | 'signedOut' | 'signedIn';
 
@@ -33,6 +32,8 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ status: 'signedOut' });
       return;
     }
+    // Token mora u API klijent i poslije restarta aplikacije.
+    setAccessToken(session.accessToken);
     set({
       status: 'signedIn',
       user: session.user,
@@ -45,6 +46,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const session = await loginRequest(identifier, password);
       await saveSession(session);
+      setAccessToken(session.accessToken);
       set({
         status: 'signedIn',
         user: session.user,
@@ -62,6 +64,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   signOut: async () => {
     await clearSession();
+    setAccessToken(null);
     set({ status: 'signedOut', user: null, company: null, error: null });
   },
 

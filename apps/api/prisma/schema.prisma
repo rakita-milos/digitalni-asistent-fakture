@@ -82,6 +82,8 @@ model Company {
   numberingPrefix    String    @map("numbering_prefix")
   numberingYear      Int       @map("numbering_year")
   numberingNext      Int       @map("numbering_next")
+  /// Sprint 2: odvojen brojač za ADVANCE (§7.1 — numeracija po firmi i tipu).
+  numberingNextAdvance Int    @default(1) @map("numbering_next_advance")
   defaultDueDays     Int       @map("default_due_days")
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
 
@@ -249,7 +251,7 @@ model Invoice {
   reminders       Reminder[]
   fiscalRecords   FiscalRecord[]
 
-  @@unique([companyId, number])
+  @@unique([companyId, type, number])
   @@index([companyId, status])
   @@index([companyId, dueDate])
   @@index([customerId])

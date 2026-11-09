@@ -1,10 +1,11 @@
-# Digitalni Asistent — Sprint 0 + Sprint 1
+# Digitalni Asistent — Sprint 0 + 1 + 2
 
 SaaS za fakturisanje i naplatu za mikro-poduzeća u Republici Srpskoj.
 Jedini izvor istine za proizvod, model, API i pravila je
 [`MASTER_PROMPT_IZgradnja_Aplikacije.md`](../MASTER_PROMPT_IZgradnja_Aplikacije.md) (izvan repoa).
 
-Stanje: **Sprint 0** (kostur monorepo-a) i **Sprint 1** (auth, firma, kupci, artikli — API + M-01 prijava).
+Stanje: **Sprint 0** (kostur), **Sprint 1** (auth, firma, kupci, artikli) i **Sprint 2**
+(faktura: obračun, draft, lista, detalj — API + M-11 kupci na mobilnom).
 
 ## Stack (fiksan, MASTER PROMPT §2)
 
@@ -27,10 +28,10 @@ digitalni-asistent/
 │  ├─ api/                  # NestJS REST API + Prisma šema + Swagger
 │  │  ├─ prisma/
 │  │  │  ├─ schema.prisma   # 15 tabela, 5 enuma, propisani indeksi (§5)
-│  │  │  └─ migrations/     # inicijalna + auth (refresh token) migracija
+│  │  │  └─ migrations/     # init + auth + numeracija po tipu (3 migracije)
 │  │  ├─ src/common/        # filter grešaka (§6), guardovi, Zod pipe
 │  │  ├─ src/config/        # validacija env varijabli
-│  │  ├─ src/modules/       # health, auth, company, customers, items, tax-rates
+│  │  ├─ src/modules/       # health, auth, company, customers, items, tax-rates, invoices
 │  │  └─ test/              # e2e (Supertest + prava baza/Redis)
 │  ├─ web/                  # Next.js App Router (W-01…W-08: Sprint 4+)
 │  └─ mobile/               # React Native bare — M-01 prijava (Sprint 1)
@@ -113,17 +114,22 @@ API rute su bez globalnog prefiksa (`/auth`, `/company`, `/customers`…) — ta
 | GET / PATCH | `/customers/:id` | JWT | arhiviranje kroz `archivedAt` (§6 nema DELETE) |
 | GET / POST | `/items` | JWT | katalog; POST dozvoljen `owner` i `worker` |
 | GET / POST | `/tax-rates` | JWT | **POST nije u §6** — dodato u Sprintu 1 (setup korak „porezi“) |
+| GET / POST | `/invoices` | JWT | lista sa filterima (`status`, `from`/`to`, `customerId`, `q`) i paginacijom; POST = DRAFT |
+| GET / PATCH | `/invoices/:id` | JWT | detalj sa linijama; PATCH samo dok je `DRAFT` (409 inače) |
 | GET | `/health` | — | infra ruta (Docker/CI) |
 
 Sigurnost: argon2id hash lozinki, access 15 min / refresh 30 dana, refresh hash (SHA-256) u `devices`
 (tabela nema novu kolonu? ima: `refresh_token_hash`, `refresh_expires_at`), rate limiting u Redis-u,
 Zod validacija svakog ulaza, `company_id` scope na svakom upitu (IDOR zaštita).
 
-### Mobilna aplikacija (Sprint 1)
+### Mobilna aplikacija (Sprint 1–2)
 
 - M-01 Prijava (`src/screens/LoginScreen.tsx`) — React Hook Form + Zod šema iz `shared`.
+- M-11 Kupci (`src/screens/CustomersScreen.tsx`) — lista, pretraga (`?q`), osvježavanje pri fokusu;
+  dodavanje kroz `CustomerFormScreen.tsx` (iste Zod šeme kao API).
 - Navigacija: React Navigation 7 (native stack), `RootNavigator` bira ekran po auth stanju.
-- Tokeni: Keychain/Keystore preko `react-native-keychain` (§10, **ne** AsyncStorage).
+- Tokeni: Keychain/Keystore preko `react-native-keychain` (§10, **ne** AsyncStorage);
+  token se postavlja u API klijent pri prijavi i pri restore-u.
 - Stanje: Zustand 5 (`src/state/authStore.ts`), API klijent `src/api/client.ts`.
 - Android emulator: API na `http://10.0.2.2:3001` (`src/config.ts`).
 
@@ -140,16 +146,17 @@ Zod validacija svakog ulaza, `company_id` scope na svakom upitu (IDOR zaštita).
 
 ## Testovi
 
-- `packages/shared` — 33 testa: Zod šeme za auth/company/customer/item/taxRate + JIB, telefon, UUID v7, enumi, error envelope.
-- `apps/api` — 17 testova: e2e auth (register/login/refresh rotacija i opoziv/OTP), firma (owner vs worker),
-  kupci (CRUD, pretraga, arhiviranje), IDOR izolacija između firmi, artikli (BigInt → number), porezne stope,
-  + unit test filtera grešaka i `/health`.
-- `apps/mobile` — 9 testova: API klijent (header, greške, JSON) i auth store (prijava, restore, odjava).
+- `packages/shared` — 45 testova: Zod šeme auth/company/customer/item/taxRate/invoice, numeracija,
+  JIB, telefon, UUID v7, enumi, error envelope.
+- `apps/api` — 38 testova: e2e auth (register/login/refresh/OTP), firma (owner vs worker), kupci,
+  IDOR izolacija, artikli, porezne stope, **fakture** (obračun, draft, filteri, detalj, DRAFT-only izmjena),
+  unit testovi obračuna (§7.3: base/discount/net/tax/total, half-up) i filtera grešaka.
+- `apps/mobile` — 11 testova: API klijent, kupci API, auth store.
 
 E2E testovi koriste pravu bazu i Redis (CI ih diže kao service kontejnere) i `RATE_LIMIT_ENABLED=false`
 da brojači ne bi uticali na tok testova.
 
-Pokrivenost obračuna, numeracije i statusnih tranzicija dolazi u Sprintu 2/3 — §12.
+Pokrivenost numeracije pri izdavanju, PDF-a i statusnih tranzicija dolazi u Sprintu 3 — §12.
 
 ## CI (`.github/workflows/ci.yml`)
 
@@ -175,12 +182,14 @@ Android Gradle build **nije** u CI-ju (dogovoreno: lint/typecheck/test za mobile
 9. **OTP** je za sada verifikacija telefona (`{ verified: true }`), ne prijava — namjena u §6 nije definisana.
    SMS ide kroz adapter; `SMS_PROVIDER=log` u razvoju.
 10. **ESLint `consistent-type-imports` je isključen u API-ju** — Nest DI traži value importe zbog `emitDecoratorMetadata`.
+11. **Numeracija (Sprint 2):** `unique(company_id, type, number)` + `companies.numbering_next_advance`;
+    broj `{year}-{seq:4}` se dodjeljuje **pri izdavanju** (Sprint 3), a draft nosi privremeni `DRAFT-…` broj —
+    tako nema rupa u zakonskoj numeraciji. `formatInvoiceNumber` je u `shared` i pokriven testovima.
 
 ## Otvorena pitanja (iz MASTER PROMPT-a, ne rješavati u kodu)
 
-- **Numeracija:** §7.1 traži odvojene brojače po tipu (SALE/ADVANCE), a `companies` ima jedan
-  `numbering_next`, uz `unique(company_id, number)` — to je u konfliktu. Predlog za Sprint 2:
-  `unique(company_id, type, number)` ili prefiks tipa u broju.
+- **Numeracija:** odluka donesena (po tipu, broj pri izdavanju), ali **alokator** broja (transakcija + brojači)
+  dolazi uz `POST /invoices/:id/issue` u Sprintu 3. Do tada su draftovi na `DRAFT-…`.
 - **JIB checksum** — za sada se provjerava samo 13 cifara.
 - **SMS provajder** i **brend** (ime/logo, `com.digitalniasistent` je privremeni applicationId).
 - **ESIR model (G0)** — do odgovora operatera radi se mock adapter (Sprint 3).
