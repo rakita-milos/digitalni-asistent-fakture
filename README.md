@@ -163,6 +163,16 @@ Zod validacija svakog ulaza, `company_id` scope na svakom upitu (IDOR zaštita).
   `GET /reports/monthly` (izdato/naplaćeno po mjesecu).
 - **Mobilna**: M-03 Početna (KPI + aging) i M-04 Fakture (lista sa statusima).
 
+### Web MVP (Sprint 6 — u toku)
+
+- **W-01 Prijava** (`app/login`): server action poziva `POST /auth/login`, tokeni idu u **httpOnly cookie**
+  (`da_access` 15 min, `da_refresh` 30 dana); `secure` u produkciji.
+- **Zaštita ruta** (`app/(app)/layout.tsx`): bez cookie-ja → redirect na `/login` (provjereno: 307).
+- **W-02 Dashboard** (`app/(app)/page.tsx`): firma + ukupno nenaplaćeno + aging buckets iz `/reports/receivables`.
+- **W-03 Fakture** (`app/(app)/invoices/page.tsx`): tabela (broj, kupac, rok, iznos, status) + PDF link.
+- **W-05 Štampa/PDF**: proxy ruta `app/api/invoices/[id]/pdf` — browser ima cookie, API traži Bearer.
+- Server-side API klijent (`lib/api.ts`) čita token iz cookie-ja; `lib/format.ts` za fening/datum/status.
+
 ### Sprint 5 — poništenje i refundacija
 
 - **Šema:** `invoices.transaction_type` (`SALE`/`VOID`/`REFUND`) — kolona je dodata u Sprintu 5
@@ -277,6 +287,9 @@ Android Gradle build **nije** u CI-ju (dogovoreno: lint/typecheck/test za mobile
     izmjena ide kroz postojeće rute. Kupci se vraćaju svi (model nema `updatedAt`), fakture delta po `updatedAt`.
 22. **Mobilni offline (Sprint 5):** kupci su lokal-first (op-sqlite + `sync_queue`), fakture i dalje online;
     `pullAndMerge` koristi `serverTime` kao sljedeći `since`, a neuspjeli push ostavlja red u queue-u.
+23. **Web sesija (Sprint 6):** tokeni u httpOnly cookie-ju (ne localStorage); stranice su server komponente,
+    PDF ide kroz proxy rutu jer API traži Bearer. Refresh rotacija na webu nije implementirana — istekao
+    access token vodi na ponovnu prijavu (refresh cookie se čuva za kasnije).
 
 ## Otvorena pitanja (iz MASTER PROMPT-a, ne rješavati u kodu)
 
@@ -291,6 +304,8 @@ Android Gradle build **nije** u CI-ju (dogovoreno: lint/typecheck/test za mobile
 - **Mobilni offline još nije verifikovan na uređaju** — op-sqlite i offline tok su implementirani i typecheck-ovani,
   ali nisu pokrenuti na Android emulatoru (nema JDK/SDK u ovom okruženju).
 - **Faktura ekran je online-only** — offline kreiranje faktura (M-05) dolazi uz sync proširenje.
+- **Web MVP nije kompletan** — W-01, W-02, W-03 i PDF (W-05) rade; W-04 editor, W-06 kupci, W-07 izvještaji
+  i W-08 podešavanja tek slijede. Web nema automatizovane testove (Playwright dolazi uz W-04 tok).
 - **`Idempotency-Key`** (§21) — nije implementiran za POST fakture/naplate.
 - **Storno fiskalizacija** — VOID/REFUND zapisi nemaju PFR; zavisi od modela operatera (G0).
 - **PDV tretman refundacije** — pojednostavljena jedna stavka sa stopom 0; potvrditi sa računovođom.
