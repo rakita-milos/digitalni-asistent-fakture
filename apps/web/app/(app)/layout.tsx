@@ -9,6 +9,9 @@ import { ACCESS_COOKIE } from '../../lib/session';
 const NAV_ITEMS = [
   { href: '/', label: 'Početna' },
   { href: '/invoices', label: 'Fakture' },
+  { href: '/customers', label: 'Kupci' },
+  { href: '/reports', label: 'Izvještaji' },
+  { href: '/settings', label: 'Podešavanja' },
 ];
 
 export default async function AppLayout({ children }: { children: ReactNode }) {

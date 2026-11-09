@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import { apiFetch, ApiFailure } from '@/lib/api';
@@ -6,6 +7,7 @@ import { formatDate, formatFening, STATUS_LABELS, STATUS_STYLES } from '@/lib/fo
 interface InvoiceSummary {
   id: string;
   number: string;
+  type: string;
   status: string;
   issueDate: string;
   dueDate: string;
@@ -33,9 +35,17 @@ export default async function InvoicesPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Fakture</h1>
-        <span className="text-sm text-foreground/50">Ukupno: {data.total}</span>
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-foreground/50">Ukupno: {data.total}</span>
+          <Link
+            href="/invoices/new"
+            className="rounded-[var(--radius-button)] bg-primary px-4 py-2 text-sm font-semibold text-white"
+          >
+            Nova faktura
+          </Link>
+        </div>
       </div>
 
       <div className="overflow-x-auto rounded-[var(--radius-card)] bg-white shadow-sm ring-1 ring-black/5">
@@ -60,7 +70,16 @@ export default async function InvoicesPage() {
             ) : (
               data.items.map((invoice) => (
                 <tr key={invoice.id} className="border-t border-black/5">
-                  <td className="px-4 py-3 font-medium">{invoice.number}</td>
+                  <td className="px-4 py-3 font-medium">
+                    <Link href={`/invoices/${invoice.id}`} className="hover:text-primary hover:underline">
+                      {invoice.number}
+                    </Link>
+                    {invoice.type === 'ADVANCE' ? (
+                      <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                        PRAČUN
+                      </span>
+                    ) : null}
+                  </td>
                   <td className="px-4 py-3">{invoice.customer.name}</td>
                   <td className="px-4 py-3 text-foreground/60">{formatDate(invoice.dueDate)}</td>
                   <td className="px-4 py-3 text-right">{formatFening(invoice.totalFening)}</td>
