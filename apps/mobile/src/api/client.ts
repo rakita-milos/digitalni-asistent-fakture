@@ -19,6 +19,11 @@ export function setAccessToken(token: string | null): void {
   accessToken = token;
 }
 
+/** Trenutni access token — potreban za `Image` koji ide direktno na API (npr. QR PNG). */
+export function getAccessToken(): string | null {
+  return accessToken;
+}
+
 export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
   body?: unknown;

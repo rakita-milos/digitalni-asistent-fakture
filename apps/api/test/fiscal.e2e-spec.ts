@@ -219,6 +219,65 @@ describe('Sprint 3 — fiskalizacija, numeracija i PDF', () => {
 
     expect(forbidden.status).toBe(404);
   });
+
+  it('vraća QR kod kao PNG za izdatu fakturu', async () => {
+    const invoiceId = await createInvoice();
+    await request(app.getHttpServer())
+      .post(`/invoices/${invoiceId}/issue`)
+      .set(authHeader(token))
+      .expect(201);
+
+    const response = await request(app.getHttpServer())
+      .get(`/invoices/${invoiceId}/qr`)
+      .set(authHeader(token))
+      .buffer(true);
+
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toContain('image/png');
+
+    const body = response.body as Buffer;
+    expect(Buffer.isBuffer(body)).toBe(true);
+    expect(body.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
+    expect(body.length).toBeGreaterThan(200);
+  });
+
+  it('ne vraća QR za nefiskalizovanu fakturu (409)', async () => {
+    const invoiceId = await createInvoice();
+
+    const response = await request(app.getHttpServer())
+      .get(`/invoices/${invoiceId}/qr`)
+      .set(authHeader(token));
+
+    expect(response.status).toBe(409);
+    expect(response.body.code).toBe('CONFLICT');
+  });
+
+  it('ne dozvoljava QR za tuđu fakturu (404)', async () => {
+    const invoiceId = await createInvoice();
+    await request(app.getHttpServer())
+      .post(`/invoices/${invoiceId}/issue`)
+      .set(authHeader(token))
+      .expect(201);
+
+    const otherRegister = await request(app.getHttpServer()).post('/auth/register').send({
+      company: {
+        name: 'Treća firma',
+        jib: '1234567890125',
+        address: 'Ulica 3',
+        city: 'Mostar',
+        phone: '+38766123003',
+        email: 'treci@example.ba',
+      },
+      owner: { email: 'treci@example.ba', phone: '+38766123003', password: PASSWORD },
+    });
+    const otherToken = otherRegister.body.accessToken as string;
+
+    const response = await request(app.getHttpServer())
+      .get(`/invoices/${invoiceId}/qr`)
+      .set(authHeader(otherToken));
+
+    expect(response.status).toBe(404);
+  });
 });
 
 describe('Sprint 3 — ESIR pad (PENDING_FISCAL)', () => {

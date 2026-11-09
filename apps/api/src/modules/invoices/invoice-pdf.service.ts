@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 
@@ -226,8 +226,27 @@ export class InvoicePdfService {
     return done;
   }
 
-  private resolveFontDir(): string {
-    const relative = path.join('node_modules', 'dejavu-fonts-ttf', 'ttf');
+  /**
+   * QR kod fiskalnog računa kao PNG — mobilni prikaz (M-07) bez PDF-a i bez native QR biblioteke.
+   * Isti payload i parametri kao QR u PDF-u.
+   */
+  async renderQr(companyId: string, invoiceId: string): Promise<Buffer> {
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { id: invoiceId, companyId },
+      select: { fiscalQrPayload: true },
+    });
+
+    if (!invoice) {
+      throw new NotFoundException('Faktura nije pronađena');
+    }
+    if (!invoice.fiscalQrPayload) {
+      throw new ConflictException('Faktura još nije fiskalizovana — QR kod ne postoji');
+    }
+
+    return QRCode.toBuffer(invoice.fiscalQrPayload, { type: 'png', width: 360, margin: 1 });
+  }
+
+  private resolveFontDir(): string {    const relative = path.join('node_modules', 'dejavu-fonts-ttf', 'ttf');
     const candidates = [
       path.join(process.cwd(), relative),
       path.join(process.cwd(), '..', '..', relative),

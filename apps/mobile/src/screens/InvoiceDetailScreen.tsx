@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -16,7 +17,8 @@ import {
 import type { PaymentMethod } from '@digitalni-asistent/shared';
 
 import type { RootStackParamList } from '../navigation/RootNavigator';
-import { ApiError } from '../api/client';
+import { getAccessToken, ApiError } from '../api/client';
+import { API_URL } from '../config';
 import {
   cancelInvoice,
   createPayment,
@@ -173,6 +175,14 @@ export function InvoiceDetailScreen({ route }: Props) {
     invoice.paidFening === 0 &&
     isPayable(invoice.status);
 
+  const qrAccessToken = getAccessToken();
+  const qrSource = qrAccessToken
+    ? {
+        uri: `${API_URL}/invoices/${invoice.id}/qr`,
+        headers: { Authorization: `Bearer ${qrAccessToken}` },
+      }
+    : null;
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {notice ? <Text style={styles.notice}>{notice}</Text> : null}
@@ -278,10 +288,12 @@ export function InvoiceDetailScreen({ route }: Props) {
           {invoice.fiscalAt ? (
             <Text style={styles.metaSmall}>Fiskalizovano: {formatDate(invoice.fiscalAt)}</Text>
           ) : null}
-          <Text style={styles.hint}>
-            QR kod fiskalnog računa je u PDF-u fakture (web/štampa) — prikaz QR-a na telefonu
-            dolazi sa narednim sprintevima.
-          </Text>
+          {qrSource ? (
+            <View style={styles.qrWrapper}>
+              <Image source={qrSource} style={styles.qrImage} resizeMode="contain" />
+              <Text style={styles.hint}>QR za provjeru fiskalnog računa</Text>
+            </View>
+          ) : null}
         </View>
       ) : invoice.status === 'PENDING_FISCAL' ? (
         <View style={[styles.card, styles.warningCard]}>
@@ -650,6 +662,8 @@ const styles = StyleSheet.create({
   totalValueStrong: { color: '#1F2937', fontSize: 16, fontWeight: '700' },
   pfr: { color: '#1F2937', fontSize: 12, marginTop: 2, marginBottom: 4 },
   hint: { color: '#9CA3AF', fontSize: 12, marginTop: 8 },
+  qrWrapper: { alignItems: 'center', marginTop: 8 },
+  qrImage: { width: 180, height: 180 },
   warningCard: { backgroundColor: '#FFFBEB' },
   warningTitle: { color: '#92400E', fontSize: 15, fontWeight: '700' },
   warningText: { color: '#92400E', fontSize: 13, marginTop: 4 },

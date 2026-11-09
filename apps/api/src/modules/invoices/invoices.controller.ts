@@ -120,6 +120,21 @@ export class InvoicesController {
     return this.invoices.refund(user.companyId, user.id, id, body);
   }
 
+  @Get(':id/qr')
+  @ApiOperation({ summary: 'QR kod fiskalnog računa (PNG) — za prikaz na mobilnom' })
+  async qr(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', new ZodValidationPipe(uuidV7Schema)) id: string,
+    @Res() response: Response,
+  ): Promise<void> {
+    const buffer = await this.pdf.renderQr(user.companyId, id);
+
+    response.setHeader('Content-Type', 'image/png');
+    response.setHeader('Cache-Control', 'private, max-age=300');
+    response.setHeader('Content-Length', buffer.length.toString());
+    response.send(buffer);
+  }
+
   @Get(':id/pdf')
   @ApiOperation({ summary: 'PDF računa (A4, PFR + QR)' })
   async pdfDocument(
