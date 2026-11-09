@@ -1,45 +1,25 @@
-import { StatusBar, StyleSheet, Text, View } from 'react-native';
+import { useEffect } from 'react';
+import { StatusBar } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { APP_NAME, CURRENCY, TIMEZONE } from '@digitalni-asistent/shared';
+import { RootNavigator } from './src/navigation/RootNavigator';
+import { useAuthStore } from './src/state/authStore';
 
 /**
- * Sprint 0 — dokaz da RN (bare) + monorepo + @digitalni-asistent/shared rade.
- * Ekrani M-01…M-12 (MASTER PROMPT §8) dolaze u sprintovima 1–6.
+ * Sprint 1: auth tok radi (M-01), navigacija i secure storage su postavljeni.
+ * Ekrani M-02…M-12 dolaze u narednim sprintovima.
  */
 export default function App() {
+  const restore = useAuthStore((state) => state.restore);
+
+  useEffect(() => {
+    void restore();
+  }, [restore]);
+
   return (
-    <View style={styles.container}>
+    <SafeAreaProvider>
       <StatusBar barStyle="dark-content" />
-      <Text style={styles.title}>{APP_NAME}</Text>
-      <Text style={styles.subtitle}>Sprint 0 — kostur monorepo-a</Text>
-      <Text style={styles.meta}>
-        {CURRENCY} · {TIMEZONE}
-      </Text>
-    </View>
+      <RootNavigator />
+    </SafeAreaProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F9FAFB',
-    padding: 24,
-  },
-  title: {
-    color: '#1D4ED8',
-    fontSize: 24,
-    fontWeight: '700',
-  },
-  subtitle: {
-    color: '#1F2937',
-    fontSize: 16,
-    marginTop: 8,
-  },
-  meta: {
-    color: '#6B7280',
-    fontSize: 13,
-    marginTop: 16,
-  },
-});

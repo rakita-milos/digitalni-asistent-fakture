@@ -1,9 +1,10 @@
-# Digitalni Asistent — Sprint 0 (kostur monorepo-a)
+# Digitalni Asistent — Sprint 0 + Sprint 1
 
 SaaS za fakturisanje i naplatu za mikro-poduzeća u Republici Srpskoj.
 Jedini izvor istine za proizvod, model, API i pravila je
-[`MASTER_PROMPT_IZgradnja_Aplikacije.md`](../MASTER_PROMPT_IZgradnja_Aplikacije.md) (izvan repoa);
-ovaj repo sadrži samo **Sprint 0** — tehnički kostur, bez poslovnih funkcija.
+[`MASTER_PROMPT_IZgradnja_Aplikacije.md`](../MASTER_PROMPT_IZgradnja_Aplikacije.md) (izvan repoa).
+
+Stanje: **Sprint 0** (kostur monorepo-a) i **Sprint 1** (auth, firma, kupci, artikli — API + M-01 prijava).
 
 ## Stack (fiksan, MASTER PROMPT §2)
 
@@ -26,12 +27,13 @@ digitalni-asistent/
 │  ├─ api/                  # NestJS REST API + Prisma šema + Swagger
 │  │  ├─ prisma/
 │  │  │  ├─ schema.prisma   # 15 tabela, 5 enuma, propisani indeksi (§5)
-│  │  │  └─ migrations/     # inicijalna migracija
-│  │  ├─ src/common/        # globalni filter grešaka (§6 format)
-│  │  ├─ src/modules/       # health (infra); auth/companies/... dolaze u Sprintu 1
-│  │  └─ test/              # e2e (Supertest)
-│  ├─ web/                  # Next.js App Router (W-01…W-08: Sprint 1–6)
-│  └─ mobile/               # React Native bare (M-01…M-12: Sprint 1–6)
+│  │  │  └─ migrations/     # inicijalna + auth (refresh token) migracija
+│  │  ├─ src/common/        # filter grešaka (§6), guardovi, Zod pipe
+│  │  ├─ src/config/        # validacija env varijabli
+│  │  ├─ src/modules/       # health, auth, company, customers, items, tax-rates
+│  │  └─ test/              # e2e (Supertest + prava baza/Redis)
+│  ├─ web/                  # Next.js App Router (W-01…W-08: Sprint 4+)
+│  └─ mobile/               # React Native bare — M-01 prijava (Sprint 1)
 ├─ packages/
 │  ├─ shared/               # tipovi, Zod šeme, konstante (§5/§7)
 │  └─ config/               # tsconfig + ESLint (flat) + Prettier
@@ -95,8 +97,35 @@ pnpm --filter @digitalni-asistent/mobile start     # Metro
 pnpm --filter @digitalni-asistent/mobile android   # RN na emulator/uređaj
 ```
 
-API rute su bez globalnog prefiksa (`/health`, kasnije `/auth`, `/invoices`…) — tačno kako §6 definiše.
-`GET /health` je jedina ruta u Sprintu 0 i to je **infra** ruta (dogovoreno na kickoff-u).
+API rute su bez globalnog prefiksa (`/auth`, `/company`, `/customers`…) — tačno kako §6 definiše.
+
+### Sprint 1 — implementirane rute
+
+| Metod | Putanja | Auth | Napomena |
+|---|---|---|---|
+| POST | `/auth/register` | — | firma + vlasnik, vraća sesiju (access+refresh) |
+| POST | `/auth/login` | — | email **ili** telefon + lozinka, 5/min |
+| POST | `/auth/refresh` | refresh | rotacija + detekcija ponovne upotrebe (opoziv uređaja) |
+| POST | `/auth/otp/request` | — | 6-cifreni kod, 3/5min; u dev-u se loguje (mock SMS) |
+| POST | `/auth/otp/verify` | — | provjera koda, max 3 pokušaja |
+| GET / PATCH | `/company` | JWT | PATCH samo `owner` |
+| GET / POST | `/customers` | JWT | lista sa `?q`, pretraga po imenu/JIB/telefonu/emailu |
+| GET / PATCH | `/customers/:id` | JWT | arhiviranje kroz `archivedAt` (§6 nema DELETE) |
+| GET / POST | `/items` | JWT | katalog; POST dozvoljen `owner` i `worker` |
+| GET / POST | `/tax-rates` | JWT | **POST nije u §6** — dodato u Sprintu 1 (setup korak „porezi“) |
+| GET | `/health` | — | infra ruta (Docker/CI) |
+
+Sigurnost: argon2id hash lozinki, access 15 min / refresh 30 dana, refresh hash (SHA-256) u `devices`
+(tabela nema novu kolonu? ima: `refresh_token_hash`, `refresh_expires_at`), rate limiting u Redis-u,
+Zod validacija svakog ulaza, `company_id` scope na svakom upitu (IDOR zaštita).
+
+### Mobilna aplikacija (Sprint 1)
+
+- M-01 Prijava (`src/screens/LoginScreen.tsx`) — React Hook Form + Zod šema iz `shared`.
+- Navigacija: React Navigation 7 (native stack), `RootNavigator` bira ekran po auth stanju.
+- Tokeni: Keychain/Keystore preko `react-native-keychain` (§10, **ne** AsyncStorage).
+- Stanje: Zustand 5 (`src/state/authStore.ts`), API klijent `src/api/client.ts`.
+- Android emulator: API na `http://10.0.2.2:3001` (`src/config.ts`).
 
 ## Skripte
 
@@ -105,27 +134,32 @@ API rute su bez globalnog prefiksa (`/health`, kasnije `/auth`, `/invoices`…) 
 | `pnpm lint` | ESLint (flat config) u svim paketima |
 | `pnpm typecheck` | `tsc --noEmit` u svim paketima |
 | `pnpm test` | Vitest (shared, api) + Jest (mobile) |
-| `pnpm build` | shared → api → web (mobile se ne gradi u Sprint 0 CI-ju) |
+| `pnpm build` | shared → api → web (mobile Gradle build nije u CI-ju) |
 | `pnpm format` / `format:check` | Prettier |
 | `pnpm db:*` | Docker baza, migracije, Prisma Studio |
 
 ## Testovi
 
-- `packages/shared` — Zod šeme: JIB (13 cifara), telefon `+387`, e-mail, UUID v7, enum vrijednosti, format greške.
-- `apps/api` — e2e `GET /health` (Supertest) + unit test filtera grešaka (mapiranje statusa → `code`, bez stack trace-a).
-- `apps/mobile` — render smoke test (`App` prikazuje ime iz `@digitalni-asistent/shared`).
+- `packages/shared` — 33 testa: Zod šeme za auth/company/customer/item/taxRate + JIB, telefon, UUID v7, enumi, error envelope.
+- `apps/api` — 17 testova: e2e auth (register/login/refresh rotacija i opoziv/OTP), firma (owner vs worker),
+  kupci (CRUD, pretraga, arhiviranje), IDOR izolacija između firmi, artikli (BigInt → number), porezne stope,
+  + unit test filtera grešaka i `/health`.
+- `apps/mobile` — 9 testova: API klijent (header, greške, JSON) i auth store (prijava, restore, odjava).
 
-Pokrivenost poslovne logike (obračun, numeracija, tranzicije) dolazi u Sprintu 2/3 — §12.
+E2E testovi koriste pravu bazu i Redis (CI ih diže kao service kontejnere) i `RATE_LIMIT_ENABLED=false`
+da brojači ne bi uticali na tok testova.
+
+Pokrivenost obračuna, numeracije i statusnih tranzicija dolazi u Sprintu 2/3 — §12.
 
 ## CI (`.github/workflows/ci.yml`)
 
-GitHub Actions, Node 22, pnpm 10.34.9, Postgres 16 service:
-`pnpm install --frozen-lockfile` → `lint` → `typecheck` → `test` → `build` →
-`prisma validate` → `prisma migrate deploy` → `prisma migrate status`, plus `docker compose config`.
+GitHub Actions, Node 22, pnpm 10.34.9, **Postgres 16 + Redis 7** service:
+`pnpm install --frozen-lockfile` → `prisma generate` → `prisma validate` → `prisma migrate deploy` →
+`lint` → `typecheck` → `test` → `build` → `prisma migrate status`, plus `docker compose config`.
 
-Android Gradle build **nije** u Sprint 0 CI-ju (dogovoreno: lint/typecheck/test za mobile, build za web+api).
+Android Gradle build **nije** u CI-ju (dogovoreno: lint/typecheck/test za mobile, build za web+api).
 
-## Konvencije i odluke (Sprint 0)
+## Konvencije i odluke (Sprint 0–1)
 
 1. **`TransactionType` (SALE/REFUND/VOID)** je u šemi, ali `invoices` **nema** kolonu `transaction_type`
    — uvodi se uz VOID/REFUND tok (Sprint 5). `invoices.type` ostaje `InvoiceType` (SALE/ADVANCE).
@@ -134,7 +168,13 @@ Android Gradle build **nije** u Sprint 0 CI-ju (dogovoreno: lint/typecheck/test 
 3. `role`, `status`, `plan`, `op`, `kind`, `entity`, `platform` su `String` jer §5 ne definiše enum vrijednosti.
 4. Nullable kolone su izvedene iz semantike (npr. `fiscal_pfr`, `sent_at`, `archived_at` su opcionalni).
 5. `packages/shared` se gradi u **CommonJS** (`dist/`) da ga mogu trošiti i Nest (CJS) i Next i Metro.
-6. Finansijske kolone su `BigInt` — JSON serijalizacija BigInt-a je tema Sprinta 1/2 (API sloj).
+6. Finansijske kolone su `BigInt` — u API odgovorima se konvertuju u `number` (iznosi su daleko ispod 2^53).
+7. **Refresh tokeni** se čuvaju kao SHA-256 hash u `devices` (`refresh_token_hash`, `refresh_expires_at`) —
+   per-device revokacija iz §10 bez nove tabele (dogovoreno na kickoff-u Sprinta 1).
+8. **`POST /tax-rates`** je dodat uz §6 (samo GET): bez njega setup korak „porezi“ (M-02) nema kako da upiše stope.
+9. **OTP** je za sada verifikacija telefona (`{ verified: true }`), ne prijava — namjena u §6 nije definisana.
+   SMS ide kroz adapter; `SMS_PROVIDER=log` u razvoju.
+10. **ESLint `consistent-type-imports` je isključen u API-ju** — Nest DI traži value importe zbog `emitDecoratorMetadata`.
 
 ## Otvorena pitanja (iz MASTER PROMPT-a, ne rješavati u kodu)
 
@@ -144,6 +184,15 @@ Android Gradle build **nije** u Sprint 0 CI-ju (dogovoreno: lint/typecheck/test 
 - **JIB checksum** — za sada se provjerava samo 13 cifara.
 - **SMS provajder** i **brend** (ime/logo, `com.digitalniasistent` je privremeni applicationId).
 - **ESIR model (G0)** — do odgovora operatera radi se mock adapter (Sprint 3).
+- **OTP namjena:** §6 ne kaže da li je OTP za prijavu, verifikaciju telefona ili reset lozinke.
+  Trenutno: verifikacija telefona; odluka potrebna prije SMS integracije.
+- **Nema `POST /auth/logout`** u §6 — odjava je za sada brisanje lokalne sesije, a server je opoziva
+  tek detekcijom ponovne upotrebe refresh tokena. Predlog: dodati logout u Sprint 2.
+- **Nema `PATCH /items/:id`** u §6 — artikli se mogu samo dodavati; izmjena/arhiviranje nije moguće.
+- **`users.role` / `users.status`** su `String`; potvrditi tačne vrijednosti (owner/worker/accountant/agency,
+  active/…).
+- **M-02 setup** „može se prekinuti i nastaviti“ — nema polja za čuvanje napretka; predlog: lokalno stanje
+  do odluke.
 
 ## Troubleshooting
 

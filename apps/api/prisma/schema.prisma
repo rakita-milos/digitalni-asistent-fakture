@@ -131,11 +131,15 @@ model User {
 model Device {
   id         String    @id @default(uuid(7)) @db.Uuid
   userId     String    @map("user_id") @db.Uuid
-  /// android | ios
+  /// android | ios | web
   platform   String
   pushToken  String?   @map("push_token")
   appVersion String?   @map("app_version")
   lastSeenAt DateTime? @map("last_seen_at") @db.Timestamptz(3)
+  /// Sprint 1: rotacija refresh tokena i revokacija po uređaju (§10).
+  /// Čuva se SHA-256 hash, nikad plain token.
+  refreshTokenHash String?   @map("refresh_token_hash")
+  refreshExpiresAt DateTime? @map("refresh_expires_at") @db.Timestamptz(3)
 
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   syncQueue  SyncQueue[]

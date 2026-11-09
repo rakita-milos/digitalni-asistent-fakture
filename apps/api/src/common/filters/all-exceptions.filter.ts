@@ -14,6 +14,7 @@ const STATUS_TO_CODE: Partial<Record<number, ErrorCode>> = {
   [HttpStatus.CONFLICT]: ERROR_CODES.CONFLICT,
   [HttpStatus.UNPROCESSABLE_ENTITY]: ERROR_CODES.VALIDATION_ERROR,
   [HttpStatus.TOO_MANY_REQUESTS]: ERROR_CODES.RATE_LIMITED,
+  [HttpStatus.SERVICE_UNAVAILABLE]: ERROR_CODES.SERVICE_UNAVAILABLE,
 };
 
 const DEFAULT_MESSAGES: Partial<Record<number, string>> = {
@@ -23,6 +24,7 @@ const DEFAULT_MESSAGES: Partial<Record<number, string>> = {
   [HttpStatus.NOT_FOUND]: 'Nije pronađeno',
   [HttpStatus.CONFLICT]: 'Konflikt',
   [HttpStatus.TOO_MANY_REQUESTS]: 'Previše pokušaja',
+  [HttpStatus.SERVICE_UNAVAILABLE]: 'Servis privremeno nedostupan',
   [HttpStatus.INTERNAL_SERVER_ERROR]: 'Interna greška',
 };
 
@@ -98,6 +100,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const payload = exception.getResponse();
     if (typeof payload !== 'object' || payload === null) {
       return undefined;
+    }
+    const details = (payload as { details?: unknown }).details;
+    if (Array.isArray(details) && details.length > 0) {
+      return details;
     }
     const message = (payload as { message?: unknown }).message;
     if (Array.isArray(message) && message.length > 0) {
