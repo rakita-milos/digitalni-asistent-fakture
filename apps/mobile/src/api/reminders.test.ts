@@ -1,5 +1,6 @@
 import {
   getReminderSettings,
+  listReminders,
   sendInvoiceReminder,
   updateReminderSettings,
 } from './reminders';
@@ -50,5 +51,13 @@ describe('reminders API', () => {
       method: 'POST',
       body: {},
     });
+  });
+
+  it('učitava listu podsjetnika', async () => {
+    apiRequestMock.mockResolvedValue({ items: [], total: 0 } as never);
+
+    await listReminders(50);
+
+    expect(apiRequestMock).toHaveBeenCalledWith('/reminders?limit=50');
   });
 });

@@ -28,6 +28,11 @@ export interface ReminderDto {
   error: string | null;
 }
 
+export interface ReminderListResponse {
+  items: ReminderDto[];
+  total: number;
+}
+
 /** GET /reminder-settings (owner). */
 export function getReminderSettings(): Promise<ReminderSettingsDto> {
   return apiRequest<ReminderSettingsDto>('/reminder-settings');
@@ -46,4 +51,9 @@ export function sendInvoiceReminder(invoiceId: string): Promise<ReminderDto> {
     method: 'POST',
     body: {},
   });
+}
+
+/** GET /reminders — lista poslanih/zakazanih podsjetnika firme (§6). */
+export function listReminders(limit = 50): Promise<ReminderListResponse> {
+  return apiRequest<ReminderListResponse>(`/reminders?limit=${limit}`);
 }

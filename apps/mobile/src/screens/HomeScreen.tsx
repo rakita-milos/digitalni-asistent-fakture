@@ -119,6 +119,14 @@ export function HomeScreen({ navigation }: Props) {
         <Text style={styles.secondaryText}>Podešavanja firme</Text>
       </Pressable>
 
+      <Pressable
+        style={styles.secondary}
+        onPress={() => navigation.navigate('Reminders')}
+        testID="home-reminders"
+      >
+        <Text style={styles.secondaryText}>Podsjetnici</Text>
+      </Pressable>
+
       <Pressable style={styles.logout} onPress={() => void signOut()} testID="logout">
         <Text style={styles.logoutText}>Odjavi se</Text>
       </Pressable>
