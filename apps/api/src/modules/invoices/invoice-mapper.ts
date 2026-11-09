@@ -44,6 +44,16 @@ export interface InvoiceSummaryRow {
   customer: { id: string; name: string };
 }
 
+export interface PaymentRow {
+  id: string;
+  invoiceId: string;
+  amountFening: bigint;
+  method: PaymentMethod;
+  paidAt: Date;
+  note: string | null;
+  createdBy: string | null;
+}
+
 export interface InvoiceDetailRow extends InvoiceSummaryRow {
   fiscalPfr: string | null;
   fiscalQrPayload: string | null;
@@ -51,6 +61,7 @@ export interface InvoiceDetailRow extends InvoiceSummaryRow {
   originalInvoiceId: string | null;
   createdBy: string | null;
   lines: InvoiceLineRow[];
+  payments: PaymentRow[];
 }
 
 function toLineDto(line: InvoiceLineRow) {
@@ -87,6 +98,10 @@ export function toInvoiceSummaryDto(invoice: InvoiceSummaryRow) {
   };
 }
 
+export function toPaymentDto(payment: PaymentRow) {
+  return { ...payment, amountFening: money(payment.amountFening) };
+}
+
 export function toInvoiceDetailDto(invoice: InvoiceDetailRow) {
   return {
     ...toInvoiceSummaryDto(invoice),
@@ -96,5 +111,6 @@ export function toInvoiceDetailDto(invoice: InvoiceDetailRow) {
     originalInvoiceId: invoice.originalInvoiceId,
     createdBy: invoice.createdBy,
     lines: invoice.lines.map(toLineDto),
+    payments: invoice.payments.map(toPaymentDto),
   };
 }

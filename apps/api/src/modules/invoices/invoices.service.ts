@@ -32,6 +32,7 @@ import { toInvoiceDetailDto, toInvoiceSummaryDto } from './invoice-mapper';
 const detailInclude = {
   customer: { select: { id: true, name: true } },
   lines: { orderBy: { position: 'asc' } },
+  payments: { orderBy: { paidAt: 'desc' } },
 } satisfies Prisma.InvoiceInclude;
 
 @Injectable()
@@ -278,6 +279,8 @@ export class InvoicesService {
         },
       });
 
+      await this.scheduleReminders(tx, invoice.id, invoice.dueDate, companyId);
+
       return invoiceUpdated;
     });
 
@@ -312,6 +315,40 @@ export class InvoicesService {
     });
 
     return number;
+  }
+
+  /** Automatski plan podsjetnika (§7.9) — redovi se kreiraju pri izdavanju, šalje ih worker (Sprint 5). */
+  private async scheduleReminders(
+    tx: Prisma.TransactionClient,
+    invoiceId: string,
+    dueDate: Date,
+    companyId: string,
+  ): Promise<void> {
+    const settings = await tx.reminderSetting.findUnique({ where: { companyId } });
+    if (!settings?.enabled) {
+      return;
+    }
+
+    const schedule = settings.scheduleJson as unknown;
+    if (!Array.isArray(schedule)) {
+      return;
+    }
+
+    for (const entry of schedule.slice(0, 4)) {
+      const item = entry as { offsetDays?: unknown; kind?: unknown };
+      if (typeof item.offsetDays !== 'number') {
+        continue;
+      }
+
+      await tx.reminder.create({
+        data: {
+          invoiceId,
+          kind: typeof item.kind === 'string' ? item.kind : 'sms',
+          scheduledAt: new Date(dueDate.getTime() + item.offsetDays * 86_400_000),
+          status: 'SCHEDULED',
+        },
+      });
+    }
   }
 
   private async ensureCustomer(companyId: string, customerId: string): Promise<void> {

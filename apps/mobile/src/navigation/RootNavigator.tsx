@@ -5,12 +5,14 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { CustomerFormScreen } from '../screens/CustomerFormScreen';
 import { CustomersScreen } from '../screens/CustomersScreen';
 import { HomeScreen } from '../screens/HomeScreen';
+import { InvoicesScreen } from '../screens/InvoicesScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { useAuthStore } from '../state/authStore';
 
 export type RootStackParamList = {
   Login: undefined;
   Home: undefined;
+  Invoices: undefined;
   Customers: undefined;
   CustomerForm: undefined;
 };
@@ -39,6 +41,11 @@ export function RootNavigator() {
         {status === 'signedIn' ? (
           <>
             <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen
+              name="Invoices"
+              component={InvoicesScreen}
+              options={{ headerShown: true, title: 'Fakture' }}
+            />
             <Stack.Screen
               name="Customers"
               component={CustomersScreen}

@@ -1,4 +1,4 @@
-# Digitalni Asistent — Sprint 0–3
+# Digitalni Asistent — Sprint 0–4
 
 SaaS za fakturisanje i naplatu za mikro-poduzeća u Republici Srpskoj.
 Jedini izvor istine za proizvod, model, API i pravila je
@@ -120,6 +120,12 @@ API rute su bez globalnog prefiksa (`/auth`, `/company`, `/customers`…) — ta
 | GET / PATCH | `/invoices/:id` | JWT | detalj sa linijama; PATCH samo dok je `DRAFT` (409 inače) |
 | POST | `/invoices/:id/issue` | JWT | fiskalizacija preko ESIR adaptera + dodjela broja; `ADVANCE` (PRAČUN) se ne fiskalizuje |
 | GET | `/invoices/:id/pdf` | JWT | PDF (A4, PFR + QR 45 mm) — stream ili signed URL (vidi odluke) |
+| POST | `/invoices/:id/payments` | JWT | naplata (puna/djelimična); preplata se odbija |
+| GET / PUT | `/reminder-settings` | owner | plan (max 4) i šablon podsjetnika |
+| POST | `/invoices/:id/remind` | JWT | ručni SMS podsjetnik |
+| GET | `/reminders` | JWT | lista podsjetnika firme |
+| GET | `/reports/receivables` | JWT | aging: current, 1-30, 31-60, 61-90, 90+ |
+| GET | `/reports/monthly` | JWT | izdato / naplaćeno po mjesecu |
 | GET | `/health` | — | infra ruta (Docker/CI) |
 
 Sigurnost: argon2id hash lozinki, access 15 min / refresh 30 dana, refresh hash (SHA-256) u `devices`
@@ -140,9 +146,23 @@ Zod validacija svakog ulaza, `company_id` scope na svakom upitu (IDOR zaštita).
 - **PDF** (`pdfkit` + `qrcode` + DejaVu TTF za č/ć/š/ž/đ): zaglavlje firme, kupac, tabela stavki,
   osnovica/PDV/ukupno, PFR i QR 45 mm; `PRAČUN` oznaka za `ADVANCE`.
 
-### Mobilna aplikacija (Sprint 1–2)
+### Sprint 4 — naplata, podsjetnici, izvještaji
+
+- **Naplata** (`POST /invoices/:id/payments`): puna ili djelimična; `paid_fening` se uvećava, status prelazi u
+  `PARTIALLY_PAID`/`PAID`. Iznos iznad ostatka duga se **odbija** (400) — `paid_fening ≤ total_fening` (§7.8);
+  preplata/kredit kupca nije modelovan u §5, pa se ne izmišlja. Audit log `payment.create`.
+- **Podsjetnici**: `GET/PUT /reminder-settings` (owner) — šablon mora sadržavati `{broj}` i `{iznos}`,
+  plan do **4** automatska podsjetnika. Pri izdavanju se kreiraju `SCHEDULED` redovi (worker ih šalje u Sprintu 5);
+  `POST /invoices/:id/remind` šalje odmah preko SMS adaptera i upisuje `SENT`/`FAILED`.
+- **Izvještaji**: `GET /reports/receivables` (aging po dospijeću, umanjeno za naplaćeno) i
+  `GET /reports/monthly` (izdato/naplaćeno po mjesecu).
+- **Mobilna**: M-03 Početna (KPI + aging) i M-04 Fakture (lista sa statusima).
+
+### Mobilna aplikacija (Sprint 1–4)
 
 - M-01 Prijava (`src/screens/LoginScreen.tsx`) — React Hook Form + Zod šema iz `shared`.
+- M-03 Početna (`src/screens/HomeScreen.tsx`) — ukupno potraživanje + aging buckets iz `/reports/receivables`.
+- M-04 Fakture (`src/screens/InvoicesScreen.tsx`) — lista sa brojem, kupcem, rokom, iznosom i statusom.
 - M-11 Kupci (`src/screens/CustomersScreen.tsx`) — lista, pretraga (`?q`), osvježavanje pri fokusu;
   dodavanje kroz `CustomerFormScreen.tsx` (iste Zod šeme kao API).
 - Navigacija: React Navigation 7 (native stack), `RootNavigator` bira ekran po auth stanju.
@@ -166,10 +186,11 @@ Zod validacija svakog ulaza, `company_id` scope na svakom upitu (IDOR zaštita).
 
 - `packages/shared` — 45 testova: Zod šeme auth/company/customer/item/taxRate/invoice, numeracija,
   JIB, telefon, UUID v7, enumi, error envelope.
-- `apps/api` — 45 testova: e2e auth, firma, kupci, IDOR, artikli, porezi, **fakture** (obračun, draft, filteri,
-  detalj, DRAFT-only izmjena), **fiskalizacija** (izdavanje + numeracija bez rupa, ponovno izdavanje 409,
-  PRAČUN 409, PDF sa PFR/QR, ESIR pad → `PENDING_FISCAL` + 502), unit testovi obračuna i filtera grešaka.
-- `apps/mobile` — 11 testova: API klijent, kupci API, auth store.
+- `apps/api` — 56 testova: e2e auth, firma, kupci, IDOR, artikli, porezi, fakture (obračun, draft, filteri,
+  DRAFT-only izmjena), fiskalizacija (izdavanje + numeracija bez rupa, PRAČUN 409, PDF, ESIR pad),
+  **naplata** (djelimična/puna, preplata 400, DRAFT 409, IDOR), **podsjetnici** (default podešavanja, šablon,
+  plan pri izdavanju, ručni SMS, plaćena faktura 409), **izvještaji** (aging, mjesečni), unit testovi obračuna.
+- `apps/mobile` — 13 testova: API klijent, kupci API, fakture API, auth store.
 
 E2E testovi koriste pravu bazu i Redis (CI ih diže kao service kontejnere) i `RATE_LIMIT_ENABLED=false`
 da brojači ne bi uticali na tok testova.
@@ -210,6 +231,10 @@ Android Gradle build **nije** u CI-ju (dogovoreno: lint/typecheck/test za mobile
     je poseban tok (Sprint 4), jer §6 nema rutu za konverziju.
 14. **PDF:** `GET /invoices/:id/pdf` za sada **streamuje** PDF (`application/pdf`). §6 traži signed URL preko R2;
     to se uključuje kad budu R2 kredencijali (bez njih se ne može testirati).
+15. **Preplata se odbija** (400): §7.8 traži `paid_fening ≤ total_fening`, a kredit kupca nema polje u §5.
+16. **Šablon podsjetnika** koristi `{broj}`, `{iznos}`, `{rok}`, `{firma}`; `{broj}` i `{iznos}` su obavezni (§7.9).
+17. **Automatski podsjetnici** se planiraju (`SCHEDULED`) pri izdavanju; slanje radi worker u Sprintu 5.
+    Opt-out kupca nema polje u §5, pa se za sada ne može poštovati.
 
 ## Otvorena pitanja (iz MASTER PROMPT-a, ne rješavati u kodu)
 
@@ -217,7 +242,10 @@ Android Gradle build **nije** u CI-ju (dogovoreno: lint/typecheck/test za mobile
   sa računovođom/operaterom (prefix, dužina).
 - **PFR/QR format** — mock je placeholder; pravi sadržaj zavisi od Pravilnika (95/25) i ESIR odgovora (G0).
 - **R2 signed URL** — PDF se za sada streamuje; R2 upload dolazi uz kredencijale.
-- **Retry queue (BullMQ)** — `PENDING_FISCAL` se ne ponavlja automatski; queue je Sprint 4/5.
+- **Retry queue (BullMQ)** — `PENDING_FISCAL` se ne ponavlja automatski; queue je Sprint 5.
+- **Kredit kupca pri preplati** — nema polja/tabele u §5; preplata se za sada odbija.
+- **Opt-out podsjetnika** — nema polja na `customers`/`users`; §7.9 traži da se poštuje.
+- **`Idempotency-Key`** (§21) — nije implementiran za POST fakture/naplate.
 - **JIB checksum** — za sada se provjerava samo 13 cifara.
 - **SMS provajder** i **brend** (ime/logo, `com.digitalniasistent` je privremeni applicationId).
 - **ESIR model (G0)** — do odgovora operatera radi se mock adapter (Sprint 3).

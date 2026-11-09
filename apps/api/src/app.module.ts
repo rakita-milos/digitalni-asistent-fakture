@@ -6,6 +6,9 @@ import { CustomersModule } from './modules/customers/customers.module';
 import { HealthModule } from './modules/health/health.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
 import { ItemsModule } from './modules/items/items.module';
+import { PaymentsModule } from './modules/payments/payments.module';
+import { RemindersModule } from './modules/reminders/reminders.module';
+import { ReportsModule } from './modules/reports/reports.module';
 import { TaxRatesModule } from './modules/tax-rates/tax-rates.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
@@ -20,6 +23,9 @@ import { RedisModule } from './redis/redis.module';
     CustomersModule,
     ItemsModule,
     InvoicesModule,
+    PaymentsModule,
+    RemindersModule,
+    ReportsModule,
     TaxRatesModule,
   ],
 })
