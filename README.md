@@ -103,6 +103,7 @@ trial pretplatu i mock fiskalne zapise.
 
 - Prijava: **`demo@digitalni-asistent.ba`** / **`DemoLozinka123`**
 - Lozinku mijenjaš sa `SEED_OWNER_PASSWORD` (env) prije pokretanja seed-a.
+- Napomena: e2e testovi rade `TRUNCATE` nad bazom — poslije `pnpm test` ponovo pokreni `pnpm db:seed`.
 
 ## Pokretanje
 
