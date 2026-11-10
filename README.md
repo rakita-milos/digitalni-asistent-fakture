@@ -90,6 +90,20 @@ pnpm db:studio                                     # Prisma Studio
 - Kolone u bazi su `snake_case` (`@map`), TS sloj je `camelCase`.
 - Inicijalna migracija je commitovana; u CI-ju se primjenjuje sa `prisma migrate deploy`.
 
+## Seed podaci (demo)
+
+```bash
+pnpm db:seed              # idempotentno: preskače ako demo firma već postoji
+SEED_RESET=1 pnpm db:seed # briše i ponovo kreira demo firmu
+```
+
+Kreira demo firmu „Demo Firma d.o.o.“ (JIB `9999999999999`): 20 kupaca, 10 artikala,
+3 porezne stope, 50 faktura (draft/izdate/plaćene/djelimično/dospjele), podešavanja podsjetnika,
+trial pretplatu i mock fiskalne zapise.
+
+- Prijava: **`demo@digitalni-asistent.ba`** / **`DemoLozinka123`**
+- Lozinku mijenjaš sa `SEED_OWNER_PASSWORD` (env) prije pokretanja seed-a.
+
 ## Pokretanje
 
 ```bash
@@ -246,7 +260,7 @@ GitHub Actions, Node 22, pnpm 10.34.9, **Postgres 16 + Redis 7** service:
 `pnpm install --frozen-lockfile` → `prisma generate` → `prisma validate` → `prisma migrate deploy` →
 `lint` → `typecheck` → `test` → `build` → `prisma migrate status`, plus `docker compose config`.
 
-Android Gradle build **nije** u CI-ju (dogovoreno: lint/typecheck/test za mobile, build za web+api).
+Android debug build je u CI-ju (`android` job: JDK 17 + Android SDK, `assembleDebug`, APK kao artifact).
 
 ## Konvencije i odluke (Sprint 0–1)
 
