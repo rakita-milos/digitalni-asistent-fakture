@@ -1,7 +1,8 @@
 import { cookies } from 'next/headers';
 
-export const ACCESS_COOKIE = 'da_access';
-export const REFRESH_COOKIE = 'da_refresh';
+import { ACCESS_COOKIE } from './session-constants';
+
+export { ACCESS_COOKIE, REFRESH_COOKIE } from './session-constants';
 
 export async function getAccessToken(): Promise<string | null> {
   const store = await cookies();

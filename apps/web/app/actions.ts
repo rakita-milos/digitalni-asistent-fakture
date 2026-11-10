@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 
 import { API_URL } from '@/lib/api';
 import { ACCESS_COOKIE, REFRESH_COOKIE } from '@/lib/session';
+import { ACCESS_COOKIE_MAX_AGE, REFRESH_COOKIE_MAX_AGE } from '@/lib/session-constants';
 
 export interface LoginState {
   error?: string;
@@ -37,14 +38,14 @@ export async function loginAction(_previous: LoginState, formData: FormData): Pr
     httpOnly: true,
     sameSite: 'lax',
     path: '/',
-    maxAge: 15 * 60,
+    maxAge: ACCESS_COOKIE_MAX_AGE,
     secure: process.env.NODE_ENV === 'production',
   });
   store.set(REFRESH_COOKIE, session.refreshToken, {
     httpOnly: true,
     sameSite: 'lax',
     path: '/',
-    maxAge: 30 * 24 * 60 * 60,
+    maxAge: REFRESH_COOKIE_MAX_AGE,
     secure: process.env.NODE_ENV === 'production',
   });
 
