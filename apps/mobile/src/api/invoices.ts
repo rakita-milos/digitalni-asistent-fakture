@@ -89,6 +89,11 @@ export function issueInvoice(id: string): Promise<InvoiceDetailDto> {
   return apiRequest<InvoiceDetailDto>(`/invoices/${id}/issue`, { method: 'POST', body: {} });
 }
 
+/** POST /invoices/:id/convert — draft PRAČUN postaje draft račun (M-09). */
+export function convertInvoice(id: string): Promise<InvoiceDetailDto> {
+  return apiRequest<InvoiceDetailDto>(`/invoices/${id}/convert`, { method: 'POST', body: {} });
+}
+
 export function createPayment(id: string, input: CreatePaymentInput): Promise<PaymentResult> {
   return apiRequest<PaymentResult>(`/invoices/${id}/payments`, { method: 'POST', body: input });
 }

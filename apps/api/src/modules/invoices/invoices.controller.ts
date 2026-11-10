@@ -97,6 +97,17 @@ export class InvoicesController {
     return this.invoices.issue(user.companyId, user.id, id);
   }
 
+  @Post(':id/convert')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'worker')
+  @ApiOperation({ summary: 'Konverzija PRAČUNA u draft račun (M-09)' })
+  convert(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', new ZodValidationPipe(uuidV7Schema)) id: string,
+  ) {
+    return this.invoices.convert(user.companyId, user.id, id);
+  }
+
   @Post(':id/cancel')
   @UseGuards(RolesGuard)
   @Roles('owner', 'worker')

@@ -207,6 +207,51 @@ export class InvoicesService {
   }
 
   /**
+   * POST /invoices/:id/convert — M-09: draft PRAČUN (ADVANCE) postaje draft račun (SALE).
+   * Tip se mijenja u mjestu da se ne duplira dokument; broj se i dalje dodjeljuje pri izdavanju.
+   */
+  async convert(companyId: string, userId: string, invoiceId: string) {
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { id: invoiceId, companyId },
+      select: { id: true, type: true, status: true },
+    });
+
+    if (!invoice) {
+      throw new NotFoundException('Faktura nije pronađena');
+    }
+    if (invoice.type !== 'ADVANCE') {
+      throw new ConflictException('Samo PRAČUN se može konvertovati u račun');
+    }
+    if (invoice.status !== 'DRAFT') {
+      throw new ConflictException('Konverzija je moguća samo za draft PRAČUN');
+    }
+
+    const converted = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.invoice.update({
+        where: { id: invoiceId },
+        data: { type: 'SALE' },
+        include: detailInclude,
+      });
+
+      // §21: audit log za konverziju PRAČUNA u račun.
+      await tx.auditLog.create({
+        data: {
+          companyId,
+          userId,
+          action: 'invoice.convert',
+          entity: 'invoice',
+          entityId: invoiceId,
+          metaJson: toJson({ from: 'ADVANCE', to: 'SALE' }),
+        },
+      });
+
+      return updated;
+    });
+
+    return toInvoiceDetailDto(converted);
+  }
+
+  /**
    * Retry za PENDING_FISCAL (BullMQ worker). Vraća null ako faktura nije u PENDING_FISCAL.
    * Backoff (1m/5m/15m/1h/6h) računa worker; ovdje se samo ponavlja fiskalizacija.
    */

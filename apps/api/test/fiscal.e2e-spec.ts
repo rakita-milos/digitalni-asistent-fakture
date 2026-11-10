@@ -165,6 +165,80 @@ describe('Sprint 3 — fiskalizacija, numeracija i PDF', () => {
     expect(response.body.message).toContain('PRAČUN');
   });
 
+  it('konvertuje PRAČUN u draft račun i izdaje ga kao SALE', async () => {
+    const invoiceId = await createInvoice('ADVANCE');
+
+    const converted = await request(app.getHttpServer())
+      .post(`/invoices/${invoiceId}/convert`)
+      .set(authHeader(token));
+
+    expect(converted.status).toBe(201);
+    expect(converted.body.type).toBe('SALE');
+    expect(converted.body.status).toBe('DRAFT');
+
+    const audit = await prisma.auditLog.findMany({
+      where: { entityId: invoiceId, action: 'invoice.convert' },
+    });
+    expect(audit).toHaveLength(1);
+
+    const issued = await request(app.getHttpServer())
+      .post(`/invoices/${invoiceId}/issue`)
+      .set(authHeader(token));
+
+    expect(issued.status).toBe(201);
+    expect(issued.body.status).toBe('ISSUED');
+    expect(issued.body.number).toBe(`${YEAR}-0001`);
+  });
+
+  it('odbija konverziju računa koji nije PRAČUN (409)', async () => {
+    const invoiceId = await createInvoice();
+
+    const response = await request(app.getHttpServer())
+      .post(`/invoices/${invoiceId}/convert`)
+      .set(authHeader(token));
+
+    expect(response.status).toBe(409);
+    expect(response.body.message).toContain('PRAČUN');
+  });
+
+  it('odbija ponovnu konverziju istog dokumenta (409)', async () => {
+    const invoiceId = await createInvoice('ADVANCE');
+
+    await request(app.getHttpServer())
+      .post(`/invoices/${invoiceId}/convert`)
+      .set(authHeader(token))
+      .expect(201);
+
+    const second = await request(app.getHttpServer())
+      .post(`/invoices/${invoiceId}/convert`)
+      .set(authHeader(token));
+
+    expect(second.status).toBe(409);
+  });
+
+  it('ne dozvoljava konverziju tuđe fakture (404)', async () => {
+    const invoiceId = await createInvoice('ADVANCE');
+
+    const otherRegister = await request(app.getHttpServer()).post('/auth/register').send({
+      company: {
+        name: 'Četvrta firma',
+        jib: '1234567890126',
+        address: 'Ulica 4',
+        city: 'Trebinje',
+        phone: '+38766123004',
+        email: 'cetvrti@example.ba',
+      },
+      owner: { email: 'cetvrti@example.ba', phone: '+38766123004', password: PASSWORD },
+    });
+    const otherToken = otherRegister.body.accessToken as string;
+
+    const response = await request(app.getHttpServer())
+      .post(`/invoices/${invoiceId}/convert`)
+      .set(authHeader(otherToken));
+
+    expect(response.status).toBe(404);
+  });
+
   it('vraća PDF sa PFR i QR kodom', async () => {
     const invoiceId = await createInvoice();
     await request(app.getHttpServer())

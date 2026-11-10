@@ -8,6 +8,7 @@ import { formatDate, formatFening, STATUS_LABELS, STATUS_STYLES } from '@/lib/fo
 import { INVOICE_TYPE_LABELS, PAYMENT_METHOD_LABELS } from '@/lib/invoice-form';
 
 import { IssueInvoiceButton } from '../issue-button';
+import { ConvertInvoiceButton } from '../convert-button';
 
 interface InvoiceLineDto {
   id: string;
@@ -134,6 +135,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
             PDF / štampa
           </a>
           {isDraft && !isProforma ? <IssueInvoiceButton invoiceId={invoice.id} /> : null}
+          {isDraft && isProforma ? <ConvertInvoiceButton invoiceId={invoice.id} /> : null}
         </div>
       </div>
 

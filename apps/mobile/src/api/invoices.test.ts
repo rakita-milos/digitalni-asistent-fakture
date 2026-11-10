@@ -2,6 +2,7 @@ import type { CreateInvoiceInput, CreatePaymentInput } from '@digitalni-asistent
 
 import {
   cancelInvoice,
+  convertInvoice,
   createInvoice,
   createPayment,
   getInvoice,
@@ -77,6 +78,17 @@ describe('invoices API', () => {
     await issueInvoice('invoice-1');
 
     expect(apiRequestMock).toHaveBeenCalledWith('/invoices/invoice-1/issue', {
+      method: 'POST',
+      body: {},
+    });
+  });
+
+  it('konvertuje PRAČUN u račun (POST /invoices/:id/convert)', async () => {
+    apiRequestMock.mockResolvedValue({ id: 'invoice-1' } as never);
+
+    await convertInvoice('invoice-1');
+
+    expect(apiRequestMock).toHaveBeenCalledWith('/invoices/invoice-1/convert', {
       method: 'POST',
       body: {},
     });

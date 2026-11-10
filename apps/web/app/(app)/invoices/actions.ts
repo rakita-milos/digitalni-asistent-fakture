@@ -70,3 +70,19 @@ export async function issueInvoiceAction(invoiceId: string): Promise<InvoiceActi
     return toActionResult(error, 'Faktura nije izdata.');
   }
 }
+
+/** M-09: draft PRAČUN postaje draft račun. */
+export async function convertInvoiceAction(invoiceId: string): Promise<InvoiceActionResult> {
+  try {
+    await apiFetch<{ id: string }>(`/invoices/${invoiceId}/convert`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+
+    revalidatePath('/invoices');
+    revalidatePath(`/invoices/${invoiceId}`);
+    return {};
+  } catch (error) {
+    return toActionResult(error, 'PRAČUN nije konvertovan.');
+  }
+}

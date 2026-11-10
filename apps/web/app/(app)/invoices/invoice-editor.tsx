@@ -467,7 +467,7 @@ export function InvoiceEditor({
 
         {type === 'ADVANCE' ? (
           <p className="mt-3 text-xs text-foreground/50">
-            PRAČUN se ne fiskalizuje; konverzija u račun dolazi u narednom sprintu.
+            PRAČUN se ne fiskalizuje; nakon čuvanja se može konvertovati u draft račun na detalju.
           </p>
         ) : null}
 

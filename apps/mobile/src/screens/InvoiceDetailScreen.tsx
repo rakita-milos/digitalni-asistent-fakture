@@ -21,6 +21,7 @@ import { getAccessToken, ApiError } from '../api/client';
 import { API_URL } from '../config';
 import {
   cancelInvoice,
+  convertInvoice,
   createPayment,
   getInvoice,
   issueInvoice,
@@ -82,6 +83,24 @@ export function InvoiceDetailScreen({ route }: Props) {
     }, [load]),
   );
 
+  async function handleConvert(): Promise<void> {
+    setActionError(null);
+    setInfoMessage(null);
+    setIsBusy(true);
+
+    try {
+      await convertInvoice(invoiceId);
+      setInfoMessage('PRAČUN je konvertovan u draft račun — sada se može izdati.');
+      await load();
+    } catch (caught) {
+      setActionError(
+        caught instanceof ApiError ? caught.message : 'Konverzija nije uspjela. Provjerite mrežu.',
+      );
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
   async function handleIssue(): Promise<void> {
     setActionError(null);
     setIsBusy(true);
@@ -100,8 +119,7 @@ export function InvoiceDetailScreen({ route }: Props) {
     }
   }
 
-  async function handleRemind(): Promise<void> {
-    setActionError(null);
+  async function handleRemind(): Promise<void> {    setActionError(null);
     setInfoMessage(null);
     setIsBusy(true);
 
@@ -334,6 +352,19 @@ export function InvoiceDetailScreen({ route }: Props) {
         >
           <Text style={styles.primaryButtonText}>
             {isBusy ? 'Izdavanje…' : 'Izdaj i fiskalizuj'}
+          </Text>
+        </Pressable>
+      ) : null}
+
+      {isDraft && isProforma ? (
+        <Pressable
+          style={[styles.primaryButton, isBusy && styles.buttonDisabled]}
+          onPress={() => void handleConvert()}
+          disabled={isBusy}
+          testID="detail-convert"
+        >
+          <Text style={styles.primaryButtonText}>
+            {isBusy ? 'Konverzija…' : 'Konvertuj u račun'}
           </Text>
         </Pressable>
       ) : null}
