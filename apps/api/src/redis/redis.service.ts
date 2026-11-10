@@ -34,6 +34,12 @@ export class RedisService implements OnModuleDestroy {
     await this.client.set(key, value, 'EX', ttlSeconds);
   }
 
+  /** Atomski SET NX + TTL — idempotencija POST zahtjeva (§21). */
+  async setIfAbsent(key: string, value: string, ttlSeconds: number): Promise<boolean> {
+    const result = await this.client.set(key, value, 'EX', ttlSeconds, 'NX');
+    return result === 'OK';
+  }
+
   async get(key: string): Promise<string | null> {
     return this.client.get(key);
   }

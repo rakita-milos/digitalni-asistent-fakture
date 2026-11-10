@@ -8,6 +8,7 @@ import {
   Query,
   Res,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
@@ -31,6 +32,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { IdempotencyInterceptor } from '../../common/interceptors/idempotency.interceptor';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { InvoicePdfService } from './invoice-pdf.service';
 import { InvoicesService } from './invoices.service';
@@ -57,6 +59,7 @@ export class InvoicesController {
   @Post()
   @UseGuards(RolesGuard)
   @Roles('owner', 'worker')
+  @UseInterceptors(IdempotencyInterceptor)
   @ApiOperation({ summary: 'Nova faktura (DRAFT)' })
   create(
     @CurrentUser() user: AuthenticatedUser,

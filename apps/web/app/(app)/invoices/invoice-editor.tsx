@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useMemo, useState, useTransition } from 'react';
+import { useMemo, useRef, useState, useTransition } from 'react';
 
 import { formatFening } from '@/lib/format';
 import {
@@ -84,6 +84,8 @@ export function InvoiceEditor({
 }: InvoiceEditorProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  // Stabilan ključ za deduplikaciju duplog slanja / retry-ja iste forme (§6, §21).
+  const idempotencyKeyRef = useRef<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const activeTaxRate = taxRates.find((rate) => rate.active) ?? taxRates[0];
@@ -214,10 +216,25 @@ export function InvoiceEditor({
     };
 
     startTransition(async () => {
-      const result =
-        mode === 'edit' && initial
-          ? await updateInvoiceAction(initial.id, payload)
-          : await createInvoiceAction(payload);
+      if (mode === 'edit' && initial) {
+        const result = await updateInvoiceAction(initial.id, payload);
+
+        if (result.error) {
+          setError(result.error);
+          return;
+        }
+        if (!result.id) {
+          setError('Neočekivana greška — izmjene nisu sačuvane.');
+          return;
+        }
+
+        router.push(`/invoices/${result.id}`);
+        router.refresh();
+        return;
+      }
+
+      idempotencyKeyRef.current ??= crypto.randomUUID();
+      const result = await createInvoiceAction(payload, idempotencyKeyRef.current);
 
       if (result.error) {
         setError(result.error);

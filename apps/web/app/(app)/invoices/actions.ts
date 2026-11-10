@@ -24,11 +24,15 @@ function toActionResult(error: unknown, fallback: string): InvoiceActionResult {
 
 export async function createInvoiceAction(
   payload: InvoiceFormPayload,
+  idempotencyKey?: string,
 ): Promise<InvoiceActionResult> {
   try {
     const invoice = await apiFetch<{ id: string }>('/invoices', {
       method: 'POST',
       body: JSON.stringify(payload),
+      ...(idempotencyKey
+        ? { headers: { 'Idempotency-Key': idempotencyKey } }
+        : {}),
     });
 
     revalidatePath('/invoices');
