@@ -19,7 +19,7 @@ export type RootStackParamList = {
   Setup: undefined;
   Reminders: undefined;
   Invoices: undefined;
-  InvoiceForm: undefined;
+  InvoiceForm: { invoiceId?: string } | undefined;
   InvoiceDetail: { invoiceId: string; notice?: string };
   Customers: undefined;
   CustomerForm: undefined;

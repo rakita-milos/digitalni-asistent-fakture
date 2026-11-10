@@ -7,6 +7,7 @@ import {
   parsePriceFening,
   parseQtyMilli,
   toApiDateTime,
+  toDateInputValue,
 } from './invoiceMath';
 
 describe('invoiceMath — preview obračun (§7.2/§7.3)', () => {
@@ -67,5 +68,6 @@ describe('invoiceMath — datumi', () => {
     expect(isValidDateInput('01.11.2026')).toBe(false);
     expect(toApiDateTime('2026-11-01')).toBe('2026-11-01T12:00:00.000Z');
     expect(addDaysInput('2026-11-01', 15)).toBe('2026-11-16');
+    expect(toDateInputValue('2026-11-09T12:00:00.000Z')).toBe('2026-11-09');
   });
 });

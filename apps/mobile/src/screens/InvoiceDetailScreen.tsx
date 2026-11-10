@@ -50,7 +50,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'InvoiceDetail'>;
  * Akcije na ovoj verziji: izdavanje, naplata i poništenje.
  * Refundacija i QR slika na telefonu ostaju za naredni korak (vidi PROGRESS).
  */
-export function InvoiceDetailScreen({ route }: Props) {
+export function InvoiceDetailScreen({ navigation, route }: Props) {
   const { invoiceId, notice } = route.params;
 
   const [invoice, setInvoice] = useState<InvoiceDetailDto | null>(null);
@@ -342,6 +342,17 @@ export function InvoiceDetailScreen({ route }: Props) {
 
       {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
       {infoMessage ? <Text style={styles.successNotice}>{infoMessage}</Text> : null}
+
+      {isDraft ? (
+        <Pressable
+          style={[styles.secondaryButton, isBusy && styles.buttonDisabled]}
+          onPress={() => navigation.navigate('InvoiceForm', { invoiceId: invoice.id })}
+          disabled={isBusy}
+          testID="detail-edit"
+        >
+          <Text style={styles.secondaryButtonText}>Uredi draft</Text>
+        </Pressable>
+      ) : null}
 
       {isDraft && !isProforma ? (
         <Pressable

@@ -19,7 +19,7 @@ import { ApiError } from '../api/client';
 import { getCompany } from '../api/company';
 import { listItems, listTaxRates, type ItemDto, type TaxRateDto } from '../api/catalog';
 import { listCustomers, type CustomerDto } from '../api/customers';
-import { createInvoice, issueInvoice } from '../api/invoices';
+import { createInvoice, getInvoice, issueInvoice, updateInvoice } from '../api/invoices';
 import { SelectModal } from '../components/SelectModal';
 import { getDb } from '../db/localDb';
 import { getMeta, listCustomers as listLocalCustomers, setMeta, upsertInvoices } from '../db/repos';
@@ -38,8 +38,10 @@ import {
   parsePercentBp,
   parsePriceFening,
   parseQtyMilli,
+  qtyMilliToInput,
   taxRateBpToPercentInput,
   toApiDateTime,
+  toDateInputValue,
   todayInput,
 } from '../utils/invoiceMath';
 import type { InvoicePreviewInput } from '../utils/invoiceMath';
@@ -91,7 +93,10 @@ function toPreviewInput(line: EditorLine): InvoicePreviewInput | null {
  * M-05 Nova faktura + M-06 pregled prije izdavanja.
  * Podaci se učitavaju online (offline fakture još nisu podržane — vidi PROGRESS).
  */
-export function InvoiceFormScreen({ navigation }: Props) {
+export function InvoiceFormScreen({ navigation, route }: Props) {
+  const editingId = route.params?.invoiceId ?? null;
+  const isEdit = editingId !== null;
+
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [customers, setCustomers] = useState<CustomerDto[]>([]);
@@ -116,6 +121,61 @@ export function InvoiceFormScreen({ navigation }: Props) {
     let active = true;
 
     void (async () => {
+      // Izmjena drafta: podaci se pune sa servera; offline fallback nije primjenjiv.
+      if (isEdit && editingId) {
+        try {
+          const [invoice, customerList, itemList, taxRateList] = await Promise.all([
+            getInvoice(editingId),
+            listCustomers({ limit: 100 }),
+            listItems(100),
+            listTaxRates(),
+          ]);
+
+          if (!active) {
+            return;
+          }
+          if (invoice.status !== 'DRAFT') {
+            setLoadError('Samo draft faktura se može mijenjati.');
+            setIsLoading(false);
+            return;
+          }
+
+          setCustomers(customerList.items);
+          setItems(itemList.items);
+          setTaxRates(taxRateList.items);
+          setCustomerId(invoice.customerId);
+          setType(invoice.type === 'ADVANCE' ? 'ADVANCE' : 'SALE');
+          setIssueDate(toDateInputValue(invoice.issueDate));
+          setDueDate(toDateInputValue(invoice.dueDate));
+          setPaymentMethod(invoice.paymentMethod ?? '');
+          setNote(invoice.note ?? '');
+          setLines(
+            invoice.lines.map((line) => ({
+              key: uuidv7(),
+              description: line.description,
+              qty: qtyMilliToInput(line.qtyMilli),
+              price: feningToPriceInput(line.unitPriceFening),
+              discountPercent: (line.discountBp / 100).toString(),
+              taxPercent: taxRateBpToPercentInput(line.taxRateBp),
+            })),
+          );
+          setIsOffline(false);
+          setIsLoading(false);
+          return;
+        } catch (caught) {
+          if (!active) {
+            return;
+          }
+          setLoadError(
+            caught instanceof ApiError
+              ? caught.message
+              : 'Faktura nije učitana. Provjerite mrežu.',
+          );
+          setIsLoading(false);
+          return;
+        }
+      }
+
       try {
         const [customerList, itemList, taxRateList, company] = await Promise.all([
           listCustomers({ limit: 100 }),
@@ -200,7 +260,11 @@ export function InvoiceFormScreen({ navigation }: Props) {
     return () => {
       active = false;
     };
-  }, []);
+  }, [editingId, isEdit]);
+
+  useEffect(() => {
+    navigation.setOptions({ title: isEdit ? 'Izmjena drafta' : 'Nova faktura' });
+  }, [isEdit, navigation]);
 
   const selectedCustomer = customers.find((customer) => customer.id === customerId) ?? null;
   const taxRatesEmpty = taxRates.length === 0;
@@ -387,6 +451,24 @@ export function InvoiceFormScreen({ navigation }: Props) {
     setIsSaving(true);
 
     void (async () => {
+      if (isEdit && editingId) {
+        try {
+          await updateInvoice(editingId, built.input);
+          navigation.replace('InvoiceDetail', {
+            invoiceId: editingId,
+            notice: 'Izmjene na draftu su sačuvane.',
+          });
+        } catch (caught) {
+          setError(
+            caught instanceof ApiError
+              ? caught.message
+              : 'Izmjene nisu sačuvane. Provjerite mrežu.',
+          );
+          setIsSaving(false);
+        }
+        return;
+      }
+
       if (isOffline) {
         await saveOffline(built.input);
         return;
@@ -474,7 +556,9 @@ export function InvoiceFormScreen({ navigation }: Props) {
   if (step === 'review') {
     return (
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <Text style={styles.screenTitle}>Pregled prije izdavanja</Text>
+        <Text style={styles.screenTitle}>
+          {isEdit ? 'Pregled izmjena' : 'Pregled prije izdavanja'}
+        </Text>
         <Text style={styles.screenHint}>
           {isOffline
             ? 'Offline režim — faktura se čuva lokalno i šalje kada je mreža dostupna.'
@@ -532,7 +616,7 @@ export function InvoiceFormScreen({ navigation }: Props) {
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        {type === 'SALE' && !isOffline ? (
+        {type === 'SALE' && !isOffline && !isEdit ? (
           <Pressable
             style={[styles.primaryButton, isSaving && styles.buttonDisabled]}
             onPress={() => handleSubmit(true)}
@@ -554,11 +638,13 @@ export function InvoiceFormScreen({ navigation }: Props) {
           <Text style={styles.secondaryButtonText}>
             {isSaving
               ? 'Čuvanje…'
-              : isOffline
-                ? 'Sačuvaj offline'
-                : type === 'ADVANCE'
-                  ? 'Sačuvaj PRAČUN'
-                  : 'Sačuvaj kao draft'}
+              : isEdit
+                ? 'Sačuvaj izmjene'
+                : isOffline
+                  ? 'Sačuvaj offline'
+                  : type === 'ADVANCE'
+                    ? 'Sačuvaj PRAČUN'
+                    : 'Sačuvaj kao draft'}
           </Text>
         </Pressable>
 

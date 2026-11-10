@@ -2,12 +2,16 @@ import type {
   CreateInvoiceInput,
   CreatePaymentInput,
   RefundInvoiceInput,
+  UpdateInvoiceInput,
 } from '@digitalni-asistent/shared';
 
 import { apiRequest } from './client';
 
 export interface InvoiceSummaryDto {
   id: string;
+  companyId: string;
+  customerId: string;
+  customer: { id: string; name: string };
   number: string;
   status: string;
   type: string;
@@ -17,7 +21,6 @@ export interface InvoiceSummaryDto {
   dueDate: string;
   totalFening: number;
   paidFening: number;
-  customer: { id: string; name: string };
 }
 
 export interface InvoiceListResponse {
@@ -82,6 +85,14 @@ export function getInvoice(id: string): Promise<InvoiceDetailDto> {
 
 export function createInvoice(input: CreateInvoiceInput): Promise<InvoiceDetailDto> {
   return apiRequest<InvoiceDetailDto>('/invoices', { method: 'POST', body: input });
+}
+
+/** PATCH /invoices/:id — samo DRAFT (§7.4). */
+export function updateInvoice(
+  id: string,
+  input: UpdateInvoiceInput,
+): Promise<InvoiceDetailDto> {
+  return apiRequest<InvoiceDetailDto>(`/invoices/${id}`, { method: 'PATCH', body: input });
 }
 
 /** POST /invoices/:id/issue — fiskalizacija + dodjela broja (§7.5). */

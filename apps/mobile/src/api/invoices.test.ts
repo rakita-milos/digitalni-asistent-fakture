@@ -9,6 +9,7 @@ import {
   issueInvoice,
   listInvoices,
   refundInvoice,
+  updateInvoice,
 } from './invoices';
 import { apiRequest } from './client';
 
@@ -91,6 +92,17 @@ describe('invoices API', () => {
     expect(apiRequestMock).toHaveBeenCalledWith('/invoices/invoice-1/convert', {
       method: 'POST',
       body: {},
+    });
+  });
+
+  it('mijenja draft fakturu (PATCH /invoices/:id)', async () => {
+    apiRequestMock.mockResolvedValue({ id: 'invoice-1' } as never);
+
+    await updateInvoice('invoice-1', { customerId: 'customer-1' });
+
+    expect(apiRequestMock).toHaveBeenCalledWith('/invoices/invoice-1', {
+      method: 'PATCH',
+      body: { customerId: 'customer-1' },
     });
   });
 

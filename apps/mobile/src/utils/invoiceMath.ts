@@ -121,6 +121,12 @@ export function toApiDateTime(dateInput: string): string {
   return new Date(`${dateInput}T12:00:00.000Z`).toISOString();
 }
 
+/** ISO datetime → `yyyy-mm-dd` (za `<TextInput>` prikaz datuma, bez Intl zavisnosti). */
+export function toDateInputValue(iso: string): string {
+  const date = new Date(iso);
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
 function pad(value: number): string {
   return String(value).padStart(2, '0');
 }
