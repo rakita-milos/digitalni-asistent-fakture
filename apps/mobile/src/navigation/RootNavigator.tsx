@@ -10,6 +10,7 @@ import { InvoiceFormScreen } from '../screens/InvoiceFormScreen';
 import { InvoicesScreen } from '../screens/InvoicesScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { RemindersScreen } from '../screens/RemindersScreen';
+import { SettingsScreen } from '../screens/SettingsScreen';
 import { SetupScreen } from '../screens/setup/SetupScreen';
 import { useAuthStore } from '../state/authStore';
 
@@ -18,6 +19,7 @@ export type RootStackParamList = {
   Home: undefined;
   Setup: undefined;
   Reminders: undefined;
+  Settings: undefined;
   Invoices: undefined;
   InvoiceForm: { invoiceId?: string } | undefined;
   InvoiceDetail: { invoiceId: string; notice?: string };
@@ -58,6 +60,11 @@ export function RootNavigator() {
               name="Reminders"
               component={RemindersScreen}
               options={{ headerShown: true, title: 'Podsjetnici' }}
+            />
+            <Stack.Screen
+              name="Settings"
+              component={SettingsScreen}
+              options={{ headerShown: true, title: 'Podešavanja' }}
             />
             <Stack.Screen
               name="Invoices"

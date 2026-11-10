@@ -113,18 +113,10 @@ export function HomeScreen({ navigation }: Props) {
 
       <Pressable
         style={styles.secondary}
-        onPress={() => navigation.navigate('Setup')}
-        testID="home-setup"
+        onPress={() => navigation.navigate('Settings')}
+        testID="home-settings"
       >
-        <Text style={styles.secondaryText}>Podešavanja firme</Text>
-      </Pressable>
-
-      <Pressable
-        style={styles.secondary}
-        onPress={() => navigation.navigate('Reminders')}
-        testID="home-reminders"
-      >
-        <Text style={styles.secondaryText}>Podsjetnici</Text>
+        <Text style={styles.secondaryText}>Podešavanja</Text>
       </Pressable>
 
       <Pressable style={styles.logout} onPress={() => void signOut()} testID="logout">
