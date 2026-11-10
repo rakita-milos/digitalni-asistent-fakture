@@ -4,49 +4,59 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { RootStackParamList } from '../navigation/RootNavigator';
-import { listInvoices, type InvoiceSummaryDto } from '../api/invoices';
-import { ApiError } from '../api/client';
+import { getDb } from '../db/localDb';
+import { listInvoices as listLocalInvoices, type LocalInvoice } from '../db/repos';
+import { flushQueue, pendingCount, pullAndMerge } from '../sync/syncEngine';
 import {
   formatDate,
   formatFening,
-  INVOICE_TYPE_LABELS,
   STATUS_COLORS,
   STATUS_LABELS,
 } from '../utils/invoiceFormat';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Invoices'>;
 
-/** M-04 Fakture — lista sa statusima (§8). */
+/**
+ * M-04 Fakture — offline-first: lista se čita iz lokalne SQLite baze,
+ * pull/flush se puštaju u pozadini (kao M-11 kupci). Lokalno kreirane fakture
+ * (M-05 offline) vidljive su odmah, sa oznakom dok ne odu na server.
+ */
 export function InvoicesScreen({ navigation }: Props) {
-  const [invoices, setInvoices] = useState<InvoiceSummaryDto[]>([]);
-  const [total, setTotal] = useState(0);
+  const [invoices, setInvoices] = useState<LocalInvoice[]>([]);
+  const [pending, setPending] = useState(0);
+  const [isOffline, setIsOffline] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+
+  const loadLocal = useCallback(async () => {
+    try {
+      const db = getDb();
+      setInvoices(await listLocalInvoices(db));
+      setPending(await pendingCount(db));
+    } catch {
+      // Ako lokalna baza nije dostupna, prikaz ostaje prazna lista.
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const sync = useCallback(async () => {
+    try {
+      const db = getDb();
+      await pullAndMerge(db);
+      await flushQueue(db);
+      setIsOffline(false);
+      await loadLocal();
+    } catch {
+      setIsOffline(true);
+    }
+  }, [loadLocal]);
 
   useFocusEffect(
     useCallback(() => {
-      let active = true;
-      setIsLoading(true);
-      setError(null);
-
-      listInvoices({ limit: 100 })
-        .then((response) => {
-          if (!active) return;
-          setInvoices(response.items);
-          setTotal(response.total);
-        })
-        .catch((caught) => {
-          if (!active) return;
-          setError(caught instanceof ApiError ? caught.message : 'Fakture nisu učitane.');
-        })
-        .finally(() => {
-          if (active) setIsLoading(false);
-        });
-
-      return () => {
-        active = false;
-      };
-    }, []),
+      void loadLocal();
+      void sync();
+      return undefined;
+    }, [loadLocal, sync]),
   );
 
   if (isLoading) {
@@ -59,7 +69,10 @@ export function InvoicesScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {isOffline ? <Text style={styles.offline}>Offline — prikaz lokalnih faktura</Text> : null}
+      {pending > 0 ? (
+        <Text style={styles.pending}>Lokalne izmjene čekaju slanje: {pending}</Text>
+      ) : null}
 
       <FlatList
         data={invoices}
@@ -74,15 +87,13 @@ export function InvoicesScreen({ navigation }: Props) {
             <View style={styles.rowTop}>
               <Text style={styles.number}>
                 {item.number}
-                {item.type === 'ADVANCE'
-                  ? ` · ${INVOICE_TYPE_LABELS['ADVANCE'] ?? 'PRAČUN'}`
-                  : ''}
+                {item.number.startsWith('DRAFT-') ? ' · nije poslano' : ''}
               </Text>
               <Text style={[styles.status, { color: STATUS_COLORS[item.status] ?? '#1F2937' }]}>
                 {STATUS_LABELS[item.status] ?? item.status}
               </Text>
             </View>
-            <Text style={styles.customer}>{item.customer.name}</Text>
+            <Text style={styles.customer}>{item.customerName ?? '—'}</Text>
             <View style={styles.rowBottom}>
               <Text style={styles.meta}>Rok: {formatDate(item.dueDate)}</Text>
               <Text style={styles.amount}>{formatFening(item.totalFening)}</Text>
@@ -91,7 +102,7 @@ export function InvoicesScreen({ navigation }: Props) {
         )}
       />
 
-      <Text style={styles.total}>Ukupno: {total}</Text>
+      <Text style={styles.total}>Ukupno: {invoices.length}</Text>
 
       <Pressable
         style={styles.primaryButton}
@@ -107,6 +118,8 @@ export function InvoicesScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAFB', padding: 16 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F9FAFB' },
+  offline: { color: '#B45309', fontSize: 12, marginBottom: 4 },
+  pending: { color: '#B45309', fontSize: 12, marginBottom: 4 },
   row: { backgroundColor: '#FFFFFF', borderRadius: 10, padding: 12, marginTop: 8 },
   rowTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
   number: { color: '#1F2937', fontSize: 15, fontWeight: '700', flex: 1 },
@@ -116,7 +129,6 @@ const styles = StyleSheet.create({
   meta: { color: '#9CA3AF', fontSize: 12 },
   amount: { color: '#1F2937', fontSize: 14, fontWeight: '600' },
   empty: { color: '#6B7280', marginTop: 24, textAlign: 'center' },
-  error: { color: '#B91C1C', marginBottom: 8 },
   total: { color: '#6B7280', fontSize: 12, marginTop: 12 },
   primaryButton: {
     backgroundColor: '#1D4ED8',

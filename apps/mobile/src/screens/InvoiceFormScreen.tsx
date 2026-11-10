@@ -2,6 +2,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -20,6 +21,13 @@ import { listItems, listTaxRates, type ItemDto, type TaxRateDto } from '../api/c
 import { listCustomers, type CustomerDto } from '../api/customers';
 import { createInvoice, issueInvoice } from '../api/invoices';
 import { SelectModal } from '../components/SelectModal';
+import { getDb } from '../db/localDb';
+import { getMeta, listCustomers as listLocalCustomers, setMeta, upsertInvoices } from '../db/repos';
+import {
+  enqueueOperation,
+  flushQueue,
+  pullAndMerge,
+} from '../sync/syncEngine';
 import { formatFening, INVOICE_TYPE_LABELS, PAYMENT_METHOD_LABELS, PAYMENT_METHODS } from '../utils/invoiceFormat';
 import {
   addDaysInput,
@@ -35,6 +43,7 @@ import {
   todayInput,
 } from '../utils/invoiceMath';
 import type { InvoicePreviewInput } from '../utils/invoiceMath';
+import { buildLocalDraftInvoice } from '../utils/localInvoice';
 import { uuidv7 } from '../utils/uuid';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'InvoiceForm'>;
@@ -91,6 +100,7 @@ export function InvoiceFormScreen({ navigation }: Props) {
 
   const [customerId, setCustomerId] = useState('');
   const [type, setType] = useState<InvoiceType>('SALE');
+  const [isOffline, setIsOffline] = useState(false);
   const [issueDate, setIssueDate] = useState(todayInput());
   const [dueDate, setDueDate] = useState(addDaysInput(todayInput(), 15));
   const [paymentMethod, setPaymentMethod] = useState('');
@@ -129,17 +139,61 @@ export function InvoiceFormScreen({ navigation }: Props) {
         setCustomerId(customerList.items[0]?.id ?? '');
         setDueDate(addDaysInput(todayInput(), company.defaultDueDays));
         setLines([createLine(defaultTaxPercent)]);
+        setIsOffline(false);
         setIsLoading(false);
+
+        // Keširaj rok za offline formu (M-05 offline).
+        void setMeta(getDb(), 'company_default_due_days', String(company.defaultDueDays)).catch(
+          () => undefined,
+        );
       } catch (caught) {
         if (!active) {
           return;
         }
-        setLoadError(
-          caught instanceof ApiError
-            ? caught.message
-            : 'Podaci nisu učitani. Provjerite mrežu.',
-        );
-        setIsLoading(false);
+
+        // Bez mreže: lokalni kupci iz SQLite, stavke se unose ručno (M-05 offline).
+        try {
+          const db = getDb();
+          const localCustomers = await listLocalCustomers(db);
+          const cachedDueDays = await getMeta(db, 'company_default_due_days');
+          const parsedDueDays = Number.parseInt(cachedDueDays ?? '', 10);
+          const dueDays = Number.isInteger(parsedDueDays) && parsedDueDays >= 0 ? parsedDueDays : 15;
+
+          if (!active) {
+            return;
+          }
+
+          setCustomers(
+            localCustomers.map((customer) => ({
+              id: customer.id,
+              name: customer.name,
+              jib: customer.jib,
+              phone: customer.phone,
+              email: customer.email,
+              city: customer.city,
+              address: customer.address,
+              note: customer.note,
+              archivedAt: customer.archivedAt,
+            })),
+          );
+          setItems([]);
+          setTaxRates([]);
+          setCustomerId(localCustomers[0]?.id ?? '');
+          setDueDate(addDaysInput(todayInput(), dueDays));
+          setLines([createLine('17')]);
+          setIsOffline(true);
+          setIsLoading(false);
+        } catch {
+          if (!active) {
+            return;
+          }
+          setLoadError(
+            caught instanceof ApiError
+              ? caught.message
+              : 'Podaci nisu učitani. Provjerite mrežu.',
+          );
+          setIsLoading(false);
+        }
       }
     })();
 
@@ -274,6 +328,52 @@ export function InvoiceFormScreen({ navigation }: Props) {
     setStep('review');
   }
 
+  /** M-05 offline: draft u lokalnu SQLite + sync queue; server ga preuzima kad je mreža. */
+  async function saveOffline(input: CreateInvoiceInput): Promise<void> {
+    try {
+      const db = getDb();
+      const entityId = uuidv7();
+      const localTotals = calculatePreviewTotals(
+        input.lines.map((line) => ({
+          qtyMilli: line.qtyMilli,
+          unitPriceFening: line.unitPriceFening,
+          taxRateBp: line.taxRateBp,
+          discountBp: line.discountBp,
+        })),
+      );
+
+      await upsertInvoices(db, [
+        buildLocalDraftInvoice({
+          id: entityId,
+          customerId: input.customerId,
+          customerName: selectedCustomer?.name ?? 'Kupac',
+          issueDate: input.issueDate,
+          dueDate: input.dueDate,
+          totalFening: localTotals.totalFening,
+          updatedAt: new Date().toISOString(),
+        }),
+      ]);
+      await enqueueOperation(db, {
+        entity: 'invoice',
+        op: 'create',
+        entityId,
+        payload: input,
+      });
+      await flushQueue(db).catch(() => undefined);
+      await pullAndMerge(db).catch(() => undefined);
+
+      setIsSaving(false);
+      Alert.alert(
+        'Sačuvano offline',
+        'Faktura je sačuvana lokalno i biće poslana na server kada je mreža dostupna. Izdavanje je moguće nakon sinhronizacije.',
+        [{ text: 'U redu', onPress: () => navigation.goBack() }],
+      );
+    } catch {
+      setError('Faktura nije sačuvana lokalno. Provjerite prostor na uređaju.');
+      setIsSaving(false);
+    }
+  }
+
   function handleSubmit(issueImmediately: boolean): void {
     setError(null);
     const built = buildInvoiceInput();
@@ -287,6 +387,11 @@ export function InvoiceFormScreen({ navigation }: Props) {
     setIsSaving(true);
 
     void (async () => {
+      if (isOffline) {
+        await saveOffline(built.input);
+        return;
+      }
+
       let createdId: string | null = null;
 
       try {
@@ -299,8 +404,13 @@ export function InvoiceFormScreen({ navigation }: Props) {
 
         navigation.replace('InvoiceDetail', { invoiceId: created.id });
       } catch (caught) {
-        const message =
-          caught instanceof ApiError ? caught.message : 'Faktura nije sačuvana. Provjerite mrežu.';
+        // Mreža je pala u toku zahtjeva — sačuvaj fakturu lokalno (M-05 offline).
+        if (!(caught instanceof ApiError)) {
+          await saveOffline(built.input);
+          return;
+        }
+
+        const message = caught.message;
 
         if (createdId) {
           navigation.replace('InvoiceDetail', {
@@ -366,7 +476,11 @@ export function InvoiceFormScreen({ navigation }: Props) {
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <Text style={styles.screenTitle}>Pregled prije izdavanja</Text>
         <Text style={styles.screenHint}>
-          {type === 'ADVANCE' ? 'PRAČUN se ne fiskalizuje.' : 'Provjerite podatke prije izdavanja.'}
+          {isOffline
+            ? 'Offline režim — faktura se čuva lokalno i šalje kada je mreža dostupna.'
+            : type === 'ADVANCE'
+              ? 'PRAČUN se ne fiskalizuje.'
+              : 'Provjerite podatke prije izdavanja.'}
         </Text>
 
         <View style={styles.card}>
@@ -418,7 +532,7 @@ export function InvoiceFormScreen({ navigation }: Props) {
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        {type === 'SALE' ? (
+        {type === 'SALE' && !isOffline ? (
           <Pressable
             style={[styles.primaryButton, isSaving && styles.buttonDisabled]}
             onPress={() => handleSubmit(true)}
@@ -438,7 +552,13 @@ export function InvoiceFormScreen({ navigation }: Props) {
           testID="invoice-save-draft"
         >
           <Text style={styles.secondaryButtonText}>
-            {isSaving ? 'Čuvanje…' : type === 'ADVANCE' ? 'Sačuvaj PRAČUN' : 'Sačuvaj kao draft'}
+            {isSaving
+              ? 'Čuvanje…'
+              : isOffline
+                ? 'Sačuvaj offline'
+                : type === 'ADVANCE'
+                  ? 'Sačuvaj PRAČUN'
+                  : 'Sačuvaj kao draft'}
           </Text>
         </Pressable>
 
@@ -460,6 +580,13 @@ export function InvoiceFormScreen({ navigation }: Props) {
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
+      {isOffline ? (
+        <Text style={styles.offlineBanner}>
+          Offline — faktura se čuva lokalno i šalje na server kada je mreža dostupna. Izdavanje
+          (fiskalizacija) zahtijeva mrežu.
+        </Text>
+      ) : null}
+
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Podaci o fakturi</Text>
 
@@ -569,6 +696,12 @@ export function InvoiceFormScreen({ navigation }: Props) {
             <Text style={styles.addLineText}>+ Stavka</Text>
           </Pressable>
         </View>
+
+        {isOffline && items.length === 0 ? (
+          <Text style={styles.meta}>
+            Katalog artikala nije dostupan offline — unesite opis i cijenu ručno.
+          </Text>
+        ) : null}
 
         {lines.map((line, index) => {
           const preview = toPreviewInput(line);
@@ -738,6 +871,14 @@ const styles = StyleSheet.create({
   },
   screenTitle: { color: '#1F2937', fontSize: 20, fontWeight: '700' },
   screenHint: { color: '#6B7280', fontSize: 13, marginBottom: 4 },
+  offlineBanner: {
+    backgroundColor: '#FFFBEB',
+    color: '#92400E',
+    fontSize: 13,
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 4,
+  },
   emptyTitle: { color: '#1F2937', fontSize: 18, fontWeight: '700' },
   emptyText: { color: '#6B7280', fontSize: 13, textAlign: 'center', marginTop: 8 },
   card: {

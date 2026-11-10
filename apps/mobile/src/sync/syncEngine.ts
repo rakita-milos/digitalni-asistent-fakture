@@ -6,7 +6,7 @@ import type {
 
 import { apiRequest } from '../api/client';
 import type { SqlDb } from '../db/localDb';
-import { upsertCustomers, upsertInvoices } from '../db/repos';
+import { getMeta, setMeta, upsertCustomers, upsertInvoices } from '../db/repos';
 import type { LocalCustomer, LocalInvoice } from '../db/repos';
 import { uuidv7 } from '../utils/uuid';
 
@@ -30,15 +30,6 @@ export interface QueueRow {
   createdAt: string;
   status: string;
   error: string | null;
-}
-
-export async function getMeta(db: SqlDb, key: string): Promise<string | null> {
-  const rows = await db.query<{ value: string }>('SELECT value FROM meta WHERE key = ?', [key]);
-  return rows[0]?.value ?? null;
-}
-
-export async function setMeta(db: SqlDb, key: string, value: string): Promise<void> {
-  await db.execute('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)', [key, value]);
 }
 
 /** GET /sync/pull + upis u lokalnu bazu. */
