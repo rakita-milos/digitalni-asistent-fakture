@@ -90,3 +90,79 @@ export async function convertInvoiceAction(invoiceId: string): Promise<InvoiceAc
     return toActionResult(error, 'PRAČUN nije konvertovan.');
   }
 }
+
+export interface PaymentActionInput {
+  amountFening: number;
+  method: string;
+  note?: string;
+}
+
+export async function createPaymentAction(
+  invoiceId: string,
+  input: PaymentActionInput,
+): Promise<InvoiceActionResult> {
+  try {
+    await apiFetch<{ payment: unknown }>(`/invoices/${invoiceId}/payments`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+
+    revalidatePath('/invoices');
+    revalidatePath(`/invoices/${invoiceId}`);
+    return {};
+  } catch (error) {
+    return toActionResult(error, 'Naplata nije sačuvana.');
+  }
+}
+
+export interface RefundActionInput {
+  amountFening: number;
+  note?: string;
+}
+
+export async function refundInvoiceAction(
+  invoiceId: string,
+  input: RefundActionInput,
+): Promise<InvoiceActionResult> {
+  try {
+    await apiFetch<{ id: string }>(`/invoices/${invoiceId}/refund`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+
+    revalidatePath('/invoices');
+    revalidatePath(`/invoices/${invoiceId}`);
+    return {};
+  } catch (error) {
+    return toActionResult(error, 'Refundacija nije sačuvana.');
+  }
+}
+
+export async function cancelInvoiceAction(invoiceId: string): Promise<InvoiceActionResult> {
+  try {
+    await apiFetch<{ id: string }>(`/invoices/${invoiceId}/cancel`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+
+    revalidatePath('/invoices');
+    revalidatePath(`/invoices/${invoiceId}`);
+    return {};
+  } catch (error) {
+    return toActionResult(error, 'Faktura nije poništena.');
+  }
+}
+
+export async function sendReminderAction(invoiceId: string): Promise<InvoiceActionResult> {
+  try {
+    await apiFetch<{ id: string }>(`/invoices/${invoiceId}/remind`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+
+    revalidatePath(`/invoices/${invoiceId}`);
+    return {};
+  } catch (error) {
+    return toActionResult(error, 'Podsjetnik nije poslan.');
+  }
+}

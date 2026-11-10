@@ -9,6 +9,7 @@ import { INVOICE_TYPE_LABELS, PAYMENT_METHOD_LABELS } from '@/lib/invoice-form';
 
 import { IssueInvoiceButton } from '../issue-button';
 import { ConvertInvoiceButton } from '../convert-button';
+import { InvoiceActions } from '../invoice-actions';
 
 interface InvoiceLineDto {
   id: string;
@@ -34,6 +35,7 @@ interface InvoiceDetailDto {
   id: string;
   number: string;
   type: string;
+  transactionType: string;
   status: string;
   issueDate: string;
   dueDate: string;
@@ -138,6 +140,16 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           {isDraft && isProforma ? <ConvertInvoiceButton invoiceId={invoice.id} /> : null}
         </div>
       </div>
+
+      {!isDraft && invoice.status !== 'CANCELLED' ? (
+        <InvoiceActions
+          invoiceId={invoice.id}
+          status={invoice.status}
+          transactionType={invoice.transactionType}
+          totalFening={invoice.totalFening}
+          paidFening={invoice.paidFening}
+        />
+      ) : null}
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-[var(--radius-card)] bg-white p-4 shadow-sm ring-1 ring-black/5">
