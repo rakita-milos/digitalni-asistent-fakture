@@ -108,3 +108,36 @@ export async function getMeta(db: SqlDb, key: string): Promise<string | null> {
 export async function setMeta(db: SqlDb, key: string, value: string): Promise<void> {
   await db.execute('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)', [key, value]);
 }
+
+/**
+ * Keš detalja fakture (M-08 offline): posljednji uspješno učitani detalj.
+ * Nije dio sync-a — služi samo za prikaz kad nema mreže.
+ */
+export async function saveInvoiceDetail(
+  db: SqlDb,
+  invoiceId: string,
+  payload: unknown,
+): Promise<void> {
+  await db.execute(
+    'INSERT OR REPLACE INTO invoice_details (invoiceId, payload, cachedAt) VALUES (?, ?, ?)',
+    [invoiceId, JSON.stringify(payload), new Date().toISOString()],
+  );
+}
+
+export async function getInvoiceDetail<T>(db: SqlDb, invoiceId: string): Promise<T | null> {
+  const rows = await db.query<{ payload: string }>(
+    'SELECT payload FROM invoice_details WHERE invoiceId = ?',
+    [invoiceId],
+  );
+  const payload = rows[0]?.payload;
+
+  if (!payload) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(payload) as T;
+  } catch {
+    return null;
+  }
+}

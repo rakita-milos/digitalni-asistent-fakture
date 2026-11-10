@@ -22,7 +22,13 @@ import { listCustomers, type CustomerDto } from '../api/customers';
 import { createInvoice, getInvoice, issueInvoice, updateInvoice } from '../api/invoices';
 import { SelectModal } from '../components/SelectModal';
 import { getDb } from '../db/localDb';
-import { getMeta, listCustomers as listLocalCustomers, setMeta, upsertInvoices } from '../db/repos';
+import {
+  getMeta,
+  listCustomers as listLocalCustomers,
+  saveInvoiceDetail,
+  setMeta,
+  upsertInvoices,
+} from '../db/repos';
 import {
   enqueueOperation,
   flushQueue,
@@ -46,6 +52,7 @@ import {
 } from '../utils/invoiceMath';
 import type { InvoicePreviewInput } from '../utils/invoiceMath';
 import { buildLocalDraftInvoice } from '../utils/localInvoice';
+import { buildLocalDraftDetail } from '../utils/localInvoiceDetail';
 import { uuidv7 } from '../utils/uuid';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'InvoiceForm'>;
@@ -423,6 +430,27 @@ export function InvoiceFormScreen({ navigation, route }: Props) {
         entityId,
         payload: input,
       });
+      // Keširaj i detalj da se offline draft može otvoriti bez mreže (M-08 offline).
+      await saveInvoiceDetail(
+        db,
+        entityId,
+        buildLocalDraftDetail({
+          id: entityId,
+          customerId: input.customerId,
+          customerName: selectedCustomer?.name ?? 'Kupac',
+          issueDate: input.issueDate,
+          dueDate: input.dueDate,
+          note: input.note,
+          paymentMethod: input.paymentMethod,
+          lines: input.lines.map((line) => ({
+            description: line.description,
+            qtyMilli: line.qtyMilli,
+            unitPriceFening: line.unitPriceFening,
+            discountBp: line.discountBp,
+            taxRateBp: line.taxRateBp,
+          })),
+        }),
+      );
       await flushQueue(db).catch(() => undefined);
       await pullAndMerge(db).catch(() => undefined);
 

@@ -19,6 +19,8 @@ import type { PaymentMethod } from '@digitalni-asistent/shared';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { getAccessToken, ApiError } from '../api/client';
 import { API_URL } from '../config';
+import { getDb } from '../db/localDb';
+import { getInvoiceDetail, saveInvoiceDetail } from '../db/repos';
 import {
   cancelInvoice,
   convertInvoice,
@@ -61,16 +63,35 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
   const [isBusy, setIsBusy] = useState(false);
   const [paymentVisible, setPaymentVisible] = useState(false);
   const [refundVisible, setRefundVisible] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
 
   const load = useCallback(async () => {
     try {
       const data = await getInvoice(invoiceId);
       setInvoice(data);
       setLoadError(null);
+      setIsOffline(false);
+      void saveInvoiceDetail(getDb(), invoiceId, data).catch(() => undefined);
     } catch (caught) {
-      setLoadError(
-        caught instanceof ApiError ? caught.message : 'Faktura nije učitana. Provjerite mrežu.',
+      if (caught instanceof ApiError) {
+        setLoadError(caught.message);
+        return;
+      }
+
+      // Bez mreže: prikaži keširani detalj ako postoji (M-08 offline).
+      const cached = await getInvoiceDetail<InvoiceDetailDto>(getDb(), invoiceId).catch(
+        () => null,
       );
+
+      if (cached) {
+        setInvoice(cached);
+        setLoadError(null);
+        setIsOffline(true);
+      } else {
+        setLoadError(
+          'Faktura nije dostupna offline. Sinhronizujte podatke kada je mreža dostupna.',
+        );
+      }
     } finally {
       setIsLoading(false);
     }
@@ -204,6 +225,11 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {notice ? <Text style={styles.notice}>{notice}</Text> : null}
+      {isOffline ? (
+        <Text style={styles.notice}>
+          Offline — prikazuju se keširani podaci; izdavanje, naplata i ostale akcije traže mrežu.
+        </Text>
+      ) : null}
 
       <View style={styles.card}>
         <View style={styles.headerRow}>
@@ -306,7 +332,7 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
           {invoice.fiscalAt ? (
             <Text style={styles.metaSmall}>Fiskalizovano: {formatDate(invoice.fiscalAt)}</Text>
           ) : null}
-          {qrSource ? (
+          {qrSource && !isOffline ? (
             <View style={styles.qrWrapper}>
               <Image source={qrSource} style={styles.qrImage} resizeMode="contain" />
               <Text style={styles.hint}>QR za provjeru fiskalnog računa</Text>
@@ -343,7 +369,7 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
       {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
       {infoMessage ? <Text style={styles.successNotice}>{infoMessage}</Text> : null}
 
-      {isDraft ? (
+      {isDraft && !isOffline ? (
         <Pressable
           style={[styles.secondaryButton, isBusy && styles.buttonDisabled]}
           onPress={() => navigation.navigate('InvoiceForm', { invoiceId: invoice.id })}
@@ -354,7 +380,7 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
         </Pressable>
       ) : null}
 
-      {isDraft && !isProforma ? (
+      {isDraft && !isProforma && !isOffline ? (
         <Pressable
           style={[styles.primaryButton, isBusy && styles.buttonDisabled]}
           onPress={() => void handleIssue()}
@@ -367,7 +393,7 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
         </Pressable>
       ) : null}
 
-      {isDraft && isProforma ? (
+      {isDraft && isProforma && !isOffline ? (
         <Pressable
           style={[styles.primaryButton, isBusy && styles.buttonDisabled]}
           onPress={() => void handleConvert()}
@@ -380,7 +406,7 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
         </Pressable>
       ) : null}
 
-      {canPay ? (
+      {canPay && !isOffline ? (
         <Pressable
           style={[styles.primaryButton, isBusy && styles.buttonDisabled]}
           onPress={() => setPaymentVisible(true)}
@@ -391,7 +417,7 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
         </Pressable>
       ) : null}
 
-      {canRemind ? (
+      {canRemind && !isOffline ? (
         <Pressable
           style={[styles.secondaryButton, isBusy && styles.buttonDisabled]}
           onPress={() => void handleRemind()}
@@ -402,7 +428,7 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
         </Pressable>
       ) : null}
 
-      {canRefund ? (
+      {canRefund && !isOffline ? (
         <Pressable
           style={[styles.secondaryButton, isBusy && styles.buttonDisabled]}
           onPress={() => setRefundVisible(true)}
@@ -413,7 +439,7 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
         </Pressable>
       ) : null}
 
-      {canCancel ? (
+      {canCancel && !isOffline ? (
         <Pressable
           style={[styles.dangerButton, isBusy && styles.buttonDisabled]}
           onPress={confirmCancel}

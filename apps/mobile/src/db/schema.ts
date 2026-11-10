@@ -42,6 +42,11 @@ export const SCHEMA_STATEMENTS: string[] = [
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS invoice_details (
+    invoiceId TEXT PRIMARY KEY,
+    payload TEXT NOT NULL,
+    cachedAt TEXT NOT NULL
+  )`,
   'CREATE INDEX IF NOT EXISTS customers_name_idx ON customers(name)',
   'CREATE INDEX IF NOT EXISTS invoices_updated_idx ON invoices(updatedAt)',
   'CREATE INDEX IF NOT EXISTS sync_queue_status_idx ON sync_queue(status)',
