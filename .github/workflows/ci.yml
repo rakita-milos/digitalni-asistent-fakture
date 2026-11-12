@@ -140,3 +140,80 @@ jobs:
           path: apps/mobile/android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
 
+  e2e:
+    name: web e2e (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: digitalni
+          POSTGRES_PASSWORD: digitalni
+          POSTGRES_DB: digitalni_asistent
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U digitalni -d digitalni_asistent"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://digitalni:digitalni@localhost:5432/digitalni_asistent?schema=public
+      REDIS_URL: redis://localhost:6379
+      JWT_ACCESS_SECRET: ci-access-secret-0123456789
+      JWT_REFRESH_SECRET: ci-refresh-secret-0123456789
+      RATE_LIMIT_ENABLED: 'false'
+      MAIL_PROVIDER: log
+      SMS_PROVIDER: log
+      NEXT_TELEMETRY_DISABLED: '1'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Instalacija zavisnosti
+        run: pnpm install --frozen-lockfile
+
+      - name: Prisma generate + migracije
+        run: |
+          pnpm --filter api exec prisma generate
+          pnpm --filter api exec prisma migrate deploy
+
+      - name: Build (web + api + shared)
+        run: pnpm build
+
+      - name: Playwright browser
+        run: pnpm --filter web exec playwright install --with-deps chromium
+
+      - name: E2E (globalSetup radi seed)
+        run: pnpm --filter web test:e2e
+
+      - name: Sačuvaj Playwright izvještaj
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            apps/web/playwright-report
+            apps/web/test-results
+          if-no-files-found: ignore
