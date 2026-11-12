@@ -64,3 +64,15 @@ export const invoiceListQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).default(0),
 });
 export type InvoiceListQuery = z.infer<typeof invoiceListQuerySchema>;
+
+/**
+ * POST /invoices/:id/send — slanje fakture e-mailom (PDF) ili SMS-om (link) — §6.
+ * `to` je opcion: ako se ne pošalje, koristi se e-mail/telefon kupca sa fakture.
+ */
+export const invoiceSendChannelSchema = z.enum(['EMAIL', 'SMS']);
+export const sendInvoiceSchema = z.object({
+  channel: invoiceSendChannelSchema,
+  to: z.string().trim().min(3).max(254).optional(),
+});
+export type SendInvoiceInput = z.infer<typeof sendInvoiceSchema>;
+export type InvoiceSendChannel = z.infer<typeof invoiceSendChannelSchema>;

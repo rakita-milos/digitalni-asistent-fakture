@@ -17,12 +17,14 @@ import type {
   CreateInvoiceInput,
   InvoiceListQuery,
   RefundInvoiceInput,
+  SendInvoiceInput,
   UpdateInvoiceInput,
 } from '@digitalni-asistent/shared';
 import {
   createInvoiceSchema,
   invoiceListQuerySchema,
   refundInvoiceSchema,
+  sendInvoiceSchema,
   updateInvoiceSchema,
   uuidV7Schema,
 } from '@digitalni-asistent/shared';
@@ -132,6 +134,18 @@ export class InvoicesController {
     @Body(new ZodValidationPipe(refundInvoiceSchema)) body: RefundInvoiceInput,
   ) {
     return this.invoices.refund(user.companyId, user.id, id, body);
+  }
+
+  @Post(':id/send')
+  @UseGuards(RolesGuard)
+  @Roles('owner', 'worker')
+  @ApiOperation({ summary: 'Slanje fakture e-mailom (PDF) ili SMS-om (kratkotrajni link)' })
+  send(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', new ZodValidationPipe(uuidV7Schema)) id: string,
+    @Body(new ZodValidationPipe(sendInvoiceSchema)) body: SendInvoiceInput,
+  ) {
+    return this.invoices.send(user.companyId, user.id, id, body);
   }
 
   @Get(':id/qr')

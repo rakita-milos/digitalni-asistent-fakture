@@ -2,11 +2,18 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { env } from '../../config/env';
 
+export interface EmailAttachment {
+  filename: string;
+  content: Buffer;
+  contentType: string;
+}
+
 export interface EmailMessage {
   to: string;
   subject: string;
   text: string;
   html?: string;
+  attachments?: EmailAttachment[];
 }
 
 /**

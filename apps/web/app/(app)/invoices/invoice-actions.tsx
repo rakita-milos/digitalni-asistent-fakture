@@ -10,6 +10,7 @@ import {
   cancelInvoiceAction,
   createPaymentAction,
   refundInvoiceAction,
+  sendInvoiceAction,
   sendReminderAction,
 } from './actions';
 
@@ -23,7 +24,7 @@ interface InvoiceActionsProps {
   paidFening: number;
 }
 
-type Panel = 'payment' | 'refund' | 'cancel' | null;
+type Panel = 'payment' | 'refund' | 'cancel' | 'send' | null;
 
 function parseAmountToFening(value: string): number | null {
   const parsed = Number(value.trim().replace(',', '.'));
@@ -48,6 +49,8 @@ export function InvoiceActions({
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState('CASH');
   const [note, setNote] = useState('');
+  const [sendChannel, setSendChannel] = useState<'EMAIL' | 'SMS'>('EMAIL');
+  const [sendTo, setSendTo] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -58,6 +61,7 @@ export function InvoiceActions({
   const canRefund = transactionType === 'SALE' && paidFening > 0 && status !== 'CANCELLED';
   const canCancel = transactionType === 'SALE' && paidFening === 0 && payable;
   const canRemind = payable;
+  const canSend = true;
 
   function openPayment(): void {
     setPanel('payment');
@@ -171,6 +175,35 @@ export function InvoiceActions({
     });
   }
 
+  function openSend(): void {
+    setPanel(panel === 'send' ? null : 'send');
+    setSendChannel('EMAIL');
+    setSendTo('');
+    setError(null);
+    setInfo(null);
+  }
+
+  function handleSend(): void {
+    setError(null);
+    setInfo(null);
+
+    startTransition(async () => {
+      const result = await sendInvoiceAction(invoiceId, {
+        channel: sendChannel,
+        ...(sendTo.trim() ? { to: sendTo.trim() } : {}),
+      });
+
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+
+      setPanel(null);
+      setInfo(sendChannel === 'EMAIL' ? 'Faktura je poslana e-mailom.' : 'Faktura je poslana SMS-om.');
+      router.refresh();
+    });
+  }
+
   return (
     <div className="flex flex-col items-end gap-2">
       <div className="flex flex-wrap items-center justify-end gap-2">
@@ -192,6 +225,16 @@ export function InvoiceActions({
             className="rounded-[var(--radius-button)] border border-primary px-3 py-2 text-sm font-semibold text-primary disabled:opacity-60"
           >
             Pošalji podsjetnik
+          </button>
+        ) : null}
+        {canSend ? (
+          <button
+            type="button"
+            onClick={openSend}
+            disabled={isPending}
+            className="rounded-[var(--radius-button)] border border-gray-300 px-3 py-2 text-sm font-semibold disabled:opacity-60"
+          >
+            Pošalji
           </button>
         ) : null}
         {canRefund ? (
@@ -222,6 +265,57 @@ export function InvoiceActions({
 
       {error ? <p className="max-w-xs text-right text-xs text-danger">{error}</p> : null}
       {info ? <p className="max-w-xs text-right text-xs text-success">{info}</p> : null}
+
+      {panel === 'send' ? (
+        <div className="w-72 rounded-[var(--radius-card)] bg-white p-4 text-left shadow-sm ring-1 ring-black/5">
+          <p className="mb-2 text-sm font-semibold">Slanje fakture</p>
+          <label className="mb-1 block text-xs text-foreground/60" htmlFor="send-channel">
+            Kanal
+          </label>
+          <select
+            id="send-channel"
+            value={sendChannel}
+            onChange={(event) => setSendChannel(event.target.value as 'EMAIL' | 'SMS')}
+            className="mb-2 w-full rounded-[var(--radius-button)] border border-gray-300 bg-white px-2 py-1.5 text-sm"
+          >
+            <option value="EMAIL">E-mail (PDF u prilogu)</option>
+            <option value="SMS">SMS (kratkotrajni link)</option>
+          </select>
+          <label className="mb-1 block text-xs text-foreground/60" htmlFor="send-to">
+            Primalac (opciono)
+          </label>
+          <input
+            id="send-to"
+            value={sendTo}
+            onChange={(event) => setSendTo(event.target.value)}
+            maxLength={254}
+            placeholder={sendChannel === 'EMAIL' ? 'kupac@firma.ba' : '+38766123456'}
+            className="mb-2 w-full rounded-[var(--radius-button)] border border-gray-300 px-2 py-1.5 text-sm"
+          />
+          <p className="mb-3 text-xs text-foreground/50">
+            Ako ostavite prazno, koristi se {sendChannel === 'EMAIL' ? 'e-mail' : 'telefon'} kupca sa
+            fakture.
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleSend}
+              disabled={isPending}
+              className="rounded-[var(--radius-button)] bg-primary px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-60"
+            >
+              {isPending ? 'Šaljem…' : 'Pošalji'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setPanel(null)}
+              disabled={isPending}
+              className="text-sm text-foreground/60"
+            >
+              Odustani
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {panel === 'payment' ? (
         <div className="w-72 rounded-[var(--radius-card)] bg-white p-4 text-left shadow-sm ring-1 ring-black/5">

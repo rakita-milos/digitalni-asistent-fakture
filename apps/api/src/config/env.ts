@@ -43,6 +43,12 @@ const envSchema = z.object({
   WEB_APP_URL: z.string().url().default('http://localhost:3000'),
   /// Reset lozinke: token važi 30 min, jednokratan je (§21.2).
   PASSWORD_RESET_TTL_SECONDS: z.coerce.number().int().min(60).max(3600).default(1800),
+  /// Javni URL API-ja — koristi se za linkove u e-mail/SMS porukama (PDF fakture).
+  PUBLIC_API_URL: z.string().url().default('http://localhost:3001'),
+  /// HMAC tajna za kratkotrajni PDF link iz poruke; fallback na access secret.
+  PDF_LINK_SECRET: z.string().min(16).optional(),
+  /// PDF link iz poruke važi najviše 15 min (Pre-Deployment Checklist).
+  PDF_LINK_TTL_SECONDS: z.coerce.number().int().min(60).max(3600).default(900),
   /// Fiskalizacija: 'mock' dok operater ne odgovori (G0); 'esir' nije implementiran.
   ESIR_MODE: z.enum(['mock', 'esir']).default('mock'),
   OTP_TTL_SECONDS: z.coerce.number().int().min(60).max(3600).default(300),

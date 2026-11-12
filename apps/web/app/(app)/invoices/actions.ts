@@ -166,3 +166,26 @@ export async function sendReminderAction(invoiceId: string): Promise<InvoiceActi
     return toActionResult(error, 'Podsjetnik nije poslan.');
   }
 }
+
+export interface SendInvoiceActionInput {
+  channel: 'EMAIL' | 'SMS';
+  to?: string;
+}
+
+/** §6: slanje fakture e-mailom (PDF) ili SMS-om (kratkotrajni link). */
+export async function sendInvoiceAction(
+  invoiceId: string,
+  input: SendInvoiceActionInput,
+): Promise<InvoiceActionResult> {
+  try {
+    await apiFetch<{ sent: true }>(`/invoices/${invoiceId}/send`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+
+    revalidatePath(`/invoices/${invoiceId}`);
+    return {};
+  } catch (error) {
+    return toActionResult(error, 'Faktura nije poslana.');
+  }
+}

@@ -16,11 +16,20 @@ import type {
   InvoiceLineInput,
   InvoiceListQuery,
   RefundInvoiceInput,
+  SendInvoiceInput,
   UpdateInvoiceInput,
 } from '@digitalni-asistent/shared';
-import { formatDraftNumber, formatInvoiceNumber } from '@digitalni-asistent/shared';
+import {
+  emailSchema,
+  formatDraftNumber,
+  formatInvoiceNumber,
+  phoneSchema,
+} from '@digitalni-asistent/shared';
 
+import { env } from '../../config/env';
 import { PrismaService } from '../../prisma/prisma.service';
+import { EmailService } from '../auth/email.service';
+import { SmsService } from '../auth/sms.service';
 import type { FiscalAdapter, FiscalInvoiceData, FiscalResult } from '../fiscal/fiscal.types';
 import { FISCAL_ADAPTER } from '../fiscal/fiscal.types';
 import {
@@ -30,6 +39,8 @@ import {
   type InvoiceTotals,
 } from './invoice-calculator';
 import { toInvoiceDetailDto, toInvoiceSummaryDto } from './invoice-mapper';
+import { InvoicePdfService } from './invoice-pdf.service';
+import { createPdfLinkToken } from './pdf-link';
 
 const detailInclude = {
   customer: { select: { id: true, name: true } },
@@ -48,6 +59,9 @@ export class InvoicesService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(FISCAL_ADAPTER) private readonly fiscal: FiscalAdapter,
+    private readonly pdf: InvoicePdfService,
+    private readonly email: EmailService,
+    private readonly sms: SmsService,
   ) {}
 
   /** POST /invoices — kreira DRAFT fakturu (§6). `id` se koristi za offline sync (klijentski UUID v7). */
@@ -204,6 +218,106 @@ export class InvoicesService {
 
     const updated = await this.fiscalize(invoice, userId);
     return toInvoiceDetailDto(updated);
+  }
+
+  /**
+   * POST /invoices/:id/send — šalje fakturu e-mailom (PDF u prilogu) ili SMS-om (kratkotrajni PDF link) — §6.
+   * Dozvoljeno samo za izdate dokumente; DRAFT/PENDING_FISCAL/CANCELLED se odbijaju.
+   */
+  async send(companyId: string, userId: string, invoiceId: string, input: SendInvoiceInput) {
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { id: invoiceId, companyId },
+      include: { customer: true },
+    });
+
+    if (!invoice) {
+      throw new NotFoundException('Faktura nije pronađena');
+    }
+
+    const sendableStatuses = ['ISSUED', 'SENT', 'PARTIALLY_PAID', 'PAID', 'OVERDUE'];
+    if (!sendableStatuses.includes(invoice.status)) {
+      throw new ConflictException('Faktura se može poslati samo nakon izdavanja');
+    }
+
+    const fallback = input.channel === 'EMAIL' ? invoice.customer.email : invoice.customer.phone;
+    const recipientInput = (input.to ?? fallback ?? '').trim();
+    if (!recipientInput) {
+      throw new BadRequestException(
+        input.channel === 'EMAIL'
+          ? 'Kupac nema e-mail — unesite primaoca'
+          : 'Kupac nema telefon — unesite primaoca',
+      );
+    }
+
+    let recipient: string;
+    try {
+      recipient =
+        input.channel === 'EMAIL' ? emailSchema.parse(recipientInput) : phoneSchema.parse(recipientInput);
+    } catch {
+      throw new BadRequestException(
+        input.channel === 'EMAIL'
+          ? 'Neispravan e-mail primalac'
+          : 'Telefon mora biti u formatu +387XXXXXXXX',
+      );
+    }
+
+    const amount = `${(Number(invoice.totalFening) / 100).toFixed(2).replace('.', ',')} ${invoice.currency}`;
+    const linkTtlSeconds = env.PDF_LINK_TTL_SECONDS;
+    const link = `${env.PUBLIC_API_URL}/public/invoices/${invoice.id}/pdf?t=${encodeURIComponent(
+      createPdfLinkToken(invoice.id),
+    )}`;
+
+    if (input.channel === 'EMAIL') {
+      const pdf = await this.pdf.render(companyId, invoice.id);
+      await this.email.send({
+        to: recipient,
+        subject: `Faktura ${invoice.number} — ${amount}`,
+        text: [
+          'Poštovani,',
+          '',
+          `u prilogu je faktura ${invoice.number} na ${amount}.`,
+          '',
+          'Digitalni Asistent',
+        ].join('\n'),
+        html: [
+          '<p>Poštovani,</p>',
+          `<p>u prilogu je faktura <strong>${invoice.number}</strong> na ${amount}.</p>`,
+          '<p>Digitalni Asistent</p>',
+        ].join(''),
+        attachments: [
+          {
+            filename: `faktura-${invoice.number}.pdf`,
+            content: pdf,
+            contentType: 'application/pdf',
+          },
+        ],
+      });
+    } else {
+      const minutes = Math.round(linkTtlSeconds / 60);
+      await this.sms.send(
+        recipient,
+        `Digitalni Asistent: faktura ${invoice.number} na ${amount}. PDF: ${link} (link važi ${minutes} min)`,
+      );
+    }
+
+    // §21: audit log za slanje fakture (kanal i primalac, bez sadržaja poruke).
+    await this.prisma.auditLog.create({
+      data: {
+        companyId,
+        userId,
+        action: 'invoice.send',
+        entity: 'invoice',
+        entityId: invoice.id,
+        metaJson: toJson({
+          channel: input.channel,
+          to: recipient,
+          number: invoice.number,
+        }),
+      },
+    });
+
+    this.logger.log(`Faktura ${invoice.number} poslana (${input.channel}) na ${recipient}`);
+    return { sent: true, channel: input.channel, to: recipient };
   }
 
   /**
