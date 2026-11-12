@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 import { API_URL } from '@/lib/api';
-import { ACCESS_COOKIE, REFRESH_COOKIE } from '@/lib/session';
+import { ACCESS_COOKIE, REFRESH_COOKIE, getAccessToken } from '@/lib/session';
 import { ACCESS_COOKIE_MAX_AGE, REFRESH_COOKIE_MAX_AGE } from '@/lib/session-constants';
 
 export interface LoginState {
@@ -53,6 +53,21 @@ export async function loginAction(_previous: LoginState, formData: FormData): Pr
 }
 
 export async function logoutAction(): Promise<void> {
+  const token = await getAccessToken();
+
+  // Opoziv refresh tokena uređaja (§10); ne blokira odjavu ako API nije dostupan.
+  if (token) {
+    try {
+      await fetch(`${API_URL}/auth/logout`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      });
+    } catch {
+      // lokalna odjava ide dalje
+    }
+  }
+
   const store = await cookies();
   store.delete(ACCESS_COOKIE);
   store.delete(REFRESH_COOKIE);

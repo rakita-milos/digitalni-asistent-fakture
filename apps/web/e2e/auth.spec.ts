@@ -37,4 +37,14 @@ test.describe('W-01 prijava i reset lozinke', () => {
       page.getByText(/Link za reset lozinke je istekao ili je već iskorišten/),
     ).toBeVisible();
   });
+
+  test('odjava vraća na prijavu i štiti rute', async ({ page }) => {
+    await login(page);
+
+    await page.getByRole('button', { name: 'Odjavi se' }).click();
+    await page.waitForURL((url) => url.pathname === '/login');
+
+    await page.goto('/invoices');
+    await page.waitForURL((url) => url.pathname === '/login');
+  });
 });

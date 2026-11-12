@@ -25,3 +25,8 @@ export interface CompanyProfile {
 export function getCompany(): Promise<CompanyProfile> {
   return apiRequest<CompanyProfile>('/company');
 }
+
+/** Opoziva refresh token trenutnog uređaja (§10). */
+export function logout(): Promise<{ loggedOut: true }> {
+  return apiRequest<{ loggedOut: true }>('/auth/logout', { method: 'POST' });
+}

@@ -1,5 +1,12 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import type {
   AuthSession,
@@ -21,7 +28,10 @@ import {
   resetPasswordSchema,
 } from '@digitalni-asistent/shared';
 
+import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RateLimit } from '../../common/decorators/rate-limit.decorator';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RateLimitGuard } from '../../common/guards/rate-limit.guard';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { AuthService } from './auth.service';
@@ -31,6 +41,15 @@ import { AuthService } from './auth.service';
 @UseGuards(RateLimitGuard)
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
+
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Odjava — opoziv refresh tokena trenutnog uređaja' })
+  logout(@CurrentUser() user: AuthenticatedUser): Promise<{ loggedOut: true }> {
+    return this.auth.logout(user.id, user.deviceId);
+  }
 
   @Post('register')
   @RateLimit({ key: 'register', limit: 3, windowSeconds: 3600 })

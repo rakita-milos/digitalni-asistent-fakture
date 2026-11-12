@@ -320,6 +320,17 @@ export class AuthService {
     return { reset: true };
   }
 
+  /** POST /auth/logout — opoziv refresh tokena trenutnog uređaja (§10; ruta nije u §6). */
+  async logout(userId: string, deviceId: string | undefined): Promise<{ loggedOut: true }> {
+    if (deviceId) {
+      await this.prisma.device.updateMany({
+        where: { id: deviceId, userId },
+        data: { refreshTokenHash: null, refreshExpiresAt: null },
+      });
+    }
+    return { loggedOut: true };
+  }
+
   private async verifyPassword(passwordHash: string, password: string): Promise<boolean> {
     try {
       return await verify(passwordHash, password);

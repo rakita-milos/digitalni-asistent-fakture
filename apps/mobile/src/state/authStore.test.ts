@@ -1,9 +1,9 @@
 import { useAuthStore } from './authStore';
-import { login } from '../api/auth';
+import { login, logout } from '../api/auth';
 import { ApiError } from '../api/client';
 import { loadSession, saveSession, clearSession } from '../storage/secureStorage';
 
-jest.mock('../api/auth', () => ({ login: jest.fn(), getCompany: jest.fn() }));
+jest.mock('../api/auth', () => ({ login: jest.fn(), logout: jest.fn(), getCompany: jest.fn() }));
 jest.mock('../storage/secureStorage', () => ({
   saveSession: jest.fn(),
   loadSession: jest.fn(),
@@ -11,6 +11,7 @@ jest.mock('../storage/secureStorage', () => ({
 }));
 
 const loginMock = login as jest.MockedFunction<typeof login>;
+const logoutMock = logout as jest.MockedFunction<typeof logout>;
 const loadSessionMock = loadSession as jest.MockedFunction<typeof loadSession>;
 const saveSessionMock = saveSession as jest.MockedFunction<typeof saveSession>;
 const clearSessionMock = clearSession as jest.MockedFunction<typeof clearSession>;
@@ -78,13 +79,25 @@ describe('authStore', () => {
     expect(useAuthStore.getState().status).toBe('signedOut');
   });
 
-  it('odjava briše sesiju', async () => {
+  it('odjava opoziva server sesiju i briše lokalnu', async () => {
     useAuthStore.setState({ status: 'signedIn', user: session.user, company: session.company });
+    logoutMock.mockResolvedValue({ loggedOut: true });
+
+    await useAuthStore.getState().signOut();
+
+    expect(logoutMock).toHaveBeenCalled();
+    expect(clearSessionMock).toHaveBeenCalled();
+    expect(useAuthStore.getState().status).toBe('signedOut');
+    expect(useAuthStore.getState().user).toBeNull();
+  });
+
+  it('odjava radi i kada server nije dostupan', async () => {
+    useAuthStore.setState({ status: 'signedIn', user: session.user, company: session.company });
+    logoutMock.mockRejectedValue(new Error('mreža'));
 
     await useAuthStore.getState().signOut();
 
     expect(clearSessionMock).toHaveBeenCalled();
     expect(useAuthStore.getState().status).toBe('signedOut');
-    expect(useAuthStore.getState().user).toBeNull();
   });
 });

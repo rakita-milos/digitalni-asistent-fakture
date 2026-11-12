@@ -1,6 +1,6 @@
 import type { AuthSession } from '@digitalni-asistent/shared';
 
-import { login as loginRequest } from '../api/auth';
+import { login as loginRequest, logout as logoutRequest } from '../api/auth';
 import { ApiError, setAccessToken } from '../api/client';
 import { clearSession, loadSession, saveSession } from '../storage/secureStorage';
 import { create } from 'zustand';
@@ -63,6 +63,13 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   signOut: async () => {
+    // Best-effort opoziv refresh tokena na serveru; odjava mora uspjeti i offline.
+    try {
+      await logoutRequest();
+    } catch {
+      // ignorišemo — lokalna odjava ide dalje
+    }
+
     await clearSession();
     setAccessToken(null);
     set({ status: 'signedOut', user: null, company: null, error: null });
