@@ -4,11 +4,12 @@ SaaS za fakturisanje i naplatu za mikro-poduzeća u Republici Srpskoj.
 Jedini izvor istine za proizvod, model, API i pravila je
 [`MASTER_PROMPT_IZgradnja_Aplikacije.md`](../MASTER_PROMPT_IZgradnja_Aplikacije.md) (izvan repoa).
 
-**Stanje:** Sprint 0–8 završeni; **Sprint 9** (zatvaranje MVP rupa) završen 12. 11. 2026.
+**Stanje:** Sprint 0–9 završeni; **Sprint 10** (integracije) u pripremi — R2 signed URL kod i
+Playwright CI job su spremni, a čekaju kredencijale (GitHub, Sentry, R2, SMS, staging).
 Aplikacija ima mobilni (`apps/mobile`), web (`apps/web`) i API (`apps/api`), mock fiskalizaciju do G0
-i demo seed. Preostalo prije produkcije: integracije sa kredencijalima (GitHub/CI, Sentry, R2, SMS,
-staging) i prava ESIR fiskalizacija poslije odgovora operatera — vidi
-[`PLAN_DALJEG_RADA.md`](../PLAN_DALJEG_RADA.md) i [`PROGRESS.md`](../PROGRESS.md).
+i demo seed. Preostalo prije produkcije: integracije sa kredencijalima i prava ESIR fiskalizacija
+poslije odgovora operatera — vidi [`PLAN_DALJEG_RADA.md`](../PLAN_DALJEG_RADA.md) i
+[`PROGRESS.md`](../PROGRESS.md).
 
 ## Stack (fiksan, MASTER PROMPT §2)
 
@@ -21,6 +22,7 @@ staging) i prava ESIR fiskalizacija poslije odgovora operatera — vidi
 | ORM / baza | Prisma 6 + PostgreSQL 16 | Prisma 6.19.x |
 | Queue | Redis 7 + BullMQ | redis:7-alpine |
 | PDF / QR | pdfkit + qrcode (DejaVu TTF) | 0.20.x / 1.5.x |
+| Storage | Cloudflare R2 preko AWS S3 SDK (opciono; stream fallback) | AWS SDK 3.x |
 | Fiskalizacija | ESIR adapter (mock do G0) | — |
 | E2E | Playwright (web) | 1.65.x |
 | Jezik | TypeScript strict | 5.9.3 |
@@ -159,7 +161,7 @@ Legenda: `*` = ruta nije u MASTER PROMPT §6 (svjesno dodata, upisano u odluke).
 | POST | `/invoices/:id/refund` | JWT | refundacija: novi REFUND zapis, iznos ≤ naplaćeno |
 | POST | `/invoices/:id/payments` | JWT | naplata (puna/djelimična); preplata se odbija |
 | POST | `/invoices/:id/send` * | JWT | e-mail (PDF prilog) ili SMS (kratkotrajni link) |
-| GET | `/invoices/:id/pdf` | JWT | PDF (A4, PFR + QR) — stream |
+| GET | `/invoices/:id/pdf` | JWT | PDF (A4, PFR + QR) — R2 signed URL ako je konfigurisan, inače stream |
 | GET | `/invoices/:id/qr` | JWT | QR kao PNG (mobilni prikaz) |
 | GET | `/public/invoices/:id/pdf` * | token | javni PDF preko HMAC tokena (15 min) iz poruke |
 | GET / PUT | `/reminder-settings` | owner | plan (max 4) i šablon podsjetnika |
@@ -209,6 +211,30 @@ rotacija + revokacija po uređaju, rate limiting u Redis-u, Zod validacija svako
 | `MAIL_PROVIDER` | `log` | `log` ispisuje e-mail u log (dev/test); pravi provajder u Sprintu 10 |
 | `SMS_PROVIDER` | `log` | isto za SMS; u produkciji `log` baca grešku |
 
+## R2 (čuvanje PDF-a, opciono)
+
+Kada su postavljeni `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` i `R2_ENDPOINT` (ili `R2_ACCOUNT_ID`),
+PDF se uploaduje u bucket pod content-addressed ključem (`pdf/invoices/{firma}/{faktura}-{hash}.pdf`)
+i ruta `/invoices/:id/pdf` vraća **302 na signed URL** (TTL `R2_SIGNED_URL_TTL_SECONDS`, max 900 s).
+Bez kredencijala ista ruta **streamuje** PDF — ponašanje i ugovor rute se ne mijenjaju.
+
+| Varijabla | Default | Napomena |
+|---|---|---|
+| `R2_ACCOUNT_ID` | — | alternativa eksplicitnom endpointu |
+| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | — | bez oba nema R2 režima |
+| `R2_BUCKET` | `digitalni-asistent` | bucket u Cloudflare R2 |
+| `R2_ENDPOINT` | — | npr. `https://<account>.r2.cloudflarestorage.com` |
+| `R2_SIGNED_URL_TTL_SECONDS` | `900` | ≤ 15 min (Pre-Deployment Checklist) |
+
+## Sprint 10 — priprema (12. 11. 2026)
+
+- **R2 signed URL** — `R2StorageService` (S3 SDK, content-addressed ključevi, `ensureObject` + presign),
+  PDF ruta vraća 302 na signed URL kada su ključevi prisutni, inače stream; 3 unit testa.
+- **CI Playwright job** — `.github/workflows/ci.yml` dobija `e2e` job (Postgres/Redis, build,
+  `playwright install --with-deps chromium`, `pnpm --filter web test:e2e`, izvještaj kao artifact).
+- **Čeka tvoje akcije:** GitHub remote (da CI uopšte krene), Sentry DSN, R2 ključevi, SMS provajder,
+  staging nalozi, JDK 17 za lokalni APK.
+
 ## Testovi
 
 ```bash
@@ -217,14 +243,14 @@ pnpm --filter web test:e2e                 # Playwright e2e (web)
 ```
 
 - `packages/shared` — **47** testova: Zod šeme, numeracija, JIB, telefon, UUID v7, enumi, error envelope.
-- `apps/api` — **119** testova (20 fajlova): e2e auth/firma/kupci/artikli/porezi, fakture (obračun,
+- `apps/api` — **122** testa (21 fajl): e2e auth/firma/kupci/artikli/porezi, fakture (obračun,
   draft, filteri, DRAFT-only, IDOR), fiskalizacija (mock, numeracija bez rupa, PRAČUN 409, PDF, ESIR pad),
   naplata, podsjetnici, izvještaji, storno/refundacija, worker (retry + alarm), sync, idempotencija,
-  reset lozinke, slanje fakture, GDPR, logout; unit obračun/PDF token/alarm.
+  reset lozinke, slanje fakture, GDPR, logout; unit obračun/PDF token/alarm/R2 signed URL.
 - `apps/web` — **13** testova (Vitest): format, obračun pregleda, parsiranje forme, pravila masovnih akcija.
 - `apps/mobile` — **63** testa (Jest): API klijenti, auth store (uključujući logout offline),
   sync engine, offline draft/detalj, setup helperi, obračun.
-- **Ukupno 242 unit/API testa + 8 Playwright e2e.**
+- **Ukupno 245 unit/API testa + 8 Playwright e2e.**
 
 API e2e koristi pravu bazu i Redis; testovi `TRUNCATE`-uju bazu, pa poslije njih pokreni `pnpm db:seed`.
 
@@ -263,6 +289,7 @@ GitHub Actions, Node 22, pnpm 10.34.9, **Postgres 16 + Redis 7** service:
 `lint` → `typecheck` → `test` → `build` → `prisma migrate status`, plus `docker compose config`.
 
 Android debug build je u CI-ju (`android` job: JDK 17 + Android SDK, `assembleDebug`, APK kao artifact).
+Web e2e je u CI-ju (`e2e` job: build + Chromium + `pnpm --filter web test:e2e`, izvještaj kao artifact).
 **Napomena:** repo još nije povezan na GitHub, pa CI jobovi nisu pokrenuti — vidi Sprint 10 u planu.
 
 ## Konvencije i odluke
@@ -298,7 +325,8 @@ Android debug build je u CI-ju (`android` job: JDK 17 + Android SDK, `assembleDe
   refundacije čekaju odgovor operatera/računovođu.
 - **GitHub/CI** — remote nije povezan, pa CI i Android APK job nisu pokrenuti.
 - **Sentry/monitoring** — nema DSN-a; alarm je za sada structured log u workeru.
-- **R2** — PDF se streamuje; signed URL i upload čekaju kredencijale.
+- **R2** — kod za upload i signed URL je spreman (`R2StorageService`, 302 na signed URL kad su ključevi
+  postavljeni); bez kredencijala PDF se streamuje. Čekaju se R2 ključevi.
 - **SMS provajder** — `log` adapter; bez provajdera nema stvarnih podsjetnika/OTP-a.
 - **Opt-out podsjetnika i kredit kupca** — nema polja u §5; planirano za Sprint 11 uz odluku.
 - **Mobilni offline** je implementiran i typecheck-ovan, ali nije verifikovan na fizičkom uređaju
