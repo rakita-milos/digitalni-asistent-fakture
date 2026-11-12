@@ -44,4 +44,18 @@ test.describe('W-04/W-05 faktura: draft → izdavanje → PDF', () => {
     await expect(rows.first()).toBeVisible();
     expect(await rows.count()).toBeGreaterThan(0);
   });
+
+  test('masovno izdavanje draftova sa liste (W-03)', async ({ page }) => {
+    await page.goto('/invoices');
+
+    await page.getByTestId('invoice-select-all').check();
+    await expect(page.getByTestId('bulk-issue')).toBeEnabled();
+
+    page.once('dialog', (dialog) => {
+      void dialog.accept();
+    });
+    await page.getByTestId('bulk-issue').click();
+
+    await expect(page.getByTestId('bulk-result')).toContainText(/Uspješno: [1-9]/);
+  });
 });

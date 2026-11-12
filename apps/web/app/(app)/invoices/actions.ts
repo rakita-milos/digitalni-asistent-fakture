@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 
 import { ApiFailure, apiFetch } from '@/lib/api';
 import type { InvoiceActionResult, InvoiceFormPayload } from '@/lib/invoice-form';
+import { BULK_LIMIT } from '@/lib/invoice-bulk';
 
 /**
  * Server akcije za web editor fakture (W-04).
@@ -188,4 +189,68 @@ export async function sendInvoiceAction(
   } catch (error) {
     return toActionResult(error, 'Faktura nije poslana.');
   }
+}
+
+export interface BulkActionResult {
+  total: number;
+  succeeded: number;
+  failed: Array<{ id: string; error: string }>;
+  error?: string;
+}
+
+/**
+ * W-03 masovne akcije: po jedan postojeći API poziv po fakturi (nema bulk rute van §6).
+ * Greška jedne fakture ne prekida ostale; rezultat se vraća po fakturi.
+ */
+async function runBulkAction(
+  ids: string[],
+  endpoint: (id: string) => string,
+  fallbackError: string,
+): Promise<BulkActionResult> {
+  const uniqueIds = [...new Set(ids)];
+
+  if (uniqueIds.length === 0) {
+    return { total: 0, succeeded: 0, failed: [], error: 'Nije izabrana nijedna faktura.' };
+  }
+  if (uniqueIds.length > BULK_LIMIT) {
+    return {
+      total: uniqueIds.length,
+      succeeded: 0,
+      failed: [],
+      error: `Najviše ${BULK_LIMIT} faktura može ići u jednoj akciji.`,
+    };
+  }
+
+  let succeeded = 0;
+  const failed: Array<{ id: string; error: string }> = [];
+
+  for (const id of uniqueIds) {
+    try {
+      await apiFetch<unknown>(endpoint(id), {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+      succeeded += 1;
+    } catch (error) {
+      if (error instanceof ApiFailure) {
+        if (error.status === 401) {
+          redirect('/login');
+        }
+        failed.push({ id, error: error.message });
+      } else {
+        failed.push({ id, error: fallbackError });
+      }
+    }
+  }
+
+  revalidatePath('/invoices');
+  return { total: uniqueIds.length, succeeded, failed };
+}
+
+export async function bulkIssueInvoicesAction(ids: string[]): Promise<BulkActionResult> {
+  return runBulkAction(ids, (id) => `/invoices/${id}/issue`, 'Faktura nije izdata.');
+}
+
+export async function bulkRemindInvoicesAction(ids: string[]): Promise<BulkActionResult> {
+  return runBulkAction(ids, (id) => `/invoices/${id}/remind`, 'Podsjetnik nije poslan.');
 }
