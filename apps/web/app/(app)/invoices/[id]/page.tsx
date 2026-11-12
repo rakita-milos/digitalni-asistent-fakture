@@ -129,6 +129,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
             </Link>
           ) : null}
           <a
+            data-testid="pdf-link"
             href={`/api/invoices/${invoice.id}/pdf`}
             target="_blank"
             rel="noreferrer"

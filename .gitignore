@@ -10,6 +10,11 @@ out/
 *.tsbuildinfo
 coverage/
 
+# Playwright (web e2e)
+test-results/
+playwright-report/
+blob-report/
+
 # turbo
 .turbo/
 

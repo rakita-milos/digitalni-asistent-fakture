@@ -33,6 +33,7 @@ export function IssueInvoiceButton({ invoiceId }: IssueInvoiceButtonProps) {
     <div className="text-right">
       <button
         type="button"
+        data-testid="issue-invoice"
         onClick={handleIssue}
         disabled={isPending}
         className="rounded-[var(--radius-button)] bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"

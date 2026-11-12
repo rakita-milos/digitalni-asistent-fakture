@@ -265,6 +265,7 @@ export function InvoiceEditor({
           <label className="block text-sm">
             <span className="mb-1 block text-foreground/60">Kupac</span>
             <select
+              data-testid="invoice-customer"
               value={customerId}
               onChange={(event) => setCustomerId(event.target.value)}
               className="w-full rounded-[var(--radius-button)] border border-gray-300 bg-white px-3 py-2"
@@ -293,6 +294,7 @@ export function InvoiceEditor({
           <label className="block text-sm">
             <span className="mb-1 block text-foreground/60">Datum izdavanja</span>
             <input
+              data-testid="invoice-issue-date"
               type="date"
               value={issueDate}
               onChange={(event) => setIssueDate(event.target.value)}
@@ -303,6 +305,7 @@ export function InvoiceEditor({
           <label className="block text-sm">
             <span className="mb-1 block text-foreground/60">Datum dospijeća</span>
             <input
+              data-testid="invoice-due-date"
               type="date"
               value={dueDate}
               onChange={(event) => setDueDate(event.target.value)}
@@ -313,6 +316,7 @@ export function InvoiceEditor({
           <label className="block text-sm">
             <span className="mb-1 block text-foreground/60">Način plaćanja</span>
             <select
+              data-testid="invoice-payment-method"
               value={paymentMethod}
               onChange={(event) => setPaymentMethod(event.target.value)}
               className="w-full rounded-[var(--radius-button)] border border-gray-300 bg-white px-3 py-2"
@@ -329,6 +333,7 @@ export function InvoiceEditor({
           <label className="block text-sm sm:col-span-2">
             <span className="mb-1 block text-foreground/60">Napomena</span>
             <textarea
+              data-testid="invoice-note"
               value={note}
               onChange={(event) => setNote(event.target.value)}
               rows={2}
@@ -344,6 +349,7 @@ export function InvoiceEditor({
           <h2 className="text-lg font-semibold">Stavke</h2>
           <button
             type="button"
+            data-testid="add-line"
             onClick={() => setLines((current) => [...current, createEditorLine(defaultTaxPercent)])}
             className="rounded-[var(--radius-button)] border border-primary px-3 py-1.5 text-sm font-semibold text-primary"
           >
@@ -365,6 +371,7 @@ export function InvoiceEditor({
                   <label className="block text-sm sm:col-span-3">
                     <span className="mb-1 block text-xs text-foreground/50">Artikal</span>
                     <select
+                      data-testid={`line-${index}-item`}
                       value={line.itemId}
                       onChange={(event) => handleItemChange(line.key, event.target.value)}
                       className="w-full rounded-[var(--radius-button)] border border-gray-300 bg-white px-2 py-1.5 text-sm"
@@ -383,6 +390,7 @@ export function InvoiceEditor({
                       Opis (stavka {index + 1})
                     </span>
                     <input
+                      data-testid={`line-${index}-description`}
                       type="text"
                       value={line.description}
                       maxLength={500}
@@ -394,6 +402,7 @@ export function InvoiceEditor({
                   <label className="block text-sm sm:col-span-1">
                     <span className="mb-1 block text-xs text-foreground/50">Kol.</span>
                     <input
+                      data-testid={`line-${index}-qty`}
                       type="text"
                       inputMode="decimal"
                       value={line.qty}
@@ -405,6 +414,7 @@ export function InvoiceEditor({
                   <label className="block text-sm sm:col-span-2">
                     <span className="mb-1 block text-xs text-foreground/50">Cijena (KM)</span>
                     <input
+                      data-testid={`line-${index}-price`}
                       type="text"
                       inputMode="decimal"
                       value={line.price}
@@ -429,6 +439,7 @@ export function InvoiceEditor({
                   <label className="block text-sm sm:col-span-1">
                     <span className="mb-1 block text-xs text-foreground/50">PDV %</span>
                     <input
+                      data-testid={`line-${index}-tax`}
                       type="text"
                       inputMode="decimal"
                       value={line.taxPercent}
@@ -493,6 +504,7 @@ export function InvoiceEditor({
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <button
             type="button"
+            data-testid="save-draft"
             onClick={handleSubmit}
             disabled={isPending}
             className="rounded-[var(--radius-button)] bg-primary px-4 py-2 font-semibold text-white disabled:opacity-60"
