@@ -17,11 +17,13 @@ import { SyncModule } from './modules/sync/sync.module';
 import { TaxRatesModule } from './modules/tax-rates/tax-rates.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
+import { StorageModule } from './modules/storage/storage.module';
 
 @Module({
   imports: [
     PrismaModule,
     RedisModule,
+    StorageModule,
     HealthModule,
     AccountModule,
     AuthModule,

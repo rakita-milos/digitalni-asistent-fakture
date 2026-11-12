@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Logger,
   Param,
   Patch,
   Post,
@@ -36,6 +37,8 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { IdempotencyInterceptor } from '../../common/interceptors/idempotency.interceptor';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
+import { pdfObjectKey } from '../storage/pdf-object-key';
+import { R2StorageService } from '../storage/r2-storage.service';
 import { InvoicePdfService } from './invoice-pdf.service';
 import { InvoicesService } from './invoices.service';
 
@@ -44,9 +47,12 @@ import { InvoicesService } from './invoices.service';
 @Controller('invoices')
 @UseGuards(JwtAuthGuard)
 export class InvoicesController {
+  private readonly logger = new Logger(InvoicesController.name);
+
   constructor(
     private readonly invoices: InvoicesService,
     private readonly pdf: InvoicePdfService,
+    private readonly r2: R2StorageService,
   ) {}
 
   @Get()
@@ -164,13 +170,26 @@ export class InvoicesController {
   }
 
   @Get(':id/pdf')
-  @ApiOperation({ summary: 'PDF računa (A4, PFR + QR)' })
+  @ApiOperation({ summary: 'PDF računa (A4, PFR + QR); R2 signed URL ili stream' })
   async pdfDocument(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', new ZodValidationPipe(uuidV7Schema)) id: string,
     @Res() response: Response,
   ): Promise<void> {
     const buffer = await this.pdf.render(user.companyId, id);
+
+    if (this.r2.isConfigured()) {
+      try {
+        const key = pdfObjectKey(user.companyId, id, buffer);
+        await this.r2.ensureObject(key, buffer);
+        response.redirect(await this.r2.signedUrl(key));
+        return;
+      } catch (error) {
+        this.logger.warn(
+          `R2 PDF nije uspio (${error instanceof Error ? error.message : String(error)}) — stream fallback`,
+        );
+      }
+    }
 
     response.setHeader('Content-Type', 'application/pdf');
     response.setHeader('Content-Disposition', `inline; filename="faktura-${id}.pdf"`);

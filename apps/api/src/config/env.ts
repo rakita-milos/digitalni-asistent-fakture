@@ -51,6 +51,13 @@ const envSchema = z.object({
   PDF_LINK_TTL_SECONDS: z.coerce.number().int().min(60).max(3600).default(900),
   /// GDPR brisanje naloga — može se isključiti bez deploya dok pravnik ne potvrdi tok.
   FEATURE_ACCOUNT_DELETION: z.enum(['true', 'false']).default('true'),
+  /// Cloudflare R2 (S3 API) — PDF faktura; bez kredencijala PDF se streamuje.
+  R2_ACCOUNT_ID: z.string().optional(),
+  R2_ACCESS_KEY_ID: z.string().optional(),
+  R2_SECRET_ACCESS_KEY: z.string().optional(),
+  R2_BUCKET: z.string().default('digitalni-asistent'),
+  R2_ENDPOINT: z.union([z.string().url(), z.literal('')]).optional(),
+  R2_SIGNED_URL_TTL_SECONDS: z.coerce.number().int().min(60).max(3600).default(900),
   /// Rizične funkcije se mogu isključiti bez deploya (Pre-Deployment Checklist D).
   FEATURE_FISCAL_ENABLED: z.enum(['true', 'false']).default('true'),
   FEATURE_SMS_ENABLED: z.enum(['true', 'false']).default('true'),

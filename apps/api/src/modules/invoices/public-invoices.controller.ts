@@ -1,4 +1,14 @@
-import { Controller, Get, NotFoundException, Param, Query, Res, UnauthorizedException, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Logger,
+  NotFoundException,
+  Param,
+  Query,
+  Res,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
@@ -7,6 +17,8 @@ import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { RateLimit } from '../../common/decorators/rate-limit.decorator';
 import { RateLimitGuard } from '../../common/guards/rate-limit.guard';
 import { PrismaService } from '../../prisma/prisma.service';
+import { pdfObjectKey } from '../storage/pdf-object-key';
+import { R2StorageService } from '../storage/r2-storage.service';
 import { InvoicePdfService } from './invoice-pdf.service';
 import { verifyPdfLinkToken } from './pdf-link';
 
@@ -18,9 +30,12 @@ import { verifyPdfLinkToken } from './pdf-link';
 @Controller('public/invoices')
 @UseGuards(RateLimitGuard)
 export class PublicInvoicesController {
+  private readonly logger = new Logger(PublicInvoicesController.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly pdf: InvoicePdfService,
+    private readonly r2: R2StorageService,
   ) {}
 
   @Get(':id/pdf')
@@ -44,6 +59,19 @@ export class PublicInvoicesController {
     }
 
     const buffer = await this.pdf.render(invoice.companyId, id);
+
+    if (this.r2.isConfigured()) {
+      try {
+        const key = pdfObjectKey(invoice.companyId, id, buffer);
+        await this.r2.ensureObject(key, buffer);
+        response.redirect(await this.r2.signedUrl(key));
+        return;
+      } catch (error) {
+        this.logger.warn(
+          `R2 javni PDF nije uspio (${error instanceof Error ? error.message : String(error)}) — stream fallback`,
+        );
+      }
+    }
 
     response.setHeader('Content-Type', 'application/pdf');
     response.setHeader('Content-Disposition', `inline; filename="faktura-${invoice.number}.pdf"`);
