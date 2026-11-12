@@ -71,6 +71,22 @@ export const otpVerifySchema = z.object({
 });
 export type OtpVerifyInput = z.infer<typeof otpVerifySchema>;
 
+/**
+ * POST /auth/forgot-password — zahtjev za reset lozinke (§10, §21.2).
+ * Odgovor je uvijek isti `{ sent: true }` da se ne otkrije postoji li nalog.
+ */
+export const forgotPasswordSchema = z.object({
+  email: emailSchema,
+});
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+
+/** POST /auth/reset-password — token iz e-maila + nova lozinka (§21.2). */
+export const resetPasswordSchema = z.object({
+  token: z.string().trim().min(20, 'Neispravan token').max(500),
+  password: passwordSchema,
+});
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+
 /** Sesija koju vraćaju register/login/refresh. */
 export interface AuthSession {
   accessToken: string;

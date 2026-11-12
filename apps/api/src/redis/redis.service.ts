@@ -44,6 +44,11 @@ export class RedisService implements OnModuleDestroy {
     return this.client.get(key);
   }
 
+  /** Atomski GET + DEL — jednokratni tokeni (reset lozinke). */
+  async take(key: string): Promise<string | null> {
+    return this.client.getdel(key);
+  }
+
   async del(key: string): Promise<void> {
     await this.client.del(key);
   }

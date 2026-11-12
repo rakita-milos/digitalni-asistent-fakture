@@ -36,6 +36,13 @@ const envSchema = z.object({
   JWT_REFRESH_TTL: z.string().default('30d'),
   RATE_LIMIT_ENABLED: z.enum(['true', 'false']).default('true'),
   SMS_PROVIDER: z.string().default('log'),
+  /// E-mail: 'log' u razvoju (link se ispiše u log); pravi provajder u Sprintu 10.
+  MAIL_PROVIDER: z.string().default('log'),
+  MAIL_FROM: z.string().default('Digitalni Asistent <no-reply@digitalni-asistent.ba>'),
+  /// Bazni URL web aplikacije — koristi se za linkove u e-mailovima.
+  WEB_APP_URL: z.string().url().default('http://localhost:3000'),
+  /// Reset lozinke: token važi 30 min, jednokratan je (§21.2).
+  PASSWORD_RESET_TTL_SECONDS: z.coerce.number().int().min(60).max(3600).default(1800),
   /// Fiskalizacija: 'mock' dok operater ne odgovori (G0); 'esir' nije implementiran.
   ESIR_MODE: z.enum(['mock', 'esir']).default('mock'),
   OTP_TTL_SECONDS: z.coerce.number().int().min(60).max(3600).default(300),

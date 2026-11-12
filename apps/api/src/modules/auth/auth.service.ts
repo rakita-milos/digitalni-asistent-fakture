@@ -23,6 +23,8 @@ import type {
 import { ACCESS_TOKEN_TTL_SECONDS, REFRESH_TOKEN_TTL_SECONDS, env } from '../../config/env';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
+import { EmailService } from './email.service';
+import { PasswordResetService } from './password-reset.service';
 import { SmsService } from './sms.service';
 
 interface SessionUser {
@@ -65,6 +67,8 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly redis: RedisService,
     private readonly sms: SmsService,
+    private readonly email: EmailService,
+    private readonly passwordReset: PasswordResetService,
   ) {}
 
   /** POST /auth/register — firma + vlasnik (§6). */
@@ -240,6 +244,80 @@ export class AuthService {
 
     await this.redis.del(key);
     return { verified: true };
+  }
+
+  /**
+   * POST /auth/forgot-password — šalje link za reset lozinke (§10, §21.2).
+   * Odgovor je uvijek isti da se ne otkrije postoji li nalog.
+   */
+  async forgotPassword(email: string): Promise<{ sent: true }> {
+    const user = await this.prisma.user.findFirst({
+      where: { email: { equals: email.trim(), mode: 'insensitive' } },
+    });
+
+    if (user && user.status === 'active') {
+      const { token, expiresInSeconds } = await this.passwordReset.create(user.id);
+      const link = `${env.WEB_APP_URL}/reset-password?token=${encodeURIComponent(token)}`;
+      const minutes = Math.round(expiresInSeconds / 60);
+
+      try {
+        await this.email.send({
+          to: user.email,
+          subject: 'Reset lozinke — Digitalni Asistent',
+          text: [
+            'Zdravo,',
+            '',
+            'Zatražili ste reset lozinke za Digitalni Asistent.',
+            `Link vrijedi ${minutes} min i može se iskoristiti samo jednom:`,
+            link,
+            '',
+            'Ako niste zatražili reset, ignorišite ovu poruku.',
+          ].join('\n'),
+          html: [
+            '<p>Zdravo,</p>',
+            '<p>Zatražili ste reset lozinke za Digitalni Asistent.</p>',
+            `<p><a href="${link}">Postavite novu lozinku</a> — link vrijedi ${minutes} min i može se iskoristiti samo jednom.</p>`,
+            '<p>Ako niste zatražili reset, ignorišite ovu poruku.</p>',
+          ].join(''),
+        });
+      } catch (error) {
+        // Ne otkrivamo korisniku da slanje nije uspjelo; greška ide u log/monitoring.
+        this.logger.error(
+          `Slanje e-maila za reset lozinke nije uspjelo: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+
+    return { sent: true };
+  }
+
+  /**
+   * POST /auth/reset-password — troši token i postavlja novu lozinku (§21.2).
+   * Reset opoziva sve sesije korisnika (refresh hashovi se brišu).
+   */
+  async resetPassword(token: string, newPassword: string): Promise<{ reset: true }> {
+    const userId = await this.passwordReset.consume(token);
+    if (!userId) {
+      throw new BadRequestException('Link za reset lozinke je istekao ili je već iskorišten');
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || user.status !== 'active') {
+      throw new BadRequestException('Link za reset lozinke nije valjan');
+    }
+
+    const passwordHash = await hash(newPassword, { type: argon2id });
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id: user.id }, data: { passwordHash } }),
+      this.prisma.device.updateMany({
+        where: { userId: user.id },
+        data: { refreshTokenHash: null, refreshExpiresAt: null },
+      }),
+    ]);
+
+    this.logger.log(`Lozinka promijenjena (user=${user.id}); sesije opozvane`);
+    return { reset: true };
   }
 
   private async verifyPassword(passwordHash: string, password: string): Promise<boolean> {

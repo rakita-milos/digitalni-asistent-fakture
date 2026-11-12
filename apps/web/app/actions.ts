@@ -58,3 +58,75 @@ export async function logoutAction(): Promise<void> {
   store.delete(REFRESH_COOKIE);
   redirect('/login');
 }
+
+export interface ForgotPasswordState {
+  error?: string;
+  success?: boolean;
+}
+
+export async function forgotPasswordAction(
+  _previous: ForgotPasswordState,
+  formData: FormData,
+): Promise<ForgotPasswordState> {
+  const email = String(formData.get('email') ?? '').trim();
+
+  if (!email) {
+    return { error: 'Unesite e-mail adresu' };
+  }
+
+  const response = await fetch(`${API_URL}/auth/forgot-password`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email }),
+    cache: 'no-store',
+  });
+
+  if (response.status === 429) {
+    return { error: 'Previše zahtjeva — pokušajte ponovo za nekoliko minuta' };
+  }
+
+  if (!response.ok) {
+    return { error: 'Slanje linka nije uspjelo — pokušajte ponovo' };
+  }
+
+  return { success: true };
+}
+
+export interface ResetPasswordState {
+  error?: string;
+}
+
+export async function resetPasswordAction(
+  _previous: ResetPasswordState,
+  formData: FormData,
+): Promise<ResetPasswordState> {
+  const token = String(formData.get('token') ?? '').trim();
+  const password = String(formData.get('password') ?? '');
+  const confirm = String(formData.get('confirm') ?? '');
+
+  if (!token) {
+    return { error: 'Nedostaje token iz e-maila' };
+  }
+
+  if (password.length < 8) {
+    return { error: 'Lozinka mora imati najmanje 8 znakova' };
+  }
+
+  if (password !== confirm) {
+    return { error: 'Lozinke se ne poklapaju' };
+  }
+
+  const response = await fetch(`${API_URL}/auth/reset-password`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ token, password }),
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as { message?: string };
+    return { error: body.message ?? 'Link je istekao ili nije valjan' };
+  }
+
+  redirect('/login?reset=1');
+}

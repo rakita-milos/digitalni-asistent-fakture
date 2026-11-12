@@ -3,18 +3,22 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import type {
   AuthSession,
+  ForgotPasswordInput,
   LoginInput,
   OtpRequestInput,
   OtpVerifyInput,
   RefreshInput,
   RegisterInput,
+  ResetPasswordInput,
 } from '@digitalni-asistent/shared';
 import {
+  forgotPasswordSchema,
   loginSchema,
   otpRequestSchema,
   otpVerifySchema,
   refreshSchema,
   registerSchema,
+  resetPasswordSchema,
 } from '@digitalni-asistent/shared';
 
 import { RateLimit } from '../../common/decorators/rate-limit.decorator';
@@ -71,5 +75,25 @@ export class AuthController {
     @Body(new ZodValidationPipe(otpVerifySchema)) body: OtpVerifyInput,
   ): Promise<{ verified: true }> {
     return this.auth.verifyOtp(body.phone, body.code);
+  }
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @RateLimit({ key: 'forgot-password', limit: 5, windowSeconds: 900 })
+  @ApiOperation({ summary: 'Zahtjev za reset lozinke (link na e-mail)' })
+  forgotPassword(
+    @Body(new ZodValidationPipe(forgotPasswordSchema)) body: ForgotPasswordInput,
+  ): Promise<{ sent: true }> {
+    return this.auth.forgotPassword(body.email);
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @RateLimit({ key: 'reset-password', limit: 10, windowSeconds: 900 })
+  @ApiOperation({ summary: 'Postavljanje nove lozinke pomoću tokena iz e-maila' })
+  resetPassword(
+    @Body(new ZodValidationPipe(resetPasswordSchema)) body: ResetPasswordInput,
+  ): Promise<{ reset: true }> {
+    return this.auth.resetPassword(body.token, body.password);
   }
 }
