@@ -11,6 +11,7 @@ import { ReminderSettingsService } from '../src/modules/reminders/reminder-setti
 import { FiscalRetryWorker } from '../src/modules/worker/fiscal-retry.worker';
 import { ReminderWorker } from '../src/modules/worker/reminder.worker';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { RedisService } from '../src/redis/redis.service';
 
 const TABLES =
   '"audit_log","fiscal_records","reminders","payments","invoice_lines","invoices","sync_queue","devices","users","customers","items","tax_rates","reminder_settings","subscriptions","companies"';
@@ -90,7 +91,11 @@ describe('Sprint 5 — worker (podsjetnici + fiskalni retry)', () => {
     prisma = app.get(PrismaService);
     sms = app.get(SmsService);
     reminders = new ReminderWorker(prisma, sms, app.get(ReminderSettingsService));
-    fiscalRetry = new FiscalRetryWorker(prisma, app.get(InvoicesService));
+    fiscalRetry = new FiscalRetryWorker(
+      prisma,
+      app.get(InvoicesService),
+      app.get(RedisService),
+    );
   });
 
   afterAll(async () => {
@@ -195,5 +200,49 @@ describe('Sprint 5 — worker (podsjetnici + fiskalni retry)', () => {
     const records = await prisma.fiscalRecord.findMany({ where: { invoiceId } });
     expect(records.filter((record) => record.status === 'ISSUED')).toHaveLength(1);
     expect(records.filter((record) => record.status === 'FAILED')).toHaveLength(1);
+  });
+
+  it('diže dnevni alarm za PENDING_FISCAL stariji od 3 dana (sa dedupe)', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/invoices')
+      .set(authHeader(token))
+      .send({
+        customerId,
+        issueDate: new Date().toISOString(),
+        dueDate: new Date(Date.now() + 5 * 86_400_000).toISOString(),
+        lines: [{ description: 'Kabl', qtyMilli: 1000, unitPriceFening: 1000, taxRateBp: 1700 }],
+      });
+    expect(created.status).toBe(201);
+    const invoiceId = created.body.id as string;
+
+    await prisma.invoice.update({
+      where: { id: invoiceId },
+      data: {
+        status: 'PENDING_FISCAL',
+        updatedAt: new Date(Date.now() - 4 * 86_400_000),
+      },
+    });
+
+    // 5 neuspjelih pokušaja = retry backoff je iscrpljen, faktura ostaje PENDING_FISCAL.
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      await prisma.fiscalRecord.create({
+        data: {
+          invoiceId,
+          status: 'FAILED',
+          createdAt: new Date(Date.now() - (6 - attempt) * 3_600_000),
+          esirResponseJson: { error: 'ESIR nedostupan' },
+        },
+      });
+    }
+
+    const first = await fiscalRetry.scan();
+    expect(first.processed).toBe(1);
+    expect(first.alarms).toBe(1);
+
+    const second = await fiscalRetry.scan();
+    expect(second.alarms).toBe(0);
+
+    const stored = await prisma.invoice.findUniqueOrThrow({ where: { id: invoiceId } });
+    expect(stored.status).toBe('PENDING_FISCAL');
   });
 });

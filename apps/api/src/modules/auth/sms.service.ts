@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 
 import { env } from '../../config/env';
 
@@ -13,6 +13,10 @@ export class SmsService {
   lastMessage?: { phone: string; text: string };
 
   async send(phone: string, text: string): Promise<void> {
+    if (!env.FEATURE_SMS_ENABLED) {
+      throw new ServiceUnavailableException('SMS slanje je privremeno isključeno');
+    }
+
     this.lastMessage = { phone, text };
 
     if (env.SMS_PROVIDER === 'log' && env.NODE_ENV === 'production') {

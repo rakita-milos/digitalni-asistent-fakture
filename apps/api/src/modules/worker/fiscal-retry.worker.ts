@@ -4,13 +4,14 @@ import type { OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
 import { env } from '../../config/env';
 import { PrismaService } from '../../prisma/prisma.service';
+import { RedisService } from '../../redis/redis.service';
 import { InvoicesService } from '../invoices/invoices.service';
 import { fiscalRetryDelayMinutes } from './fiscal-backoff';
+import { fiscalAlarmKey, isFiscalAlarmDue } from './fiscal-alarm';
 
 const QUEUE_NAME = 'fiscal-retry';
 const SCAN_EVERY_MS = 300_000;
 const BATCH_SIZE = 50;
-const ALARM_AFTER_MS = 3 * 86_400_000;
 
 function bullConnection(): { host: string; port: number; password?: string; db?: number } {
   const parsed = new URL(env.REDIS_URL);
@@ -36,6 +37,7 @@ export class FiscalRetryWorker implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     private readonly invoices: InvoicesService,
+    private readonly redis: RedisService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -60,7 +62,12 @@ export class FiscalRetryWorker implements OnModuleInit, OnModuleDestroy {
     await this.queue?.close();
   }
 
-  async scan(): Promise<{ processed: number; retried: number; succeeded: number }> {
+  async scan(): Promise<{ processed: number; retried: number; succeeded: number; alarms: number }> {
+    if (!env.FEATURE_FISCAL_ENABLED) {
+      this.logger.warn('Fiskalizacija je isključena (FEATURE_FISCAL_ENABLED=false) — retry preskočen');
+      return { processed: 0, retried: 0, succeeded: 0, alarms: 0 };
+    }
+
     const pending = await this.prisma.invoice.findMany({
       where: { status: 'PENDING_FISCAL' },
       include: { fiscalRecords: { orderBy: { createdAt: 'desc' } } },
@@ -69,13 +76,18 @@ export class FiscalRetryWorker implements OnModuleInit, OnModuleDestroy {
 
     let retried = 0;
     let succeeded = 0;
+    let alarms = 0;
 
     for (const invoice of pending) {
-      const waitingMs = Date.now() - invoice.updatedAt.getTime();
-      if (waitingMs > ALARM_AFTER_MS) {
-        this.logger.error(
-          `ALARM: faktura ${invoice.id} čeka fiskalizaciju ${Math.round(waitingMs / 86_400_000)} dana`,
-        );
+      if (isFiscalAlarmDue(invoice.updatedAt)) {
+        const shouldLog = await this.redis.setIfAbsent(fiscalAlarmKey(invoice.id), '1', 86_400);
+        if (shouldLog) {
+          alarms += 1;
+          const days = Math.floor((Date.now() - invoice.updatedAt.getTime()) / 86_400_000);
+          this.logger.error(
+            `FISCAL_ALARM: faktura ${invoice.number} (${invoice.id}) čeka fiskalizaciju ${days} dana — potreban ručni ishod`,
+          );
+        }
       }
 
       const failedRecords = invoice.fiscalRecords.filter(
@@ -106,9 +118,11 @@ export class FiscalRetryWorker implements OnModuleInit, OnModuleDestroy {
     }
 
     if (pending.length > 0) {
-      this.logger.log(`Fiskalni retry: ${pending.length} čeka, ${retried} pokušano, ${succeeded} uspjelo`);
+      this.logger.log(
+        `Fiskalni retry: ${pending.length} čeka, ${retried} pokušano, ${succeeded} uspjelo, ${alarms} alarma`,
+      );
     }
 
-    return { processed: pending.length, retried, succeeded };
+    return { processed: pending.length, retried, succeeded, alarms };
   }
 }

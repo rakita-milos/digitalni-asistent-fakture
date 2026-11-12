@@ -7,6 +7,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
@@ -202,6 +203,10 @@ export class InvoicesService {
    * Redoslijed: ESIR odgovor → tek onda ISSUED; ako ESIR padne, faktura ostaje PENDING_FISCAL.
    */
   async issue(companyId: string, userId: string, invoiceId: string) {
+    if (!env.FEATURE_FISCAL_ENABLED) {
+      throw new ServiceUnavailableException('Fiskalizacija je privremeno isključena');
+    }
+
     const invoice = await this.loadForFiscalization(companyId, invoiceId);
 
     if (!invoice) {
@@ -370,6 +375,10 @@ export class InvoicesService {
    * Backoff (1m/5m/15m/1h/6h) računa worker; ovdje se samo ponavlja fiskalizacija.
    */
   async retryPendingFiscal(companyId: string, invoiceId: string) {
+    if (!env.FEATURE_FISCAL_ENABLED) {
+      throw new ServiceUnavailableException('Fiskalizacija je privremeno isključena');
+    }
+
     const invoice = await this.loadForFiscalization(companyId, invoiceId);
 
     if (!invoice || invoice.status !== 'PENDING_FISCAL') {
