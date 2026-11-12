@@ -49,6 +49,8 @@ const envSchema = z.object({
   PDF_LINK_SECRET: z.string().min(16).optional(),
   /// PDF link iz poruke važi najviše 15 min (Pre-Deployment Checklist).
   PDF_LINK_TTL_SECONDS: z.coerce.number().int().min(60).max(3600).default(900),
+  /// GDPR brisanje naloga — može se isključiti bez deploya dok pravnik ne potvrdi tok.
+  FEATURE_ACCOUNT_DELETION: z.enum(['true', 'false']).default('true'),
   /// Fiskalizacija: 'mock' dok operater ne odgovori (G0); 'esir' nije implementiran.
   ESIR_MODE: z.enum(['mock', 'esir']).default('mock'),
   OTP_TTL_SECONDS: z.coerce.number().int().min(60).max(3600).default(300),
@@ -59,6 +61,7 @@ const parsed = envSchema.parse(process.env);
 export const env = {
   ...parsed,
   RATE_LIMIT_ENABLED: parsed.RATE_LIMIT_ENABLED === 'true',
+  FEATURE_ACCOUNT_DELETION: parsed.FEATURE_ACCOUNT_DELETION === 'true',
 } as const;
 
 export const ACCESS_TOKEN_TTL_SECONDS = parseDuration(env.JWT_ACCESS_TTL, 900);

@@ -2,6 +2,7 @@ export * from './constants';
 export * from './enums';
 export * from './errors';
 export * from './schemas/auth';
+export * from './schemas/account';
 export * from './schemas/common';
 export * from './schemas/company';
 export * from './schemas/customer';

@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 
 import { ApiFailure, apiFetch } from '@/lib/api';
 
+import { AccountSection } from './account-section';
 import { CompanyForm } from './company-form';
 import { NumberingForm } from './numbering-form';
 import { RemindersForm } from './reminders-form';
@@ -97,6 +98,14 @@ export default async function SettingsPage() {
             Podešavanja podsjetnika može vidjeti i mijenjati samo vlasnik firme.
           </p>
         )}
+      </section>
+
+      <section className={sectionClass}>
+        <h2 className={sectionTitleClass}>Podaci i nalog</h2>
+        <p className={sectionHintClass}>
+          Izvoz podataka firme i brisanje naloga (GDPR). Dostupno samo vlasniku firme.
+        </p>
+        <AccountSection />
       </section>
     </div>
   );

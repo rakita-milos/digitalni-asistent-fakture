@@ -1,9 +1,11 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 import { ApiFailure, apiFetch } from '@/lib/api';
+import { ACCESS_COOKIE, REFRESH_COOKIE } from '@/lib/session';
 
 import type { ReminderScheduleItem, SettingsFormState } from './types';
 
@@ -271,4 +273,30 @@ export async function updateReminderSettingsAction(
   revalidatePath('/settings');
 
   return { success: 'Podešavanja podsjetnika su sačuvana.' };
+}
+
+/**
+ * GDPR brisanje naloga (owner, §10/§21.12).
+ * Poslije uspjeha brišu se cookie-ji i korisnik ide na prijavu.
+ */
+export async function deleteAccountAction(confirmation: string): Promise<{ error?: string }> {
+  try {
+    await apiFetch<{ deleted: true }>('/account', {
+      method: 'DELETE',
+      body: JSON.stringify({ confirmation }),
+    });
+  } catch (error) {
+    if (error instanceof ApiFailure) {
+      if (error.status === 401) {
+        redirect('/login');
+      }
+      return { error: error.message };
+    }
+    throw error;
+  }
+
+  const store = await cookies();
+  store.delete(ACCESS_COOKIE);
+  store.delete(REFRESH_COOKIE);
+  redirect('/login?deleted=1');
 }

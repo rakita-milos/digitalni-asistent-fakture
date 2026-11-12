@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
 import { IdempotencyInterceptor } from './common/interceptors/idempotency.interceptor';
+import { AccountModule } from './modules/account/account.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CompanyModule } from './modules/company/company.module';
 import { CustomersModule } from './modules/customers/customers.module';
@@ -22,6 +23,7 @@ import { RedisModule } from './redis/redis.module';
     PrismaModule,
     RedisModule,
     HealthModule,
+    AccountModule,
     AuthModule,
     CompanyModule,
     CustomersModule,

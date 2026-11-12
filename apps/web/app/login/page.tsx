@@ -5,9 +5,9 @@ import { LoginForm } from './login-form';
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ reset?: string }>;
+  searchParams: Promise<{ reset?: string; deleted?: string }>;
 }) {
-  const { reset } = await searchParams;
+  const { reset, deleted } = await searchParams;
 
   return (
     <main className="flex min-h-screen items-center justify-center p-6">
@@ -15,6 +15,13 @@ export default async function LoginPage({
         <p className="text-sm font-medium tracking-wide text-primary uppercase">Digitalni Asistent</p>
         <h1 className="mt-2 text-2xl font-semibold">Prijava</h1>
         <p className="mt-1 mb-6 text-sm text-foreground/60">Fakturisanje i naplata za mikro-poduzeća.</p>
+
+        {deleted ? (
+          <p className="mb-4 rounded-[var(--radius-button)] bg-green-50 p-3 text-sm text-green-800">
+            Nalog je obrisan. Lični podaci su uklonjeni, a fiskalni dokumenti su zadržani u skladu
+            sa zakonom.
+          </p>
+        ) : null}
 
         {reset ? (
           <p className="mb-4 rounded-[var(--radius-button)] bg-green-50 p-3 text-sm text-green-800">
