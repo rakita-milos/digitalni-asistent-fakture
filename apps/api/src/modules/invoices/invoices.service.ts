@@ -29,6 +29,7 @@ import {
 
 import { env } from '../../config/env';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { EmailService } from '../auth/email.service';
 import { SmsService } from '../auth/sms.service';
 import type { FiscalAdapter, FiscalInvoiceData, FiscalResult } from '../fiscal/fiscal.types';
@@ -63,6 +64,7 @@ export class InvoicesService {
     private readonly pdf: InvoicePdfService,
     private readonly email: EmailService,
     private readonly sms: SmsService,
+    private readonly analytics: AnalyticsService,
   ) {}
 
   /** POST /invoices — kreira DRAFT fakturu (§6). `id` se koristi za offline sync (klijentski UUID v7). */
@@ -222,6 +224,8 @@ export class InvoicesService {
     }
 
     const updated = await this.fiscalize(invoice, userId);
+    // S11-7: metrika izdavanja (bez PII).
+    this.analytics.track('invoice_issued', { companyId, invoiceId });
     return toInvoiceDetailDto(updated);
   }
 

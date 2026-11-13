@@ -48,7 +48,7 @@ const envSchema = z.object({
   /// HMAC tajna za kratkotrajni PDF link iz poruke; fallback na access secret.
   PDF_LINK_SECRET: z.string().min(16).optional(),
   /// PDF link iz poruke važi najviše 15 min (Pre-Deployment Checklist).
-  PDF_LINK_TTL_SECONDS: z.coerce.number().int().min(60).max(3600).default(900),
+  PDF_LINK_TTL_SECONDS: z.coerce.number().int().min(60).max(900).default(900),
   /// GDPR brisanje naloga — može se isključiti bez deploya dok pravnik ne potvrdi tok.
   FEATURE_ACCOUNT_DELETION: z.enum(['true', 'false']).default('true'),
   /// Cloudflare R2 (S3 API) — PDF faktura; bez kredencijala PDF se streamuje.
@@ -57,7 +57,7 @@ const envSchema = z.object({
   R2_SECRET_ACCESS_KEY: z.string().optional(),
   R2_BUCKET: z.string().default('digitalni-asistent'),
   R2_ENDPOINT: z.union([z.string().url(), z.literal('')]).optional(),
-  R2_SIGNED_URL_TTL_SECONDS: z.coerce.number().int().min(60).max(3600).default(900),
+  R2_SIGNED_URL_TTL_SECONDS: z.coerce.number().int().min(60).max(900).default(900),
   /// Monitoring (Sentry): bez DSN-a servis je no-op, greške ostaju u logu.
   SENTRY_DSN: z.union([z.string().url(), z.literal('')]).optional(),
   SENTRY_ENVIRONMENT: z.string().optional(),

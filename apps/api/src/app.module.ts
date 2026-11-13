@@ -1,8 +1,10 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
 
 import { IdempotencyInterceptor } from './common/interceptors/idempotency.interceptor';
+import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { MonitoringModule } from './common/monitoring/monitoring.module';
 import { AccountModule } from './modules/account/account.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CompanyModule } from './modules/company/company.module';
 import { CustomersModule } from './modules/customers/customers.module';
@@ -26,6 +28,7 @@ import { StorageModule } from './modules/storage/storage.module';
     RedisModule,
     StorageModule,
     MonitoringModule,
+    AnalyticsModule,
     HealthModule,
     AccountModule,
     AuthModule,
@@ -43,4 +46,9 @@ import { StorageModule } from './modules/storage/storage.module';
   ],
   providers: [IdempotencyInterceptor],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  /** Korelacijski ID na svakom zahtjevu (Pre-Deployment Checklist B3). */
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(RequestIdMiddleware).forRoutes({ path: '*', method: RequestMethod.ALL });
+  }
+}

@@ -3,13 +3,17 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import type { CreatePaymentInput } from '@digitalni-asistent/shared';
 
 import { PrismaService } from '../../prisma/prisma.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { toInvoiceDetailDto, toPaymentDto } from '../invoices/invoice-mapper';
 
 const PAYABLE_STATUSES = ['ISSUED', 'SENT', 'PARTIALLY_PAID', 'OVERDUE'] as const;
 
 @Injectable()
 export class PaymentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly analytics: AnalyticsService,
+  ) {}
 
   /** POST /invoices/:id/payments — puna ili djelimična naplata (§7.8). */
   async create(companyId: string, userId: string, invoiceId: string, input: CreatePaymentInput) {
@@ -78,6 +82,9 @@ export class PaymentsService {
 
       return { payment, invoice: updatedInvoice };
     });
+
+    // S11-7: metrika naplate (bez PII).
+    this.analytics.track('payment_recorded', { companyId, invoiceId });
 
     return {
       payment: toPaymentDto(result.payment),

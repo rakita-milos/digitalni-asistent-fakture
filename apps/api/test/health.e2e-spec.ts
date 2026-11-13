@@ -23,6 +23,8 @@ describe('GET /health (e2e)', () => {
 
     expect(response.body).toMatchObject({ status: 'ok' });
     expect(typeof response.body.timestamp).toBe('string');
+    // Pre-Deployment Checklist B4: health provjerava bazu i Redis.
+    expect(response.body.checks).toEqual({ database: 'ok', redis: 'ok' });
     // §7.12: vrijeme se serijalizuje u UTC (ISO 8601 sa Z).
     expect(response.body.timestamp as string).toMatch(/Z$/);
   });

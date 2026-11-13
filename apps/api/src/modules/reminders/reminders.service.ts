@@ -11,6 +11,7 @@ import { Prisma } from '@prisma/client';
 import type { ListQuery } from '@digitalni-asistent/shared';
 
 import { PrismaService } from '../../prisma/prisma.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { SmsService } from '../auth/sms.service';
 import { formatDate, formatFening, renderTemplate } from './reminder-template';
 import { ReminderSettingsService } from './reminder-settings.service';
@@ -23,6 +24,7 @@ export class RemindersService {
     private readonly prisma: PrismaService,
     private readonly settings: ReminderSettingsService,
     private readonly sms: SmsService,
+    private readonly analytics: AnalyticsService,
   ) {}
 
   /** GET /reminders — lista podsjetnika firme (preko fakture). */
@@ -121,6 +123,9 @@ export class RemindersService {
         HttpStatus.BAD_GATEWAY,
       );
     }
+
+    // S11-7: metrika podsjetnika (bez PII).
+    this.analytics.track('reminder_sent', { companyId, invoiceId, channel: 'sms' });
 
     return {
       id: reminder.id,

@@ -4,6 +4,7 @@ import type { OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
 import { env } from '../../config/env';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { SmsService } from '../auth/sms.service';
 import { formatDate, formatFening, renderTemplate } from '../reminders/reminder-template';
 import { ReminderSettingsService } from '../reminders/reminder-settings.service';
@@ -39,6 +40,7 @@ export class ReminderWorker implements OnModuleInit, OnModuleDestroy {
     private readonly prisma: PrismaService,
     private readonly sms: SmsService,
     private readonly settings: ReminderSettingsService,
+    private readonly analytics: AnalyticsService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -121,6 +123,12 @@ export class ReminderWorker implements OnModuleInit, OnModuleDestroy {
           data: { status: 'SENT', sentAt: new Date(), error: null },
         });
         sent += 1;
+        // S11-7: metrika automatskih podsjetnika (bez PII).
+        this.analytics.track('reminder_sent', {
+          companyId: invoice.companyId,
+          invoiceId: invoice.id,
+          channel: 'sms',
+        });
       } catch (error) {
         await this.prisma.reminder.update({
           where: { id: reminder.id },

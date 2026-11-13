@@ -4,6 +4,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { AppModule } from '../src/app.module';
+import { AnalyticsService } from '../src/modules/analytics/analytics.service';
 import { AllExceptionsFilter } from '../src/common/filters/all-exceptions.filter';
 import { MonitoringService } from '../src/common/monitoring/monitoring.service';
 import { SmsService } from '../src/modules/auth/sms.service';
@@ -91,7 +92,12 @@ describe('Sprint 5 — worker (podsjetnici + fiskalni retry)', () => {
 
     prisma = app.get(PrismaService);
     sms = app.get(SmsService);
-    reminders = new ReminderWorker(prisma, sms, app.get(ReminderSettingsService));
+    reminders = new ReminderWorker(
+      prisma,
+      sms,
+      app.get(ReminderSettingsService),
+      app.get(AnalyticsService),
+    );
     fiscalRetry = new FiscalRetryWorker(
       prisma,
       app.get(InvoicesService),

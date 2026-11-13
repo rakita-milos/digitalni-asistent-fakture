@@ -32,8 +32,10 @@ import {
 
 import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { RateLimit } from '../../common/decorators/rate-limit.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RateLimitGuard } from '../../common/guards/rate-limit.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { IdempotencyInterceptor } from '../../common/interceptors/idempotency.interceptor';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
@@ -45,7 +47,7 @@ import { InvoicesService } from './invoices.service';
 @ApiTags('invoices')
 @ApiBearerAuth()
 @Controller('invoices')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RateLimitGuard)
 export class InvoicesController {
   private readonly logger = new Logger(InvoicesController.name);
 
@@ -98,6 +100,7 @@ export class InvoicesController {
   }
 
   @Post(':id/issue')
+  @RateLimit({ key: 'invoice-issue', limit: 30, windowSeconds: 60 })
   @UseGuards(RolesGuard)
   @Roles('owner', 'worker')
   @ApiOperation({ summary: 'Izdavanje: fiskalizacija (ESIR adapter) + dodjela broja' })
@@ -143,6 +146,7 @@ export class InvoicesController {
   }
 
   @Post(':id/send')
+  @RateLimit({ key: 'invoice-send', limit: 10, windowSeconds: 60 })
   @UseGuards(RolesGuard)
   @Roles('owner', 'worker')
   @ApiOperation({ summary: 'Slanje fakture e-mailom (PDF) ili SMS-om (kratkotrajni link)' })

@@ -6,6 +6,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { AuthSession } from '@digitalni-asistent/shared';
 
 import { AppModule } from '../src/app.module';
+import { AnalyticsService } from '../src/modules/analytics/analytics.service';
 import { AllExceptionsFilter } from '../src/common/filters/all-exceptions.filter';
 import { SmsService } from '../src/modules/auth/sms.service';
 import { ReminderSettingsService } from '../src/modules/reminders/reminder-settings.service';
@@ -57,9 +58,7 @@ describe('Opt-out podsjetnika (§7.9)', () => {
       .send({
         name: 'Petar Petrović',
         phone: options.phone,
-        ...(options.reminderOptOut !== undefined
-          ? { reminderOptOut: options.reminderOptOut }
-          : {}),
+        ...(options.reminderOptOut !== undefined ? { reminderOptOut: options.reminderOptOut } : {}),
       });
 
     expect(response.status).toBe(201);
@@ -105,7 +104,12 @@ describe('Opt-out podsjetnika (§7.9)', () => {
 
     prisma = app.get(PrismaService);
     sms = app.get(SmsService);
-    worker = new ReminderWorker(prisma, sms, app.get(ReminderSettingsService));
+    worker = new ReminderWorker(
+      prisma,
+      sms,
+      app.get(ReminderSettingsService),
+      app.get(AnalyticsService),
+    );
   });
 
   afterAll(async () => {

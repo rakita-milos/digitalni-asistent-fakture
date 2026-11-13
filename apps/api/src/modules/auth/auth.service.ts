@@ -22,6 +22,7 @@ import type {
 
 import { ACCESS_TOKEN_TTL_SECONDS, REFRESH_TOKEN_TTL_SECONDS, env } from '../../config/env';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { RedisService } from '../../redis/redis.service';
 import { EmailService } from './email.service';
 import { PasswordResetService } from './password-reset.service';
@@ -69,6 +70,7 @@ export class AuthService {
     private readonly sms: SmsService,
     private readonly email: EmailService,
     private readonly passwordReset: PasswordResetService,
+    private readonly analytics: AnalyticsService,
   ) {}
 
   /** POST /auth/register — firma + vlasnik (§6). */
@@ -114,6 +116,9 @@ export class AuthService {
     if (!owner) {
       throw new Error('Korisnik nije kreiran');
     }
+
+    // S11-7: minimalna metrika (bez PII) — registracija firme.
+    this.analytics.track('registration', { companyId: company.id });
 
     return this.issueSession(owner, input.device);
   }

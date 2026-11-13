@@ -18,7 +18,8 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "db:seed": "prisma db seed",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "metrics:platform": "node scripts/platform-metrics.mjs"
   },
   "prisma": {
     "seed": "node prisma/seed.js"

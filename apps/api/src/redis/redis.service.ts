@@ -52,4 +52,9 @@ export class RedisService implements OnModuleDestroy {
   async del(key: string): Promise<void> {
     await this.client.del(key);
   }
+
+  /** Provjera dostupnosti Redis-a za readiness endpoint (Pre-Deployment Checklist B). */
+  async ping(): Promise<void> {
+    await this.client.ping();
+  }
 }
