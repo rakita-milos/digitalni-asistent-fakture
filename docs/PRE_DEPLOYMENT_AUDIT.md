@@ -74,7 +74,7 @@
 |---|---|---|---|
 | C1 | Indeksi na toplim upitima | `prisma/schema.prisma`: `@@unique([companyId, type, number])` (258), `@@index([companyId, status])` (259), `@@index([companyId, dueDate])` (260), `@@index([customerId])` (261), `@@index([invoiceId])` na zavisnim tabelama | ✅ |
 | C2 | EXPLAIN za listu faktura i aging — nema seq scan | **Izvršeno 2026-11-13** nad lokalnom Postgres 16: `pnpm --filter api db:explain` (40 firmi × 500 faktura). Prije indeksa: `Seq Scan on invoices` (20 ms) za listu i aging. Dodat indeks `invoices_company_id_created_at_idx` (migracija `20261113180000`); poslije: `Index Scan Backward` (0,07 ms), `Bitmap Index Scan` na `(company_id,status)` (0,7 ms), `Index Scan` na `(company_id,due_date)` (0,1 ms) — **0 Seq Scan**. Skripta pada sa exit 1 ako se seq scan vrati | ✅ |
-| C3 | Migracije backward-compatible (expand/contract), testirane na kopiji | 5 migracija, sve aditivne (`ADD COLUMN ... DEFAULT`, novi indeksi/tabele); najnovija `20261113104648_customer_reminder_opt_out` dodaje kolonu sa default `false`; `prisma validate` prolazi; `migrate status` u CI-ju | ✅ (kod) |
+| C3 | Migracije backward-compatible (expand/contract), testirane na kopiji | **7 migracija** (stanje 2026-11-13), sve aditivne: `ADD COLUMN ... DEFAULT` (`customers.reminder_opt_out`, `companies.setup_completed_at`) i novi indeksi (`invoices_company_id_created_at_idx`); `prisma validate` prolazi, `migrate deploy` primijenjen lokalno na Postgres 16; rollback procedura u `docs/STAGING_DEPLOY.md` | ✅ (kod) |
 | C4 | Backup radi + **testiran restore** | Procedura: `docs/STAGING_DEPLOY.md` (dnevni dump u R2, restore drill sa SQL provjerama); stvarni restore čeka staging naloge | ⚠️ |
 
 ### D. Deploy i rollback
