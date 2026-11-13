@@ -158,6 +158,7 @@ Legenda: `*` = ruta nije u MASTER PROMPT §6 (svjesno dodata, upisano u odluke).
 | Metod | Putanja | Auth | Napomena |
 |---|---|---|---|
 | GET / PATCH | `/company` | JWT | PATCH samo `owner` |
+| POST | `/company/setup-complete` * | owner | server-side signal da je setup završen (S11-7, idempotentno) |
 | GET / POST | `/customers` | JWT | lista sa `?q`, pretraga po imenu/JIB/telefonu/emailu |
 | GET / PATCH | `/customers/:id` | JWT | arhiviranje kroz `archivedAt`; uključuje `reminderOptOut` (§7.9) |
 | GET / POST | `/items` | JWT | katalog; POST dozvoljen `owner` i `worker` |
@@ -275,7 +276,7 @@ worker padovi, queue backlog (Sprint 10, kad DSN bude postavljen).
 - **S11-6 Support/incident runbook** — `docs/INCIDENT_RUNBOOK.md` (severiteti, scenariji za
   fiskalizaciju/SMS/bazu/Redis/R2, komunikacija, post-mortem, kontakti).
 - **S11-1 Audit po Pre-Deployment Checklist** — `docs/PRE_DEPLOYMENT_AUDIT.md` (svaka stavka sa
-  dokazom; 19 ✅ / 11 ⚠️ / 1 ❌). Usput popravljeno: `/health` provjerava bazu i Redis,
+  dokazom; 21 ✅ / 10 ⚠️ / 0 ❌). Usput popravljeno: `/health` provjerava bazu i Redis,
   `x-request-id` na svakom odgovoru, rate limit za izdavanje (30/min) i slanje (10/min),
   TTL cap 15 min u env validaciji.
 - **S11-4 (dio) Play potpisivanje i brend materijal** — release `signingConfigs` čita
@@ -287,6 +288,11 @@ worker padovi, queue backlog (Sprint 10, kad DSN bude postavljen).
 - **S11-7 Analitika** — odluka: bez PostHog-a za MVP; `AnalyticsService` emituje
   `ANALYTICS` log redove (`registration`, `invoice_issued`, `payment_recorded`, `reminder_sent`,
   bez PII), `pnpm --filter api metrics:platform` daje brojeve iz baze.
+- **S11-1/S11-7 dorada** — offline retry u mobilnom (backoff 1m/5m/15m/1h/6h, max 5 pokušaja,
+  `FAILED` + alarm 3 dana + ručni retry), 6 unit testova za rate limiter,
+  `POST /company/setup-complete` (owner, idempotentno) + `companies.setup_completed_at`,
+  `pnpm --filter api db:explain` — EXPLAIN je pokazao seq scan za listu faktura, dodat indeks
+  `invoices_company_id_created_at_idx` (migracija `20261113180000`); sada 0 seq scan.
 
 ## Testovi
 
@@ -296,15 +302,15 @@ pnpm --filter web test:e2e                 # Playwright e2e (web)
 ```
 
 - `packages/shared` — **47** testova: Zod šeme, numeracija, JIB, telefon, UUID v7, enumi, error envelope.
-- `apps/api` — **137** testova (26 fajlova): e2e auth/firma/kupci/artikli/porezi, fakture (obračun,
+- `apps/api` — **146** testova (28 fajlova): e2e auth/firma/kupci/artikli/porezi, fakture (obračun,
   draft, filteri, DRAFT-only, IDOR), fiskalizacija (mock, numeracija bez rupa, PRAČUN 409, PDF, ESIR pad),
   naplata, podsjetnici (uključujući opt-out), izvještaji, storno/refundacija, worker (retry + alarm),
-  sync, idempotencija, reset lozinke, slanje fakture, GDPR, logout; unit obračun/PDF token/alarm/R2/monitoring,
+  sync, idempotencija, reset lozinke, slanje fakture, GDPR, logout, setup-complete; unit obračun/PDF token/alarm/R2/monitoring,
   health readiness, request-id middleware i analitika.
 - `apps/web` — **13** testova (Vitest): format, obračun pregleda, parsiranje forme, pravila masovnih akcija.
-- `apps/mobile` — **63** testa (Jest): API klijenti, auth store (uključujući logout offline),
-  sync engine, offline draft/detalj, setup helperi, obračun.
-- **Ukupno 260 unit/API testova + 8 Playwright e2e.**
+- `apps/mobile` — **72** testa (Jest): API klijenti, auth store (uključujući logout offline),
+  sync engine + retry/backoff, offline draft/detalj, setup helperi, obračun.
+- **Ukupno 278 unit/API testova + 8 Playwright e2e.**
 
 API e2e koristi pravu bazu i Redis; testovi `TRUNCATE`-uju bazu, pa poslije njih pokreni `pnpm db:seed`.
 
@@ -336,6 +342,7 @@ pnpm --filter web test:e2e
 | `pnpm format` / `format:check` | Prettier |
 | `pnpm db:*` | Docker baza, migracije, seed, Prisma Studio |
 | `pnpm --filter api metrics:platform` | JSON platform-metrike za pilot (bez PII) |
+| `pnpm --filter api db:explain` | EXPLAIN provjera lista faktura/aging (pravi i čisti 40×500 dijagnostičkih faktura) |
 
 ## CI (`.github/workflows/ci.yml`)
 
@@ -378,6 +385,10 @@ Web e2e je u CI-ju (`e2e` job: build + Chromium + `pnpm --filter web test:e2e`, 
     ostaju ista ako se kasnije doda PostHog.
 20. **Health/request-id (S11-1):** `GET /health` je readiness (baza + Redis, 503 kada padnu),
     a `x-request-id` ide na svaki odgovor preko middleware-a (filter ga koristi za log/Sentry).
+21. **Offline retry (S11-1/E6):** `sync_queue` dobija `attempts`/`nextAttemptAt`; backoff
+    1m/5m/15m/1h/6h, max 5 pokušaja → `FAILED`, alarm u UI poslije 3 dana i ručni retry.
+22. **Setup signal (S11-7):** `POST /company/setup-complete` je owner-only i idempotentan;
+    `setup_completed` se emituje samo prvi put; mobilni ga zove best-effort pri završetku.
 
 ## Poznata ograničenja (prije produkcije)
 
@@ -392,7 +403,8 @@ Web e2e je u CI-ju (`e2e` job: build + Chromium + `pnpm --filter web test:e2e`, 
 - **Kredit kupca pri preplati** — nema polja u §5; preplata se odbija dok vlasnik/računovođa ne odluče
   o modelu kredita (S11-2b). Opt-out podsjetnika je urađen (S11-2a).
 - **Mobilni offline** je implementiran i typecheck-ovan, ali nije verifikovan na fizičkom uređaju
-  (u ovom okruženju nema JDK 17; APK ide kroz CI). Poznato: `sync_queue` označi `FAILED` ali nema
+  (u ovom okruženju nema JDK 17; APK ide kroz CI). Offline queue sada ima retry/backoff
+  (`sync/retry.ts`, `attempts`/`nextAttemptAt`), `FAILED` stavke i alarm poslije 3 dana.
   automatski retry/backoff ni alarm — vidi `docs/PRE_DEPLOYMENT_AUDIT.md` (E6).
 - **`PATCH /items/:id`** nije u §6 — artikli se mogu dodavati, ali ne mijenjati/arhivirati.
 - **M-12 profil/lozinka** — osnovne sekcije rade; promjena lozinke ide kroz web reset tok.

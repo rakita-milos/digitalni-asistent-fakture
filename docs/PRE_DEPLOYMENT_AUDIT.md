@@ -17,9 +17,9 @@
 
 | Status | Broj |
 |---|---|
-| ✅ dokazano | 19 |
-| ⚠️ djelimično / čeka nalog ili okruženje | 11 |
-| ❌ rupa u kodu | 1 |
+| ✅ dokazano | 21 |
+| ⚠️ djelimično / čeka nalog ili okruženje | 10 |
+| ❌ rupa u kodu | 0 |
 
 **Popravljeno u ovom prolazu** (commit uz ovaj dokument):
 
@@ -32,6 +32,17 @@
 4. **E3 — TTL cap 15 min** u validaciji env varijabli (`PDF_LINK_TTL_SECONDS`,
    `R2_SIGNED_URL_TTL_SECONDS`); ranije je šema dozvoljavala do 60 min.
 5. Uz to (S11-4): release signing config + placeholder brend materijal; (S11-7): analitika.
+6. **E6 — offline queue retry** (drugi prolaz): `sync_queue` dobija `attempts` i `nextAttemptAt`
+   (SQLite mini-migracija), backoff 1m/5m/15m/1h/6h, poslije 5 pokušaja `FAILED`; UI prikazuje
+   upozorenje (alarm poslije 3 dana) i dugme „Pokušaj ponovo“; 9 Jest testova.
+7. **C2 — EXPLAIN stvarno izvršen**: dodat indeks `invoices_company_id_created_at_idx`
+   (migracija `20261113180000`), skripta `pnpm --filter api db:explain` pravi 40 firmi × 500
+   faktura; sva tri upita sada koriste indeks (nema `Seq Scan` na `invoices`).
+8. **A6 — rate limiter pokriven unit testovima** (6 testova: isključen, bez metapodatka, ispod
+   limita, 429, fail-closed u produkciji, fail-open u razvoju).
+9. **S11-7 — server-side `setup_completed`**: `POST /company/setup-complete` (owner, idempotentno),
+   `companies.setup_completed_at` (migracija `20261113170000`), 3 e2e testa; mobilni wizard ga zove
+   best-effort pri završetku.
 
 ## 2. Checklist po sekcijama
 
@@ -44,7 +55,7 @@
 | A3 | Zod validacija svih ulaza + Prisma (bez sirovog SQL-a) | `src/common/pipes/zod-validation.pipe.ts`; svaka ruta ima Zod pipe; `$queryRaw` postoji samo u `health.controller.ts` (`SELECT 1`) — nema dinamičkog SQL-a | ✅ |
 | A4 | XSS: izlaz escape-uje React/Next, bez `dangerouslySetInnerHTML` | `grep dangerouslySetInnerHTML apps/web` → 0 pogodaka; jedini HTML je statični šablon e-maila | ✅ |
 | A5 | CORS: samo poznati origin-i, nikad `*` | `src/main.ts:17-25` — `env.CORS_ORIGIN.split(',')`, `origin: false` ako je prazno | ✅ |
-| A6 | Rate limit: login 5/min, OTP 3/5min, registracija 3/h, izdavanje 30/min, SMS 10/min | `src/modules/auth/auth.controller.ts:55-111` (register 3/h, login 5/min, OTP 3/5min, reset); `src/modules/invoices/invoices.controller.ts` — **novo**: `invoice-issue` 30/min, `invoice-send` 10/min; `public-invoices.controller.ts:42` 30/min. Napomena: e2e gađa sa `RATE_LIMIT_ENABLED=false` (test/setup.ts:12), pa limiter nije pokriven e2e testom — provjerava se ručno/staging | ✅ (kod) |
+| A6 | Rate limit: login 5/min, OTP 3/5min, registracija 3/h, izdavanje 30/min, SMS 10/min | `src/modules/auth/auth.controller.ts:55-111` (register 3/h, login 5/min, OTP 3/5min, reset); `src/modules/invoices/invoices.controller.ts` — **novo**: `invoice-issue` 30/min, `invoice-send` 10/min; `public-invoices.controller.ts:42` 30/min; **novo**: `rate-limit.guard.spec.ts` (6 testova: 429, fail-closed 503 u produkciji, fail-open u razvoju) | ✅ |
 | A7 | Tajne samo u env, nikad u repou | `git ls-files` vraća samo `.env.example`, `apps/api/.env.example` i `debug.keystore` (standardni RN debug); `.env`, `.env.*`, `*.keystore` u `.gitignore` | ✅ |
 | A8 | JWT: access 15 min, refresh 30 dana, rotacija, revokacija po uređaju | `src/config/env.ts:35-36` (15m/30d), `src/modules/auth/auth.service.ts:177-185,320,333,398` (hash refresh-a po uređaju, rotacija, revokacija na logout/reset), `test/auth-logout.e2e-spec.ts` | ✅ |
 
@@ -62,7 +73,7 @@
 | # | Stavka | Dokaz | Status |
 |---|---|---|---|
 | C1 | Indeksi na toplim upitima | `prisma/schema.prisma`: `@@unique([companyId, type, number])` (258), `@@index([companyId, status])` (259), `@@index([companyId, dueDate])` (260), `@@index([customerId])` (261), `@@index([invoiceId])` na zavisnim tabelama | ✅ |
-| C2 | EXPLAIN za listu faktura i aging — nema seq scan | Nije izvršeno u ovoj sesiji (nema lokalne baze). Pripremljene komande u §4; **obavezno na stagingu prije produkcije** | ⚠️ |
+| C2 | EXPLAIN za listu faktura i aging — nema seq scan | **Izvršeno 2026-11-13** nad lokalnom Postgres 16: `pnpm --filter api db:explain` (40 firmi × 500 faktura). Prije indeksa: `Seq Scan on invoices` (20 ms) za listu i aging. Dodat indeks `invoices_company_id_created_at_idx` (migracija `20261113180000`); poslije: `Index Scan Backward` (0,07 ms), `Bitmap Index Scan` na `(company_id,status)` (0,7 ms), `Index Scan` na `(company_id,due_date)` (0,1 ms) — **0 Seq Scan**. Skripta pada sa exit 1 ako se seq scan vrati | ✅ |
 | C3 | Migracije backward-compatible (expand/contract), testirane na kopiji | 5 migracija, sve aditivne (`ADD COLUMN ... DEFAULT`, novi indeksi/tabele); najnovija `20261113104648_customer_reminder_opt_out` dodaje kolonu sa default `false`; `prisma validate` prolazi; `migrate status` u CI-ju | ✅ (kod) |
 | C4 | Backup radi + **testiran restore** | Procedura: `docs/STAGING_DEPLOY.md` (dnevni dump u R2, restore drill sa SQL provjerama); stvarni restore čeka staging naloge | ⚠️ |
 
@@ -84,7 +95,7 @@
 | E3 | R2 signed URL TTL ≤ 15 min; PDF se ne servira javno | `storage/r2-storage.service.ts:68-78` (TTL iz config-a), `config/env.ts` — **novo**: max 900 s; `pdf-link.ts` (HMAC link ≤ 15 min); `r2-storage.service.spec.ts` | ✅ |
 | E4 | SMS: opt-out poštovan, sender ID registrovan, šablon sadrži broj i iznos | Opt-out: migracija + `reminders.service.ts:77`, `reminder.worker.ts:89`, `test/reminders-optout.e2e-spec.ts` (3 testa); šablon: `reminder-template.ts`; **sender ID čeka provajdera** | ⚠️ |
 | E5 | Idempotency-Key na POST (fakture, naplata) | `common/interceptors/idempotency.interceptor.ts`; `test/idempotency.e2e-spec.ts` | ✅ |
-| E6 | Offline queue: max retry, backoff, alarm na 3 dana | Server: `worker/fiscal-alarm.ts` (3 dana, dnevni dedupe) + `fiscal-alarm.spec.ts`, retry backoff `fiscal-backoff.ts`; **mobilni**: `sync/syncEngine.ts:93-120` označi `FAILED` ali nema automatski retry/backoff ni lokalni alarm — **rupa** (vidi §3) | ❌ |
+| E6 | Offline queue: max retry, backoff, alarm na 3 dana | Server: `worker/fiscal-alarm.ts` (3 dana, dnevni dedupe) + `fiscal-alarm.spec.ts`, retry backoff `fiscal-backoff.ts`. **Mobilni (novo)**: `sync/retry.ts` — backoff 1m/5m/15m/1h/6h, max 5 pokušaja, alarm poslije 3 dana; `syncEngine.ts` čuva `attempts`/`nextAttemptAt` u `sync_queue` (SQLite mini-migracija u `db/localDb.ts`), `InvoicesScreen` prikazuje upozorenje i dugme „Pokušaj ponovo“; `retry.test.ts` (9 testova) | ✅ |
 | E7 | GDPR: izvoz i brisanje rade; politika privatnosti i ToS objavljeni | Kod: `account.service.ts`, `test/account-gdpr.e2e-spec.ts` (5 testova); tekst: `docs/LEGAL_DRAFT.md`; **objava čeka pravnika** | ⚠️ |
 | E8 | Play Data Safety form popunjen tačno | Odgovori pripremljeni: `docs/PLAY_RELEASE.md` §4; **forma se popunjava u Play Console** (nema naloga) | ⚠️ |
 
@@ -96,17 +107,17 @@
 | F2 | Monitoring i alarmi aktivni | `common/monitoring/monitoring.service.ts` (Sentry no-op bez DSN-a), 5xx hook u filteru, `FISCAL_ALARM` u workeru; **alarmi čekaju Sentry DSN** | ⚠️ |
 | F3 | Podrška spremna: kontakt, FAQ, odgovor na „ne radi fiskalizacija“ | `docs/INCIDENT_RUNBOOK.md` (scenariji i komunikacija) + `docs/PILOT_KIT.md` (support kanal, onboarding) | ✅ (dokument) |
 
-## 3. Nalazi koji traže odluku ili sljedeći sprint
+## 3. Nalazi i preporuke
 
-1. **Offline queue na mobilnom (E6)** — `FAILED` operacije se ne retry-uju automatski.
-   Predlog za Sprint 11/12: kolona `attempts` u `sync_queue`, backoff (1m/5m/15m/1h/6h),
-   alarm u lokalnoj notifikaciji; do tada offline draft koji padne sync korisnik vidi kao
-   neposlano (brojač u listi) i može ponoviti ručno.
-2. **EXPLAIN (C2)** — pokrenuti na stagingu sa realnim brojem faktura (seed: 50 nije dovoljno
-   za plan; ubaciti ~50k redova u kopiju). Komande u §4.
-3. **Rate limiter nije pokriven e2e testom** jer se u testovima isključuje; dodati jedan
-   e2e scenarij sa `RATE_LIMIT_ENABLED=true` i Redis-om (ili unit test guarda sa mock Redis-om).
-4. **SMS sender ID i provajder (E4)** — čim se izabere provajder, upisati sender ID i potvrditi
+1. **Sve lokalne provjere su izvršene:** 278 unit/API testova, Playwright e2e 8/8 (39,6 s),
+   EXPLAIN 3/3 bez `Seq Scan`. Ponavljanje ide kroz CI (`verify`, `e2e`, `android` jobovi) kad se
+   GitHub remote poveže.
+2. **Rate limiter** je sada pokriven unit testovima; e2e sa realnim Redis brojačima i IP-jevima
+   ostaje za CI/staging (u test okruženju je limiter isključen).
+3. **SMS sender ID i provajder (E4)** — čim se izabere provajder, upisati sender ID i potvrditi
+   da šablon prolazi pravila provajdera.
+4. **Offline retry (E6)** je zatvoren; ako pilot pokaže česte `FAILED` stavke, dodati lokalnu
+   notifikaciju (native) umjesto samo in-app upozorenja.
    da šablon prolazi pravila provajdera.
 
 ## 4. Kako ponoviti provjere (dokazi)
@@ -123,6 +134,9 @@ pnpm db:up
 pnpm db:deploy
 pnpm test
 pnpm --filter web test:e2e
+
+# EXPLAIN provjera (pravi 40×500 dijagnostičkih faktura, čisti ih na kraju)
+pnpm --filter api db:explain
 
 # EXPLAIN (staging, kopija baze)
 EXPLAIN (ANALYZE, BUFFERS)
@@ -156,4 +170,4 @@ dodati indeks kroz novu migraciju.
 
 | Verzija | Datum | Ko je provjerio | Napomena |
 |---|---|---|---|
-| 1.0 | 2026-11-13 | agent (S11-1) | 19 ✅ / 11 ⚠️ / 1 ❌; runtime e2e i EXPLAIN ponoviti u CI-ju/stagingu |
+| 1.1 | 2026-11-13 | agent (S11-1, drugi prolaz) | 21 ✅ / 10 ⚠️ / 0 ❌; 278 testova + e2e 8/8 + EXPLAIN izvršeni lokalno |
