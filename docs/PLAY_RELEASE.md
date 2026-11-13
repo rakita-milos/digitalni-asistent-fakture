@@ -18,22 +18,32 @@ closed testinga prije produkcije. Za organizacioni account to nije obavezno, ali
 
 ## 2. Potpisivanje i AAB
 
+**Stanje 2026-11-13:** signing config je implementiran u `apps/mobile/android/app/build.gradle`
+(`signingConfigs.release`), ali **AAB još nije napravljen** — lokalno nema JDK 17.
+
 ```bash
-# jednom, lokalno (JDK 17); keystore NIKAD u repo
+# 1) jednom, lokalno (JDK 17); keystore NIKAD u repo
 keytool -genkeypair -v -keystore digitalni-asistent-release.keystore \
   -alias digitalni -keyalg RSA -keysize 2048 -validity 10000
 
-# build release AAB (nakon što je signing config postavljen)
+# 2) kopirati keystore.properties.example u keystore.properties i upisati putanju/lozinke
+#    (ili postaviti DA_KEYSTORE_PATH, DA_KEYSTORE_PASSWORD, DA_KEY_ALIAS, DA_KEY_PASSWORD u CI)
+
+# 3) build release AAB
 cd apps/mobile/android
 ./gradlew bundleRelease
 # izlaz: app/build/outputs/bundle/release/app-release.aab
 ```
 
-- `versionCode`/`versionName` u `android/app/build.gradle` — povećavati za svaku objavu.
-- Keystore i lozinke u GitHub Secrets (base64 keystore + `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`);
-  signing config čita iz env, keystore se ne commituje.
+- Signing config čita `android/keystore.properties` (lokalno) ili env varijable
+  `DA_KEYSTORE_PATH`/`DA_KEYSTORE_PASSWORD`/`DA_KEY_ALIAS`/`DA_KEY_PASSWORD` (CI).
+  Bez keystore-a release build ostaje na debug potpisu — **AAB za Play se tako ne šalje**.
+- `keystore.properties` i `*.keystore` su u `.gitignore` (osim RN `debug.keystore`).
+- `versionCode`/`versionName` u `android/app/build.gradle` — povećavati za svaku objavu
+  (trenutno 1 / "1.0"; prvi Play build može ostati 1).
 - Debug APK (`assembleDebug`) ostaje za interni test; release AAB ide u Play.
-- Trenutni CI pravi **samo debug APK** — prije prve objave dodati release job (Sprint 10/11).
+- CI trenutno pravi **samo debug APK**; release job dodati kad budu GitHub Secrets
+  (keystore base64 + 3 lozinke) i JDK 17 u runneru (već je u `android` jobu).
 
 ## 3. Store listing (tekst draft)
 
@@ -67,12 +77,22 @@ cd apps/mobile/android
 
 ### Grafički materijal
 
-| Element | Zahtjev |
-|---|---|
-| Ikona | 512×512 PNG, bez providnosti |
-| Feature graphic | 1024×500 PNG/JPEG |
-| Screenshotovi | 2–8 telefonskih (1080×1920 ili 9:16), bez lažnih podataka |
-| Tabela/tablet | opciono |
+| Element | Zahtjev | Stanje 2026-11-13 |
+|---|---|---|
+| Ikona | 512×512 PNG, bez providnosti | ✅ placeholder: `apps/mobile/assets/branding/play-icon-512.png` |
+| Feature graphic | 1024×500 PNG/JPEG | ✅ placeholder: `apps/mobile/assets/branding/play-feature-graphic-1024x500.png` |
+| Screenshotovi | 2–8 telefonskih (1080×1920 ili 9:16), bez lažnih podataka | ❌ treba snimiti na uređaju (JDK 17/APK) |
+| Tabela/tablet | opciono | — |
+| Launcher ikone | `mipmap-*` sve gustine | ✅ placeholder generisan u svim gustinama |
+
+Placeholder materijal se regeneriše skriptom (bez native zavisnosti):
+
+```bash
+node apps/mobile/scripts/generate-play-assets.mjs
+```
+
+**Prije objave:** dizajner potvrđuje boje/wordmark i zamjenjuje fajlove; skripta ostaje kao
+način da se ikone ponovo izgenerišu iz istih parametara.
 
 ## 4. Data Safety (odgovori za Play formu)
 
@@ -107,10 +127,12 @@ Popunjava se tačno prema stvarnom ponašanju aplikacije. Sažetak:
 
 - [ ] Finalni package name i ime brenda
 - [ ] Release keystore generisan i sačuvan (2 kopije, sigurno)
+- [x] Signing config za release u `build.gradle` (keystore.properties / env)
 - [ ] `versionCode`/`versionName` postavljeni; AAB se potpisuje release ključem
+- [x] Placeholder ikona/feature graphic i launcher ikone generisane
 - [ ] Privacy policy i ToS objavljeni na stabilnim URL-ovima
 - [ ] Data Safety popunjen tačno (gore)
-- [ ] Screenshotovi i feature graphic; ikona
+- [ ] Screenshotovi (iz aplikacije, 2–8); finalna ikona/feature graphic od dizajnera
 - [ ] Content rating upitnik
 - [ ] Interni test na 3 uređaja (jeftin/srednji/nov) — APK/AAB
 - [ ] Nema `debuggable`/test naloga u release build-u; API URL je produkcijski

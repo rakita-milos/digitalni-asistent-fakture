@@ -1,20 +1,24 @@
-# Digitalni Asistent — Sprint 0–9
+# Digitalni Asistent — Sprint 0–11 (u pripremi)
 
 SaaS za fakturisanje i naplatu za mikro-poduzeća u Republici Srpskoj.
 Jedini izvor istine za proizvod, model, API i pravila je
 [`MASTER_PROMPT_IZgradnja_Aplikacije.md`](../MASTER_PROMPT_IZgradnja_Aplikacije.md) (izvan repoa).
 
-**Stanje:** Sprint 0–9 završeni; **Sprint 10** (integracije) u pripremi — R2 signed URL, Playwright CI
-job i monitoring (Sentry) kod su spremni, a čekaju kredencijale (GitHub, Sentry DSN, R2, SMS, staging).
-Aplikacija ima mobilni (`apps/mobile`), web (`apps/web`) i API (`apps/api`), mock fiskalizaciju do G0
-i demo seed. Preostalo prije produkcije: integracije sa kredencijalima i prava ESIR fiskalizacija
+**Stanje:** Sprint 0–9 završeni; **Sprint 10** (integracije) i **Sprint 11** (launch/pilot) su u pripremi —
+kod za R2, Sentry, Playwright CI, opt-out, analitiku, audit i Play potpisivanje je spreman, a čekaju
+kredencijale i odluke (GitHub, Sentry DSN, R2, SMS, staging, brend, JDK 17). Aplikacija ima mobilni
+(`apps/mobile`), web (`apps/web`) i API (`apps/api`), mock fiskalizaciju do G0 i demo seed.
+Preostalo prije produkcije: integracije sa kredencijalima, Play objava i prava ESIR fiskalizacija
 poslije odgovora operatera — vidi [`PLAN_DALJEG_RADA.md`](../PLAN_DALJEG_RADA.md) i
 [`PROGRESS.md`](../PROGRESS.md).
 
 Operativni dokumenti: [`docs/STAGING_DEPLOY.md`](docs/STAGING_DEPLOY.md) (staging, deploy, rollback,
-backup/restore) i [`docs/INCIDENT_RUNBOOK.md`](docs/INCIDENT_RUNBOOK.md) (incidenti i podrška).
-Priprema objave: [`docs/PLAY_RELEASE.md`](docs/PLAY_RELEASE.md) (Play listing, Data Safety, potpisivanje)
-i [`docs/LEGAL_DRAFT.md`](docs/LEGAL_DRAFT.md) (drafti privatnosti/ToS za pravnika).
+backup/restore), [`docs/INCIDENT_RUNBOOK.md`](docs/INCIDENT_RUNBOOK.md) (incidenti i podrška) i
+[`docs/PRE_DEPLOYMENT_AUDIT.md`](docs/PRE_DEPLOYMENT_AUDIT.md) (audit checkliste sa dokazima).
+Priprema objave i pilota: [`docs/PLAY_RELEASE.md`](docs/PLAY_RELEASE.md) (Play listing, Data Safety,
+potpisivanje), [`docs/PILOT_KIT.md`](docs/PILOT_KIT.md) (onboarding, upitnik, metrike) i
+[`docs/ANALYTICS.md`](docs/ANALYTICS.md) (minimalni događaji bez PII). Pravni drafti:
+[`docs/LEGAL_DRAFT.md`](docs/LEGAL_DRAFT.md).
 
 ## Stack (fiksan, MASTER PROMPT §2)
 
@@ -270,6 +274,19 @@ worker padovi, queue backlog (Sprint 10, kad DSN bude postavljen).
   store listing tekst, Data Safety odgovori, content rating i checklist prije recenzije.
 - **S11-6 Support/incident runbook** — `docs/INCIDENT_RUNBOOK.md` (severiteti, scenariji za
   fiskalizaciju/SMS/bazu/Redis/R2, komunikacija, post-mortem, kontakti).
+- **S11-1 Audit po Pre-Deployment Checklist** — `docs/PRE_DEPLOYMENT_AUDIT.md` (svaka stavka sa
+  dokazom; 19 ✅ / 11 ⚠️ / 1 ❌). Usput popravljeno: `/health` provjerava bazu i Redis,
+  `x-request-id` na svakom odgovoru, rate limit za izdavanje (30/min) i slanje (10/min),
+  TTL cap 15 min u env validaciji.
+- **S11-4 (dio) Play potpisivanje i brend materijal** — release `signingConfigs` čita
+  `android/keystore.properties` ili `DA_*` env varijable; `keystore.properties` u `.gitignore`;
+  placeholder ikona 512×512, feature graphic 1024×500 i launcher ikone svih gustina generisane
+  skriptom `apps/mobile/scripts/generate-play-assets.mjs` (finalni brend od dizajnera).
+- **S11-5 Pilot kit** — `docs/PILOT_KIT.md`: demo nalog, onboarding 5 koraka, scenario prvog dana,
+  feedback upitnik (NPS), metrike uspjeha, support kanal i tabela za praćenje.
+- **S11-7 Analitika** — odluka: bez PostHog-a za MVP; `AnalyticsService` emituje
+  `ANALYTICS` log redove (`registration`, `invoice_issued`, `payment_recorded`, `reminder_sent`,
+  bez PII), `pnpm --filter api metrics:platform` daje brojeve iz baze.
 
 ## Testovi
 
@@ -279,14 +296,15 @@ pnpm --filter web test:e2e                 # Playwright e2e (web)
 ```
 
 - `packages/shared` — **47** testova: Zod šeme, numeracija, JIB, telefon, UUID v7, enumi, error envelope.
-- `apps/api` — **127** testova (23 fajla): e2e auth/firma/kupci/artikli/porezi, fakture (obračun,
+- `apps/api` — **137** testova (26 fajlova): e2e auth/firma/kupci/artikli/porezi, fakture (obračun,
   draft, filteri, DRAFT-only, IDOR), fiskalizacija (mock, numeracija bez rupa, PRAČUN 409, PDF, ESIR pad),
   naplata, podsjetnici (uključujući opt-out), izvještaji, storno/refundacija, worker (retry + alarm),
-  sync, idempotencija, reset lozinke, slanje fakture, GDPR, logout; unit obračun/PDF token/alarm/R2/monitoring.
+  sync, idempotencija, reset lozinke, slanje fakture, GDPR, logout; unit obračun/PDF token/alarm/R2/monitoring,
+  health readiness, request-id middleware i analitika.
 - `apps/web` — **13** testova (Vitest): format, obračun pregleda, parsiranje forme, pravila masovnih akcija.
 - `apps/mobile` — **63** testa (Jest): API klijenti, auth store (uključujući logout offline),
   sync engine, offline draft/detalj, setup helperi, obračun.
-- **Ukupno 250 unit/API testova + 8 Playwright e2e.**
+- **Ukupno 260 unit/API testova + 8 Playwright e2e.**
 
 API e2e koristi pravu bazu i Redis; testovi `TRUNCATE`-uju bazu, pa poslije njih pokreni `pnpm db:seed`.
 
@@ -317,6 +335,7 @@ pnpm --filter web test:e2e
 | `pnpm build` | shared → api → web (mobile Gradle build nije u CI-ju) |
 | `pnpm format` / `format:check` | Prettier |
 | `pnpm db:*` | Docker baza, migracije, seed, Prisma Studio |
+| `pnpm --filter api metrics:platform` | JSON platform-metrike za pilot (bez PII) |
 
 ## CI (`.github/workflows/ci.yml`)
 
@@ -354,6 +373,11 @@ Web e2e je u CI-ju (`e2e` job: build + Chromium + `pnpm --filter web test:e2e`, 
     (zakonska obaveza čuvanja). Pravnik potvrđuje tok prije produkcije.
 17. **Javni PDF link:** HMAC token vezan za fakturu, TTL 15 min; zamjenjuje se R2 signed URL-om.
 18. **Radnici/računovođe:** MVP je samo vlasnik (multi-user poslije MVP-a, §20).
+19. **Analitika (S11-7):** za MVP nema PostHog-a — događaji su `ANALYTICS` log redovi bez PII
+    preko `AnalyticsService`, a brojevi se rade iz baze (`metrics:platform`); imena događaja
+    ostaju ista ako se kasnije doda PostHog.
+20. **Health/request-id (S11-1):** `GET /health` je readiness (baza + Redis, 503 kada padnu),
+    a `x-request-id` ide na svaki odgovor preko middleware-a (filter ga koristi za log/Sentry).
 
 ## Poznata ograničenja (prije produkcije)
 
@@ -368,7 +392,8 @@ Web e2e je u CI-ju (`e2e` job: build + Chromium + `pnpm --filter web test:e2e`, 
 - **Kredit kupca pri preplati** — nema polja u §5; preplata se odbija dok vlasnik/računovođa ne odluče
   o modelu kredita (S11-2b). Opt-out podsjetnika je urađen (S11-2a).
 - **Mobilni offline** je implementiran i typecheck-ovan, ali nije verifikovan na fizičkom uređaju
-  (u ovom okruženju nema JDK 17; APK ide kroz CI).
+  (u ovom okruženju nema JDK 17; APK ide kroz CI). Poznato: `sync_queue` označi `FAILED` ali nema
+  automatski retry/backoff ni alarm — vidi `docs/PRE_DEPLOYMENT_AUDIT.md` (E6).
 - **`PATCH /items/:id`** nije u §6 — artikli se mogu dodavati, ali ne mijenjati/arhivirati.
 - **M-12 profil/lozinka** — osnovne sekcije rade; promjena lozinke ide kroz web reset tok.
 - **JIB checksum**, **role/status vrijednosti**, **numeracija format** — potvrditi sa računovođom.
