@@ -17,7 +17,12 @@ import { DEFAULT_REMINDER_TEMPLATE } from '@digitalni-asistent/shared';
 
 import type { RootStackParamList } from '../../navigation/RootNavigator';
 import { ApiError } from '../../api/client';
-import { getCompany, updateCompany, type CompanyDto } from '../../api/company';
+import {
+  completeSetup as completeSetupOnServer,
+  getCompany,
+  updateCompany,
+  type CompanyDto,
+} from '../../api/company';
 import { createTaxRate, listTaxRates, type TaxRateDto } from '../../api/catalog';
 import { getReminderSettings, updateReminderSettings } from '../../api/reminders';
 import { getDb } from '../../db/localDb';
@@ -168,9 +173,7 @@ export function SetupScreen({ navigation }: Props) {
         if (!active) {
           return;
         }
-        setLoadError(
-          toErrorMessage(caught, 'Podaci firme nisu učitani. Provjerite mrežu.'),
-        );
+        setLoadError(toErrorMessage(caught, 'Podaci firme nisu učitani. Provjerite mrežu.'));
       } finally {
         if (active) {
           setBootstrapping(false);
@@ -205,9 +208,7 @@ export function SetupScreen({ navigation }: Props) {
         if (!active) {
           return;
         }
-        setTaxRatesError(
-          toErrorMessage(caught, 'Porezne stope nisu učitane. Provjerite mrežu.'),
-        );
+        setTaxRatesError(toErrorMessage(caught, 'Porezne stope nisu učitane. Provjerite mrežu.'));
       } finally {
         if (active) {
           setTaxRatesLoading(false);
@@ -242,9 +243,7 @@ export function SetupScreen({ navigation }: Props) {
         setReminderEnabled(settings.enabled);
         setReminderTemplate(settings.template.text);
         setReminderOffsets(
-          settings.schedule
-            .slice(0, MAX_REMINDER_ITEMS)
-            .map((item) => String(item.offsetDays)),
+          settings.schedule.slice(0, MAX_REMINDER_ITEMS).map((item) => String(item.offsetDays)),
         );
         setReminderLoaded(true);
       } catch (caught) {
@@ -280,6 +279,12 @@ export function SetupScreen({ navigation }: Props) {
   }
 
   async function completeSetup(): Promise<void> {
+    // S11-7: server-side signal za analitiku (best-effort — offline ne blokira završetak).
+    try {
+      await completeSetupOnServer();
+    } catch {
+      // Bez mreže se setup i dalje završava lokalno; signal se ne šalje.
+    }
     try {
       await setMeta(getDb(), SETUP_COMPLETED_KEY, '1');
     } catch {
@@ -467,7 +472,12 @@ export function SetupScreen({ navigation }: Props) {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Podaci o firmi</Text>
 
-        <Field label="Naziv firme *" value={name} onChangeText={setName} testID="setup-company-name" />
+        <Field
+          label="Naziv firme *"
+          value={name}
+          onChangeText={setName}
+          testID="setup-company-name"
+        />
         <Field
           label="Adresa *"
           value={address}
@@ -682,8 +692,8 @@ export function SetupScreen({ navigation }: Props) {
         ) : null}
 
         <Text style={styles.note}>
-          Broj se sastoji od prefiksa, godine i rednog broja (npr. FV2026-0001). Godina mora
-          biti između 2020 i 2100, a rok plaćanja između 0 i 365 dana.
+          Broj se sastoji od prefiksa, godine i rednog broja (npr. FV2026-0001). Godina mora biti
+          između 2020 i 2100, a rok plaćanja između 0 i 365 dana.
         </Text>
       </View>
     );
@@ -785,10 +795,7 @@ export function SetupScreen({ navigation }: Props) {
 
   function renderRemindersStep() {
     // Dok se status ne razriješi (prije nego efekt pokrene učitavanje) prikazujemo loader.
-    if (
-      reminderLoading ||
-      (!reminderLoaded && !reminderForbidden && reminderError === null)
-    ) {
+    if (reminderLoading || (!reminderLoaded && !reminderForbidden && reminderError === null)) {
       return (
         <View style={styles.card}>
           <ActivityIndicator color="#1D4ED8" />
@@ -844,7 +851,11 @@ export function SetupScreen({ navigation }: Props) {
         <Pressable style={styles.primaryButton} onPress={handleRetryLoad} testID="setup-retry-load">
           <Text style={styles.primaryButtonText}>Pokušaj ponovo</Text>
         </Pressable>
-        <Pressable style={styles.linkButton} onPress={() => navigation.goBack()} testID="setup-close">
+        <Pressable
+          style={styles.linkButton}
+          onPress={() => navigation.goBack()}
+          testID="setup-close"
+        >
           <Text style={styles.linkButtonText}>Zatvori</Text>
         </Pressable>
       </View>
@@ -852,7 +863,11 @@ export function SetupScreen({ navigation }: Props) {
   }
 
   const reminderPending =
-    step === 4 && !reminderLoading && !reminderLoaded && !reminderForbidden && reminderError === null;
+    step === 4 &&
+    !reminderLoading &&
+    !reminderLoaded &&
+    !reminderForbidden &&
+    reminderError === null;
   const primaryDisabled =
     isSaving || isAddingTaxRate || (step === 4 && (reminderLoading || reminderPending));
 
@@ -922,25 +937,16 @@ export function SetupScreen({ navigation }: Props) {
         </Pressable>
 
         <View style={styles.footerRow}>
-          <Pressable
-            onPress={handleBack}
-            disabled={step === 0 || isSaving}
-            testID="setup-back"
-          >
+          <Pressable onPress={handleBack} disabled={step === 0 || isSaving} testID="setup-back">
             <Text
-              style={[
-                styles.footerLink,
-                (step === 0 || isSaving) && styles.footerLinkDisabled,
-              ]}
+              style={[styles.footerLink, (step === 0 || isSaving) && styles.footerLinkDisabled]}
             >
               ‹ Nazad
             </Text>
           </Pressable>
 
           <Pressable onPress={handleSkip} disabled={isSaving} testID="setup-skip">
-            <Text style={styles.footerLink}>
-              {step === 4 ? 'Preskoči i završi' : 'Preskoči ›'}
-            </Text>
+            <Text style={styles.footerLink}>{step === 4 ? 'Preskoči i završi' : 'Preskoči ›'}</Text>
           </Pressable>
         </View>
 

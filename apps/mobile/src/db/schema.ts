@@ -36,7 +36,9 @@ export const SCHEMA_STATEMENTS: string[] = [
     payload TEXT NOT NULL,
     createdAt TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'PENDING',
-    error TEXT
+    error TEXT,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    nextAttemptAt TEXT
   )`,
   `CREATE TABLE IF NOT EXISTS meta (
     key TEXT PRIMARY KEY,

@@ -10,15 +10,15 @@ const row = (overrides: Partial<QueueRow> = {}): QueueRow => ({
   createdAt: '2026-11-09T10:00:00.000Z',
   status: 'PENDING',
   error: null,
+  attempts: 0,
+  nextAttemptAt: null,
   ...overrides,
 });
 
 describe('uuidv7', () => {
   it('proizvodi UUID v7 oblik', () => {
     const value = uuidv7();
-    expect(value).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-8[0-9a-f]{3}-[0-9a-f]{12}$/i,
-    );
+    expect(value).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-8[0-9a-f]{3}-[0-9a-f]{12}$/i);
   });
 
   it('generiše različite vrijednosti', () => {

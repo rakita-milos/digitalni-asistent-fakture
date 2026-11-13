@@ -26,13 +26,14 @@ tada dodati PostHog (EU region) i poslati iste događaje tamo; imena događaja o
 | `invoice_issued` | poslije uspješne fiskalizacije/izdavanja | `companyId`, `invoiceId` | `invoices.service.ts` (`issue`) |
 | `payment_recorded` | poslije upisa naplate | `companyId`, `invoiceId` | `payments.service.ts` (`create`) |
 | `reminder_sent` | poslije poslanog podsjetnika | `companyId`, `invoiceId`, `channel` | `reminders.service.ts` (ručni), `worker/reminder.worker.ts` (automatski) |
-| `setup_completed` | *nije emitovan* — mobile setup se čuva lokalno u SQLite | — | planirano kada setup bude imao serverski signal |
+| `setup_completed` | poslije `POST /company/setup-complete` (idempotentno) | `companyId` | `company.service.ts` (`markSetupComplete`) |
 
-**Zašto `setup_completed` nedostaje:** mobile wizard čuva napredak u lokalnoj `meta`
-tabeli (`setup_progress`), pa server ne zna kada je setup završen. Do tada se „setup“
-aproksimira u `metrics:platform` kao firma sa EFD ID **i** bar jednom poreskom stopom.
-Ako pilot bude tražio tačan funnel, dodati `POST /company/setup-complete` (jedan flag u
-`companies`) — to je mala migracija i jedan poziv iz wizarda.
+**Server-side signal:** mobile wizard i dalje čuva napredak lokalno (`setup_progress`), ali pri
+završetku zove `POST /company/setup-complete` (best-effort; offline ne blokira završetak).
+Ruta upisuje `companies.setup_completed_at` (migracija
+`20261113170000_company_setup_completed_at`), idempotentna je i emituje `setup_completed`
+samo prvi put. `metrics:platform` i dalje daje proxy (EFD + poreska stopa) za starije naloge
+koji su setup završili prije ove migracije.
 
 ## 3. Format loga
 
@@ -60,5 +61,7 @@ Skripta ne vraća PII i može se pokretati na stagingu/produkciji (read-only upi
 
 - Logovi se rotiraju — za dugoročne metrike koristiti `metrics:platform` (baza).
 - Nema atribucije po korisniku (namjerno, bez PII); NPS i feedback idu kroz pilot upitnik.
+- `setup_completed` je best-effort: ako je telefon offline u trenutku završetka setup-a, signal se
+  ne šalje (lokalni setup i dalje važi); proxy u `metrics:platform` ostaje rezerva.
 - Ako se uvede PostHog, dodati `posthog-node` i env `POSTHOG_KEY`; `AnalyticsService`
   ostaje jedina tačka slanja (bez mijenjanja poziva u servisima).

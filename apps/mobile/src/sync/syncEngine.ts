@@ -7,6 +7,7 @@ import type {
 import { apiRequest } from '../api/client';
 import type { SqlDb } from '../db/localDb';
 import { getMeta, setMeta, upsertCustomers, upsertInvoices } from '../db/repos';
+import { planRetry, summarizeQueue, type QueueAlarm, type RetryState } from './retry';
 import type { LocalCustomer, LocalInvoice } from '../db/repos';
 import { uuidv7 } from '../utils/uuid';
 
@@ -30,12 +31,12 @@ export interface QueueRow {
   createdAt: string;
   status: string;
   error: string | null;
+  attempts: number;
+  nextAttemptAt: string | null;
 }
 
 /** GET /sync/pull + upis u lokalnu bazu. */
-export async function pullAndMerge(
-  db: SqlDb,
-): Promise<{ customers: number; invoices: number }> {
+export async function pullAndMerge(db: SqlDb): Promise<{ customers: number; invoices: number }> {
   const lastSyncAt = await getMeta(db, 'lastSyncAt');
   const suffix = lastSyncAt ? `?since=${encodeURIComponent(lastSyncAt)}` : '';
   const response = await apiRequest<PullResponse>(`/sync/pull${suffix}`);
@@ -89,46 +90,111 @@ export function planResultApplication(
   return { deleteIds, failures };
 }
 
-/** POST /sync/push za sve lokalne PENDING operacije. */
+/**
+ * POST /sync/push za lokalne PENDING operacije koje su spremne za slanje.
+ *
+ * Neuspjeh se ne baca kao trajna greška: stavka ostaje u queue-u sa
+ * backoff-om (1m/5m/15m/1h/6h), a poslije 5 pokušaja prelazi u FAILED.
+ * Ako mreža padne u toku push-a, sve stavke iz batch-a se odlažu i greška se
+ * propagira (ekran prikaže „offline“), uz sačuvan `attempts`.
+ */
 export async function flushQueue(
   db: SqlDb,
-): Promise<{ pushed: number; failed: number; skipped: number }> {
+): Promise<{ pushed: number; failed: number; retried: number; skipped: number }> {
+  const now = new Date();
   const rows = await db.query<QueueRow>(
-    `SELECT * FROM sync_queue WHERE status = 'PENDING' ORDER BY createdAt ASC LIMIT 50`,
+    `SELECT * FROM sync_queue
+     WHERE status = 'PENDING' AND (nextAttemptAt IS NULL OR nextAttemptAt <= ?)
+     ORDER BY createdAt ASC LIMIT 50`,
+    [now.toISOString()],
   );
 
   if (rows.length === 0) {
-    return { pushed: 0, failed: 0, skipped: 0 };
+    return { pushed: 0, failed: 0, retried: 0, skipped: 0 };
   }
 
-  const response = await apiRequest<PushResponse>('/sync/push', {
-    method: 'POST',
-    body: { operations: buildOperations(rows) },
-  });
+  let response: PushResponse;
+  try {
+    response = await apiRequest<PushResponse>('/sync/push', {
+      method: 'POST',
+      body: { operations: buildOperations(rows) },
+    });
+  } catch (caught) {
+    const message = caught instanceof Error ? caught.message : 'Slanje nije uspjelo';
+    for (const row of rows) {
+      await scheduleRetry(db, row, message);
+    }
+    throw caught;
+  }
 
   const plan = planResultApplication(rows, response.results);
 
   for (const id of plan.deleteIds) {
     await db.execute('DELETE FROM sync_queue WHERE id = ?', [id]);
   }
+
+  let failed = 0;
+  let retried = 0;
   for (const failure of plan.failures) {
-    await db.execute(`UPDATE sync_queue SET status = 'FAILED', error = ? WHERE id = ?`, [
-      failure.error,
-      failure.id,
-    ]);
+    const row = rows.find((candidate) => candidate.id === failure.id);
+    if (!row) {
+      continue;
+    }
+    const state = await scheduleRetry(db, row, failure.error);
+    if (state.status === 'FAILED') {
+      failed += 1;
+    } else {
+      retried += 1;
+    }
   }
 
   return {
     pushed: plan.deleteIds.length,
-    failed: plan.failures.length,
+    failed,
+    retried,
     skipped: rows.length - plan.deleteIds.length - plan.failures.length,
   };
+}
+
+/** Upisuje sljedeći pokušaj (ili FAILED) u queue. */
+async function scheduleRetry(db: SqlDb, row: QueueRow, error: string): Promise<RetryState> {
+  const state = planRetry(row.attempts ?? 0);
+  await db.execute(
+    `UPDATE sync_queue SET status = ?, attempts = ?, nextAttemptAt = ?, error = ? WHERE id = ?`,
+    [state.status, state.attempts, state.nextAttemptAt, error, row.id],
+  );
+  return state;
+}
+
+/** Zbirno stanje queue-a za UI (alarm na 3 dana, FAILED stavke). */
+export async function queueSummary(db: SqlDb): Promise<QueueAlarm> {
+  const rows = await db.query<{ status: string; createdAt: string; nextAttemptAt: string | null }>(
+    'SELECT status, createdAt, nextAttemptAt FROM sync_queue',
+  );
+  return summarizeQueue(rows);
+}
+
+/** Ručno vraća FAILED stavke u PENDING (dugme „Pokušaj ponovo“). */
+export async function retryFailed(db: SqlDb): Promise<number> {
+  const failed = await db.query<{ count: number }>(
+    `SELECT COUNT(*) AS count FROM sync_queue WHERE status = 'FAILED'`,
+  );
+  await db.execute(
+    `UPDATE sync_queue SET status = 'PENDING', attempts = 0, nextAttemptAt = NULL, error = NULL
+     WHERE status = 'FAILED'`,
+  );
+  return Number(failed[0]?.count ?? 0);
 }
 
 /** Dodaje lokalnu operaciju u queue (offline-first). */
 export async function enqueueOperation(
   db: SqlDb,
-  operation: { entity: 'customer' | 'invoice'; op: 'create' | 'update'; entityId: string; payload: unknown },
+  operation: {
+    entity: 'customer' | 'invoice';
+    op: 'create' | 'update';
+    entityId: string;
+    payload: unknown;
+  },
 ): Promise<void> {
   await db.execute(
     `INSERT INTO sync_queue (id, entity, op, entityId, payload, createdAt, status)
