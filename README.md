@@ -13,6 +13,8 @@ poslije odgovora operatera — vidi [`PLAN_DALJEG_RADA.md`](../PLAN_DALJEG_RADA.
 
 Operativni dokumenti: [`docs/STAGING_DEPLOY.md`](docs/STAGING_DEPLOY.md) (staging, deploy, rollback,
 backup/restore) i [`docs/INCIDENT_RUNBOOK.md`](docs/INCIDENT_RUNBOOK.md) (incidenti i podrška).
+Priprema objave: [`docs/PLAY_RELEASE.md`](docs/PLAY_RELEASE.md) (Play listing, Data Safety, potpisivanje)
+i [`docs/LEGAL_DRAFT.md`](docs/LEGAL_DRAFT.md) (drafti privatnosti/ToS za pravnika).
 
 ## Stack (fiksan, MASTER PROMPT §2)
 
@@ -262,6 +264,10 @@ worker padovi, queue backlog (Sprint 10, kad DSN bude postavljen).
   već zakazane, ručni podsjetnik vraća 409; web forma kupca ima checkbox, detalj prikazuje oznaku.
   3 API e2e testa.
 - **S11-2b Kredit kupca** — čeka odluku vlasnika/računovođe (preplata se za sada odbija).
+- **S11-3 (dio) Pravni drafti** — `docs/LEGAL_DRAFT.md`: inventar podataka, skeleton politike privatnosti
+  i uslova, mapiranje GDPR prava na funkcije (izvoz/brisanje/opt-out), otvorena pitanja za pravnika.
+- **S11-4 (dio) Play objava** — `docs/PLAY_RELEASE.md`: odluke (package/brend/keystore), AAB i potpisivanje,
+  store listing tekst, Data Safety odgovori, content rating i checklist prije recenzije.
 - **S11-6 Support/incident runbook** — `docs/INCIDENT_RUNBOOK.md` (severiteti, scenariji za
   fiskalizaciju/SMS/bazu/Redis/R2, komunikacija, post-mortem, kontakti).
 
