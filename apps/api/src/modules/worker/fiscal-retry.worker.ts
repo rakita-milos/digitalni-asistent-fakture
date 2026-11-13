@@ -3,6 +3,7 @@ import { Queue, Worker } from 'bullmq';
 import type { OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
 import { env } from '../../config/env';
+import { MonitoringService } from '../../common/monitoring/monitoring.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
 import { InvoicesService } from '../invoices/invoices.service';
@@ -38,6 +39,7 @@ export class FiscalRetryWorker implements OnModuleInit, OnModuleDestroy {
     private readonly prisma: PrismaService,
     private readonly invoices: InvoicesService,
     private readonly redis: RedisService,
+    private readonly monitoring: MonitoringService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -48,6 +50,7 @@ export class FiscalRetryWorker implements OnModuleInit, OnModuleDestroy {
 
     this.worker.on('failed', (job, error) => {
       this.logger.error(`Fiscal retry job ${job?.id ?? '?'} pao: ${error.message}`);
+      this.monitoring.captureException(error, { job: job?.id ?? '?' });
     });
 
     await this.queue.upsertJobScheduler(
@@ -86,6 +89,11 @@ export class FiscalRetryWorker implements OnModuleInit, OnModuleDestroy {
           const days = Math.floor((Date.now() - invoice.updatedAt.getTime()) / 86_400_000);
           this.logger.error(
             `FISCAL_ALARM: faktura ${invoice.number} (${invoice.id}) čeka fiskalizaciju ${days} dana — potreban ručni ishod`,
+          );
+          this.monitoring.captureMessage(
+            `PENDING_FISCAL > ${days} dana`,
+            'error',
+            { invoiceId: invoice.id, number: invoice.number, days },
           );
         }
       }

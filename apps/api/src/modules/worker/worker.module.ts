@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { MonitoringModule } from '../../common/monitoring/monitoring.module';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { RedisModule } from '../../redis/redis.module';
 import { AuthModule } from '../auth/auth.module';
@@ -9,7 +10,14 @@ import { FiscalRetryWorker } from './fiscal-retry.worker';
 import { ReminderWorker } from './reminder.worker';
 
 @Module({
-  imports: [PrismaModule, RedisModule, AuthModule, InvoicesModule, RemindersModule],
+  imports: [
+    PrismaModule,
+    RedisModule,
+    MonitoringModule,
+    AuthModule,
+    InvoicesModule,
+    RemindersModule,
+  ],
   providers: [ReminderWorker, FiscalRetryWorker],
 })
 export class WorkerModule {}

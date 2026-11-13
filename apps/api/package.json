@@ -33,6 +33,7 @@
     "@nestjs/platform-express": "^10.4.22",
     "@nestjs/swagger": "^7.4.2",
     "@prisma/client": "^6.19.3",
+    "@sentry/node": "^11.12.0",
     "argon2": "^0.45.2",
     "bullmq": "^6.7.2",
     "dejavu-fonts-ttf": "^2.37.3",

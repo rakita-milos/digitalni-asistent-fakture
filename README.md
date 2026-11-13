@@ -4,8 +4,8 @@ SaaS za fakturisanje i naplatu za mikro-poduzeća u Republici Srpskoj.
 Jedini izvor istine za proizvod, model, API i pravila je
 [`MASTER_PROMPT_IZgradnja_Aplikacije.md`](../MASTER_PROMPT_IZgradnja_Aplikacije.md) (izvan repoa).
 
-**Stanje:** Sprint 0–9 završeni; **Sprint 10** (integracije) u pripremi — R2 signed URL kod i
-Playwright CI job su spremni, a čekaju kredencijale (GitHub, Sentry, R2, SMS, staging).
+**Stanje:** Sprint 0–9 završeni; **Sprint 10** (integracije) u pripremi — R2 signed URL, Playwright CI
+job i monitoring (Sentry) kod su spremni, a čekaju kredencijale (GitHub, Sentry DSN, R2, SMS, staging).
 Aplikacija ima mobilni (`apps/mobile`), web (`apps/web`) i API (`apps/api`), mock fiskalizaciju do G0
 i demo seed. Preostalo prije produkcije: integracije sa kredencijalima i prava ESIR fiskalizacija
 poslije odgovora operatera — vidi [`PLAN_DALJEG_RADA.md`](../PLAN_DALJEG_RADA.md) i
@@ -232,8 +232,23 @@ Bez kredencijala ista ruta **streamuje** PDF — ponašanje i ugovor rute se ne 
   PDF ruta vraća 302 na signed URL kada su ključevi prisutni, inače stream; 3 unit testa.
 - **CI Playwright job** — `.github/workflows/ci.yml` dobija `e2e` job (Postgres/Redis, build,
   `playwright install --with-deps chromium`, `pnpm --filter web test:e2e`, izvještaj kao artifact).
+- **Monitoring (Sentry, API/worker)** — `MonitoringService` sa `@sentry/node`: bez `SENTRY_DSN` je no-op
+  (greške ostaju u logu); sa DSN-om šalje 5xx iz globalnog filtera (tagovi: request-id, ruta, status)
+  i `FISCAL_ALARM`/worker padove. Web instrumentacija dolazi uz DSN.
 - **Čeka tvoje akcije:** GitHub remote (da CI uopšte krene), Sentry DSN, R2 ključevi, SMS provajder,
   staging nalozi, JDK 17 za lokalni APK.
+
+## Monitoring (Sentry)
+
+| Varijabla | Default | Napomena |
+|---|---|---|
+| `SENTRY_DSN` | — | bez DSN-a monitoring je no-op |
+| `SENTRY_ENVIRONMENT` | `NODE_ENV` | npr. `staging`, `production` |
+| `SENTRY_TRACES_SAMPLE_RATE` | `0` | performance tracing isključen |
+| `APP_RELEASE` | — | release tag (npr. commit SHA) |
+
+Alarmi koje treba podesiti u Sentry-ju: 5xx stopa, `FISCAL_ALARM` (PENDING_FISCAL > 3 dana),
+worker padovi, queue backlog (Sprint 10, kad DSN bude postavljen).
 
 ## Sprint 11 — priprema (13. 11. 2026)
 
@@ -251,14 +266,14 @@ pnpm --filter web test:e2e                 # Playwright e2e (web)
 ```
 
 - `packages/shared` — **47** testova: Zod šeme, numeracija, JIB, telefon, UUID v7, enumi, error envelope.
-- `apps/api` — **125** testova (22 fajla): e2e auth/firma/kupci/artikli/porezi, fakture (obračun,
+- `apps/api` — **127** testova (23 fajla): e2e auth/firma/kupci/artikli/porezi, fakture (obračun,
   draft, filteri, DRAFT-only, IDOR), fiskalizacija (mock, numeracija bez rupa, PRAČUN 409, PDF, ESIR pad),
   naplata, podsjetnici (uključujući opt-out), izvještaji, storno/refundacija, worker (retry + alarm),
-  sync, idempotencija, reset lozinke, slanje fakture, GDPR, logout; unit obračun/PDF token/alarm/R2 signed URL.
+  sync, idempotencija, reset lozinke, slanje fakture, GDPR, logout; unit obračun/PDF token/alarm/R2/monitoring.
 - `apps/web` — **13** testova (Vitest): format, obračun pregleda, parsiranje forme, pravila masovnih akcija.
 - `apps/mobile` — **63** testa (Jest): API klijenti, auth store (uključujući logout offline),
   sync engine, offline draft/detalj, setup helperi, obračun.
-- **Ukupno 248 unit/API testova + 8 Playwright e2e.**
+- **Ukupno 250 unit/API testova + 8 Playwright e2e.**
 
 API e2e koristi pravu bazu i Redis; testovi `TRUNCATE`-uju bazu, pa poslije njih pokreni `pnpm db:seed`.
 
@@ -332,7 +347,8 @@ Web e2e je u CI-ju (`e2e` job: build + Chromium + `pnpm --filter web test:e2e`, 
 - **G0 operater ESIR** — fiskalizacija je mock; PFR/QR placeholder; storno fiskalizacija i PDV tretman
   refundacije čekaju odgovor operatera/računovođu.
 - **GitHub/CI** — remote nije povezan, pa CI i Android APK job nisu pokrenuti.
-- **Sentry/monitoring** — nema DSN-a; alarm je za sada structured log u workeru.
+- **Sentry/monitoring** — kod je spreman (`MonitoringService`, @sentry/node, no-op bez DSN-a);
+  čeka se DSN i instrumentacija web aplikacije (`@sentry/nextjs`).
 - **R2** — kod za upload i signed URL je spreman (`R2StorageService`, 302 na signed URL kad su ključevi
   postavljeni); bez kredencijala PDF se streamuje. Čekaju se R2 ključevi.
 - **SMS provajder** — `log` adapter; bez provajdera nema stvarnih podsjetnika/OTP-a.

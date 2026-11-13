@@ -58,6 +58,11 @@ const envSchema = z.object({
   R2_BUCKET: z.string().default('digitalni-asistent'),
   R2_ENDPOINT: z.union([z.string().url(), z.literal('')]).optional(),
   R2_SIGNED_URL_TTL_SECONDS: z.coerce.number().int().min(60).max(3600).default(900),
+  /// Monitoring (Sentry): bez DSN-a servis je no-op, greške ostaju u logu.
+  SENTRY_DSN: z.union([z.string().url(), z.literal('')]).optional(),
+  SENTRY_ENVIRONMENT: z.string().optional(),
+  SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0),
+  APP_RELEASE: z.string().optional(),
   /// Rizične funkcije se mogu isključiti bez deploya (Pre-Deployment Checklist D).
   FEATURE_FISCAL_ENABLED: z.enum(['true', 'false']).default('true'),
   FEATURE_SMS_ENABLED: z.enum(['true', 'false']).default('true'),

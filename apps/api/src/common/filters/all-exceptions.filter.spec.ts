@@ -2,6 +2,7 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 import type { ArgumentsHost } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 
+import type { MonitoringService } from '../monitoring/monitoring.service';
 import { AllExceptionsFilter } from './all-exceptions.filter';
 
 function createHost(url = '/test'): {
@@ -63,5 +64,26 @@ describe('AllExceptionsFilter (format greške §6)', () => {
 
     expect(json).toHaveBeenCalledWith({ code: 'INTERNAL_ERROR', message: 'Interna greška' });
     expect(setHeader).toHaveBeenCalledWith('x-request-id', expect.any(String));
+  });
+
+  it('5xx prijavljuje monitoringu (request-id tag), 4xx ne', () => {
+    const captureException = vi.fn();
+    const monitoring = {
+      isEnabled: () => true,
+      captureException,
+      captureMessage: vi.fn(),
+    } as unknown as MonitoringService;
+
+    const filter = new AllExceptionsFilter(monitoring);
+
+    filter.catch(new Error('pad'), createHost().host);
+    expect(captureException).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ requestId: expect.any(String), status: 500 }),
+    );
+
+    captureException.mockClear();
+    filter.catch(new HttpException('Nema', HttpStatus.NOT_FOUND), createHost().host);
+    expect(captureException).not.toHaveBeenCalled();
   });
 });

@@ -6,6 +6,8 @@ import type { ApiError, ErrorCode } from '@digitalni-asistent/shared';
 import { ERROR_CODES } from '@digitalni-asistent/shared';
 import type { Request, Response } from 'express';
 
+import type { MonitoringService } from '../monitoring/monitoring.service';
+
 const STATUS_TO_CODE: Partial<Record<number, ErrorCode>> = {
   [HttpStatus.BAD_REQUEST]: ERROR_CODES.VALIDATION_ERROR,
   [HttpStatus.UNAUTHORIZED]: ERROR_CODES.UNAUTHORIZED,
@@ -39,6 +41,8 @@ const DEFAULT_MESSAGES: Partial<Record<number, string>> = {
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
 
+  constructor(private readonly monitoring?: MonitoringService) {}
+
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
@@ -64,6 +68,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
       const stack = exception instanceof Error ? exception.stack : String(exception);
       this.logger.error(`${request.method} ${request.url} [${requestId}]`, stack);
+      this.monitoring?.captureException(
+        exception instanceof Error ? exception : new Error(String(exception)),
+        {
+          requestId,
+          method: request.method,
+          path: request.url,
+          status,
+        },
+      );
     }
 
     response.setHeader('x-request-id', requestId);

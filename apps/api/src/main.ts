@@ -4,12 +4,14 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { MonitoringService } from './common/monitoring/monitoring.service';
 import { env } from './config/env';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
 
-  app.useGlobalFilters(new AllExceptionsFilter());
+  const monitoring = app.get(MonitoringService);
+  app.useGlobalFilters(new AllExceptionsFilter(monitoring));
   app.enableShutdownHooks();
 
   // Pre-Deployment Checklist §4: CORS samo za poznate origin-e, nikad "*".

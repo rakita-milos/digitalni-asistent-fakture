@@ -5,6 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { AppModule } from '../src/app.module';
 import { AllExceptionsFilter } from '../src/common/filters/all-exceptions.filter';
+import { MonitoringService } from '../src/common/monitoring/monitoring.service';
 import { SmsService } from '../src/modules/auth/sms.service';
 import { InvoicesService } from '../src/modules/invoices/invoices.service';
 import { ReminderSettingsService } from '../src/modules/reminders/reminder-settings.service';
@@ -95,6 +96,7 @@ describe('Sprint 5 — worker (podsjetnici + fiskalni retry)', () => {
       prisma,
       app.get(InvoicesService),
       app.get(RedisService),
+      app.get(MonitoringService),
     );
   });
 

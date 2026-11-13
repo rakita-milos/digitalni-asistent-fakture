@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
 import { IdempotencyInterceptor } from './common/interceptors/idempotency.interceptor';
+import { MonitoringModule } from './common/monitoring/monitoring.module';
 import { AccountModule } from './modules/account/account.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CompanyModule } from './modules/company/company.module';
@@ -24,6 +25,7 @@ import { StorageModule } from './modules/storage/storage.module';
     PrismaModule,
     RedisModule,
     StorageModule,
+    MonitoringModule,
     HealthModule,
     AccountModule,
     AuthModule,
