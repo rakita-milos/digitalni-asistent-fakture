@@ -11,6 +11,9 @@ i demo seed. Preostalo prije produkcije: integracije sa kredencijalima i prava E
 poslije odgovora operatera — vidi [`PLAN_DALJEG_RADA.md`](../PLAN_DALJEG_RADA.md) i
 [`PROGRESS.md`](../PROGRESS.md).
 
+Operativni dokumenti: [`docs/STAGING_DEPLOY.md`](docs/STAGING_DEPLOY.md) (staging, deploy, rollback,
+backup/restore) i [`docs/INCIDENT_RUNBOOK.md`](docs/INCIDENT_RUNBOOK.md) (incidenti i podrška).
+
 ## Stack (fiksan, MASTER PROMPT §2)
 
 | Sloj | Tehnologija | Verzija u repou |
@@ -235,6 +238,8 @@ Bez kredencijala ista ruta **streamuje** PDF — ponašanje i ugovor rute se ne 
 - **Monitoring (Sentry, API/worker)** — `MonitoringService` sa `@sentry/node`: bez `SENTRY_DSN` je no-op
   (greške ostaju u logu); sa DSN-om šalje 5xx iz globalnog filtera (tagovi: request-id, ruta, status)
   i `FISCAL_ALARM`/worker padove. Web instrumentacija dolazi uz DSN.
+- **Operativni runbook** — `docs/STAGING_DEPLOY.md` (prvi deploy, rutina release-a, rollback,
+  backup + test restore) i `docs/INCIDENT_RUNBOOK.md` (S1/S2 scenariji, komunikacija, post-mortem).
 - **Čeka tvoje akcije:** GitHub remote (da CI uopšte krene), Sentry DSN, R2 ključevi, SMS provajder,
   staging nalozi, JDK 17 za lokalni APK.
 
@@ -257,6 +262,8 @@ worker padovi, queue backlog (Sprint 10, kad DSN bude postavljen).
   već zakazane, ručni podsjetnik vraća 409; web forma kupca ima checkbox, detalj prikazuje oznaku.
   3 API e2e testa.
 - **S11-2b Kredit kupca** — čeka odluku vlasnika/računovođe (preplata se za sada odbija).
+- **S11-6 Support/incident runbook** — `docs/INCIDENT_RUNBOOK.md` (severiteti, scenariji za
+  fiskalizaciju/SMS/bazu/Redis/R2, komunikacija, post-mortem, kontakti).
 
 ## Testovi
 
