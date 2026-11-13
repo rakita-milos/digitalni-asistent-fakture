@@ -85,6 +85,27 @@ android {
         versionCode 1
         versionName "1.0"
     }
+    /**
+     * Release potpisivanje (S11-4). Keystore NIKAD u gitu.
+     *
+     * Izvor (prvi koji postoji):
+     *   1. android/keystore.properties (lokalno; kopija iz keystore.properties.example)
+     *   2. env varijable DA_KEYSTORE_PATH, DA_KEYSTORE_PASSWORD, DA_KEY_ALIAS, DA_KEY_PASSWORD (CI)
+     *
+     * Bez keystore-a release build ostaje na debug potpisu — to je samo za interni APK,
+     * AAB za Play se odbija ako nije potpisan release ključem.
+     */
+    def keystoreProperties = new Properties()
+    def keystorePropertiesFile = rootProject.file('keystore.properties')
+    if (keystorePropertiesFile.exists()) {
+        keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+    }
+    def releaseStoreFile = System.getenv('DA_KEYSTORE_PATH') ?: keystoreProperties['storeFile']
+    def releaseStorePassword = System.getenv('DA_KEYSTORE_PASSWORD') ?: keystoreProperties['storePassword']
+    def releaseKeyAlias = System.getenv('DA_KEY_ALIAS') ?: keystoreProperties['keyAlias']
+    def releaseKeyPassword = System.getenv('DA_KEY_PASSWORD') ?: keystoreProperties['keyPassword']
+    def hasReleaseKeystore = releaseStoreFile && releaseStorePassword && releaseKeyAlias && releaseKeyPassword
+
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
@@ -92,15 +113,22 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        if (hasReleaseKeystore) {
+            release {
+                storeFile file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            // AAB za Play mora biti potpisan release ključem (vidi keystore.properties.example).
+            signingConfig hasReleaseKeystore ? signingConfigs.release : signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }

@@ -24,6 +24,8 @@ blob-report/
 !.env.example
 *.keystore
 !android/app/debug.keystore
+# release potpisivanje (S11-4) — samo primjer ide u git
+keystore.properties
 
 # React Native / Android
 apps/mobile/android/.gradle/
