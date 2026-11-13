@@ -128,7 +128,7 @@ android {
         }
         release {
             // AAB za Play mora biti potpisan release ključem (vidi keystore.properties.example).
-            signingConfig hasReleaseKeystore ? signingConfigs.release : signingConfigs.debug
+            signingConfig(hasReleaseKeystore ? signingConfigs.release : signingConfigs.debug)
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
