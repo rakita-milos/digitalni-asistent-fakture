@@ -35,7 +35,7 @@ digitalni-asistent/
 │  ├─ api/                  # NestJS REST API + Prisma šema + Swagger
 │  │  ├─ prisma/
 │  │  │  ├─ schema.prisma   # 15 tabela, enumi, propisani indeksi (§5)
-│  │  │  ├─ migrations/     # 4 migracije
+│  │  │  ├─ migrations/     # 5 migracija
 │  │  │  └─ seed.js         # demo firma, 50 faktura (§12)
 │  │  ├─ src/common/        # filter grešaka, guardovi (JWT/role/rate-limit), Zod pipe
 │  │  ├─ src/config/        # validacija env varijabli + feature flagovi
@@ -150,7 +150,7 @@ Legenda: `*` = ruta nije u MASTER PROMPT §6 (svjesno dodata, upisano u odluke).
 |---|---|---|---|
 | GET / PATCH | `/company` | JWT | PATCH samo `owner` |
 | GET / POST | `/customers` | JWT | lista sa `?q`, pretraga po imenu/JIB/telefonu/emailu |
-| GET / PATCH | `/customers/:id` | JWT | arhiviranje kroz `archivedAt` |
+| GET / PATCH | `/customers/:id` | JWT | arhiviranje kroz `archivedAt`; uključuje `reminderOptOut` (§7.9) |
 | GET / POST | `/items` | JWT | katalog; POST dozvoljen `owner` i `worker` |
 | GET / POST | `/tax-rates` * | JWT | POST nije u §6 — potreban za setup „porezi“ |
 | GET / POST | `/invoices` | JWT | filteri (`status`, `from`/`to`, `customerId`, `q`) + paginacija; POST = DRAFT |
@@ -235,6 +235,14 @@ Bez kredencijala ista ruta **streamuje** PDF — ponašanje i ugovor rute se ne 
 - **Čeka tvoje akcije:** GitHub remote (da CI uopšte krene), Sentry DSN, R2 ključevi, SMS provajder,
   staging nalozi, JDK 17 za lokalni APK.
 
+## Sprint 11 — priprema (13. 11. 2026)
+
+- **S11-2a Opt-out podsjetnika** — novo polje `customers.reminder_opt_out` (migracija
+  `20261113104648_customer_reminder_opt_out`): automatski podsjetnici se ne zakazuju, worker otkazuje
+  već zakazane, ručni podsjetnik vraća 409; web forma kupca ima checkbox, detalj prikazuje oznaku.
+  3 API e2e testa.
+- **S11-2b Kredit kupca** — čeka odluku vlasnika/računovođe (preplata se za sada odbija).
+
 ## Testovi
 
 ```bash
@@ -243,14 +251,14 @@ pnpm --filter web test:e2e                 # Playwright e2e (web)
 ```
 
 - `packages/shared` — **47** testova: Zod šeme, numeracija, JIB, telefon, UUID v7, enumi, error envelope.
-- `apps/api` — **122** testa (21 fajl): e2e auth/firma/kupci/artikli/porezi, fakture (obračun,
+- `apps/api` — **125** testova (22 fajla): e2e auth/firma/kupci/artikli/porezi, fakture (obračun,
   draft, filteri, DRAFT-only, IDOR), fiskalizacija (mock, numeracija bez rupa, PRAČUN 409, PDF, ESIR pad),
-  naplata, podsjetnici, izvještaji, storno/refundacija, worker (retry + alarm), sync, idempotencija,
-  reset lozinke, slanje fakture, GDPR, logout; unit obračun/PDF token/alarm/R2 signed URL.
+  naplata, podsjetnici (uključujući opt-out), izvještaji, storno/refundacija, worker (retry + alarm),
+  sync, idempotencija, reset lozinke, slanje fakture, GDPR, logout; unit obračun/PDF token/alarm/R2 signed URL.
 - `apps/web` — **13** testova (Vitest): format, obračun pregleda, parsiranje forme, pravila masovnih akcija.
 - `apps/mobile` — **63** testa (Jest): API klijenti, auth store (uključujući logout offline),
   sync engine, offline draft/detalj, setup helperi, obračun.
-- **Ukupno 245 unit/API testa + 8 Playwright e2e.**
+- **Ukupno 248 unit/API testova + 8 Playwright e2e.**
 
 API e2e koristi pravu bazu i Redis; testovi `TRUNCATE`-uju bazu, pa poslije njih pokreni `pnpm db:seed`.
 
@@ -328,7 +336,8 @@ Web e2e je u CI-ju (`e2e` job: build + Chromium + `pnpm --filter web test:e2e`, 
 - **R2** — kod za upload i signed URL je spreman (`R2StorageService`, 302 na signed URL kad su ključevi
   postavljeni); bez kredencijala PDF se streamuje. Čekaju se R2 ključevi.
 - **SMS provajder** — `log` adapter; bez provajdera nema stvarnih podsjetnika/OTP-a.
-- **Opt-out podsjetnika i kredit kupca** — nema polja u §5; planirano za Sprint 11 uz odluku.
+- **Kredit kupca pri preplati** — nema polja u §5; preplata se odbija dok vlasnik/računovođa ne odluče
+  o modelu kredita (S11-2b). Opt-out podsjetnika je urađen (S11-2a).
 - **Mobilni offline** je implementiran i typecheck-ovan, ali nije verifikovan na fizičkom uređaju
   (u ovom okruženju nema JDK 17; APK ide kroz CI).
 - **`PATCH /items/:id`** nije u §6 — artikli se mogu dodavati, ali ne mijenjati/arhivirati.

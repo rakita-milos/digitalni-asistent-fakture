@@ -85,6 +85,18 @@ export class ReminderWorker implements OnModuleInit, OnModuleDestroy {
         continue;
       }
 
+      // §7.9: opt-out kupca — podsjetnik se otkazuje, ne šalje.
+      if (invoice.customer.reminderOptOut) {
+        await this.prisma.reminder.update({
+          where: { id: reminder.id },
+          data: {
+            status: 'CANCELLED',
+            error: 'Kupac je odjavio podsjetnike (opt-out)',
+          },
+        });
+        continue;
+      }
+
       if (!invoice.customer.phone) {
         await this.prisma.reminder.update({
           where: { id: reminder.id },

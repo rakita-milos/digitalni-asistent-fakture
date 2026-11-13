@@ -153,6 +153,22 @@ export function CustomerForm({
             placeholder="Interna napomena o kupcu (opciono)"
           />
         </div>
+
+        <div className="sm:col-span-2">
+          <label htmlFor="reminderOptOut" className="flex items-start gap-2 text-sm">
+            <input
+              id="reminderOptOut"
+              name="reminderOptOut"
+              type="checkbox"
+              defaultChecked={customer?.reminderOptOut ?? false}
+              className="mt-1 h-4 w-4 rounded border-gray-300"
+            />
+            <span>Ne šalji podsjetnike (kupac se odjavio)</span>
+          </label>
+          <p className="mt-1 text-xs text-foreground/40">
+            Poštuje se za automatske i ručne podsjetnike (§7.9).
+          </p>
+        </div>
       </div>
 
       {state.error ? <p className="text-sm text-[color:var(--color-danger)]">{state.error}</p> : null}

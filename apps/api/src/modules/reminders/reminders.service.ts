@@ -73,6 +73,11 @@ export class RemindersService {
       throw new ConflictException('Podsjetnik nije moguć za fakturu u ovom statusu');
     }
 
+    // §7.9: opt-out kupca važi i za ručne podsjetnike.
+    if (invoice.customer.reminderOptOut) {
+      throw new ConflictException('Kupac je odjavio podsjetnike (opt-out)');
+    }
+
     if (!invoice.customer.phone) {
       throw new BadRequestException({
         message: ['Kupac nema telefon — podsjetnik se ne može poslati'],

@@ -70,6 +70,11 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
                 Arhiviran
               </span>
             ) : null}
+            {customer.reminderOptOut ? (
+              <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">
+                Bez podsjetnika
+              </span>
+            ) : null}
           </div>
           <p className="mt-1 text-sm text-foreground/60">
             {valueOrDash(customer.city)} · {valueOrDash(customer.phone)} · {valueOrDash(customer.email)}

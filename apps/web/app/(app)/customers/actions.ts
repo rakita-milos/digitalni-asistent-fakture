@@ -15,8 +15,8 @@ import type { CustomerFormState } from './types';
 const OPTIONAL_FIELDS = ['jib', 'vatId', 'address', 'city', 'phone', 'email', 'note'] as const;
 
 /** Trimuje unos; prazna opciona polja se ne šalju (PATCH tako ostaje djelimičan). */
-function customerPayload(formData: FormData): { name: string; body: Record<string, string> } {
-  const body: Record<string, string> = {};
+function customerPayload(formData: FormData): { name: string; body: Record<string, unknown> } {
+  const body: Record<string, unknown> = {};
   const name = String(formData.get('name') ?? '').trim();
 
   if (name) {
@@ -30,6 +30,9 @@ function customerPayload(formData: FormData): { name: string; body: Record<strin
       body[field] = value;
     }
   }
+
+  // §7.9: opt-out podsjetnika (checkbox; odsutan = false).
+  body.reminderOptOut = formData.get('reminderOptOut') === 'on';
 
   return { name, body };
 }

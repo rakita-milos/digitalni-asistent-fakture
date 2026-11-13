@@ -12,6 +12,8 @@ const customerFields = {
   phone: phoneSchema.optional(),
   email: emailSchema.optional(),
   note: z.string().trim().max(2000).optional(),
+  /// §7.9: kupac je odjavio automatske podsjetnike.
+  reminderOptOut: z.boolean().optional(),
 };
 
 export const createCustomerSchema = z.object(customerFields);

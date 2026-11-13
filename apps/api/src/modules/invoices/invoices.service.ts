@@ -481,7 +481,10 @@ export class InvoicesService {
         },
       });
 
-      await this.scheduleReminders(tx, invoice.id, invoice.dueDate, companyId);
+      // §7.9: kupac sa opt-out-om ne dobija automatske podsjetnike.
+      if (!invoice.customer.reminderOptOut) {
+        await this.scheduleReminders(tx, invoice.id, invoice.dueDate, companyId);
+      }
 
       return invoiceUpdated;
     });

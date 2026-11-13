@@ -165,6 +165,8 @@ model Customer {
   phone      String?
   email      String?
   note       String?
+  /// §7.9: kupac je odjavio automatske podsjetnike (opt-out).
+  reminderOptOut Boolean @default(false) @map("reminder_opt_out")
   archivedAt DateTime? @map("archived_at") @db.Timestamptz(3)
 
   company    Company   @relation(fields: [companyId], references: [id])

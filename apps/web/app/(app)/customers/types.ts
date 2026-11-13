@@ -11,6 +11,7 @@ export interface Customer {
   phone: string | null;
   email: string | null;
   note: string | null;
+  reminderOptOut: boolean;
   archivedAt: string | null;
 }
 
