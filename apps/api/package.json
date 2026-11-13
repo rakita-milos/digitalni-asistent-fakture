@@ -19,7 +19,8 @@
     "prisma:studio": "prisma studio",
     "db:seed": "prisma db seed",
     "postinstall": "prisma generate",
-    "metrics:platform": "node scripts/platform-metrics.mjs"
+    "metrics:platform": "node scripts/platform-metrics.mjs",
+    "db:explain": "node scripts/explain-invoices.mjs"
   },
   "prisma": {
     "seed": "node prisma/seed.js"

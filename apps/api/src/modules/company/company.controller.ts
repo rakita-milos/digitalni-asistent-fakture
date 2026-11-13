@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import type { UpdateCompanyInput } from '@digitalni-asistent/shared';
@@ -23,6 +32,15 @@ export class CompanyController {
   @ApiOperation({ summary: 'Profil firme' })
   get(@CurrentUser() user: AuthenticatedUser) {
     return this.companyService.get(user.companyId);
+  }
+
+  @Post('setup-complete')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(RolesGuard)
+  @Roles('owner')
+  @ApiOperation({ summary: 'Označi da je setup (M-02) završen — idempotentno (owner)' })
+  completeSetup(@CurrentUser() user: AuthenticatedUser) {
+    return this.companyService.markSetupComplete(user.companyId);
   }
 
   @Patch()

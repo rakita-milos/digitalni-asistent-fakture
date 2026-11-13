@@ -85,6 +85,8 @@ model Company {
   /// Sprint 2: odvojen brojač za ADVANCE (§7.1 — numeracija po firmi i tipu).
   numberingNextAdvance Int    @default(1) @map("numbering_next_advance")
   defaultDueDays     Int       @map("default_due_days")
+  /// S11-7: kada je mobilni setup wizard završen (server-side signal za analitiku).
+  setupCompletedAt   DateTime? @map("setup_completed_at") @db.Timestamptz(3)
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
 
   users              User[]
@@ -258,6 +260,8 @@ model Invoice {
   @@unique([companyId, type, number])
   @@index([companyId, status])
   @@index([companyId, dueDate])
+  /// S11-1/EXPLAIN: lista faktura (ORDER BY created_at DESC uz company_id).
+  @@index([companyId, createdAt])
   @@index([customerId])
   @@map("invoices")
 }
