@@ -40,6 +40,9 @@ export const PAYMENT_METHOD_LABELS: Record<string, string> = {
 /** Statusi u kojima je faktura otvorena za naplatu (§7.8). */
 export const PAYABLE_STATUSES = ['ISSUED', 'SENT', 'PARTIALLY_PAID', 'OVERDUE'] as const;
 
+/** Statusi u kojima faktura može da se pošalje kupcu (API: `POST /invoices/:id/send`). */
+export const SENDABLE_STATUSES = ['ISSUED', 'SENT', 'PARTIALLY_PAID', 'PAID', 'OVERDUE'] as const;
+
 export function formatFening(value: number): string {
   return `${(value / 100).toFixed(2)} KM`;
 }
@@ -60,4 +63,9 @@ export function formatPercent(bp: number): string {
 
 export function isPayable(status: string): boolean {
   return (PAYABLE_STATUSES as readonly string[]).includes(status);
+}
+
+/** Slanje e-mailom/SMS-om je dozvoljeno samo za izdate (i kasnije) dokumente. */
+export function canSendInvoice(status: string): boolean {
+  return (SENDABLE_STATUSES as readonly string[]).includes(status);
 }

@@ -9,6 +9,7 @@ import {
   issueInvoice,
   listInvoices,
   refundInvoice,
+  sendInvoice,
   updateInvoice,
 } from './invoices';
 import { apiRequest } from './client';
@@ -136,6 +137,33 @@ describe('invoices API', () => {
     expect(apiRequestMock).toHaveBeenCalledWith('/invoices/invoice-1/refund', {
       method: 'POST',
       body: { amountFening: 500, note: 'Djelimično' },
+    });
+  });
+
+  it('šalje fakturu e-mailom ili SMS-om (POST /invoices/:id/send)', async () => {
+    apiRequestMock.mockResolvedValue({ sent: true, channel: 'EMAIL', to: 'kupac@example.ba' });
+
+    const result = await sendInvoice('invoice-1', { channel: 'EMAIL' });
+
+    expect(apiRequestMock).toHaveBeenCalledWith('/invoices/invoice-1/send', {
+      method: 'POST',
+      body: { channel: 'EMAIL' },
+    });
+    expect(result.to).toBe('kupac@example.ba');
+  });
+
+  it('šalje fakturu na zadati broj telefona', async () => {
+    apiRequestMock.mockResolvedValue({
+      sent: true,
+      channel: 'SMS',
+      to: '+38766123456',
+    } as never);
+
+    await sendInvoice('invoice-1', { channel: 'SMS', to: '+38766123456' });
+
+    expect(apiRequestMock).toHaveBeenCalledWith('/invoices/invoice-1/send', {
+      method: 'POST',
+      body: { channel: 'SMS', to: '+38766123456' },
     });
   });
 });

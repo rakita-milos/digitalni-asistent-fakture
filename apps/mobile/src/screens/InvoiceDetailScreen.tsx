@@ -28,10 +28,13 @@ import {
   getInvoice,
   issueInvoice,
   refundInvoice,
+  sendInvoice,
   type InvoiceDetailDto,
+  type SendInvoiceResult,
 } from '../api/invoices';
 import { sendInvoiceReminder } from '../api/reminders';
 import {
+  canSendInvoice,
   formatDate,
   formatFening,
   formatPercent,
@@ -49,8 +52,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'InvoiceDetail'>;
 
 /**
  * M-08 Detalj fakture (+ M-07 rezultat fiskalizacije).
- * Akcije na ovoj verziji: izdavanje, naplata i poništenje.
- * Refundacija i QR slika na telefonu ostaju za naredni korak (vidi PROGRESS).
+ * Akcije: izdavanje, naplata, slanje e-mailom/SMS-om, podsjetnik, refundacija i poništenje.
  */
 export function InvoiceDetailScreen({ navigation, route }: Props) {
   const { invoiceId, notice } = route.params;
@@ -63,6 +65,7 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
   const [isBusy, setIsBusy] = useState(false);
   const [paymentVisible, setPaymentVisible] = useState(false);
   const [refundVisible, setRefundVisible] = useState(false);
+  const [sendVisible, setSendVisible] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
 
   const load = useCallback(async () => {
@@ -140,7 +143,8 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
     }
   }
 
-  async function handleRemind(): Promise<void> {    setActionError(null);
+  async function handleRemind(): Promise<void> {
+    setActionError(null);
     setInfoMessage(null);
     setIsBusy(true);
 
@@ -207,6 +211,7 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
   const isProforma = invoice.type === 'ADVANCE';
   const canPay = isPayable(invoice.status) && outstandingFening > 0;
   const canRemind = isPayable(invoice.status);
+  const canSend = canSendInvoice(invoice.status) && invoice.transactionType !== 'VOID';
   const canRefund =
     invoice.transactionType === 'SALE' && invoice.paidFening > 0 && invoice.status !== 'CANCELLED';
   const canCancel =
@@ -428,6 +433,17 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
         </Pressable>
       ) : null}
 
+      {canSend && !isOffline ? (
+        <Pressable
+          style={[styles.secondaryButton, isBusy && styles.buttonDisabled]}
+          onPress={() => setSendVisible(true)}
+          disabled={isBusy}
+          testID="detail-send"
+        >
+          <Text style={styles.secondaryButtonText}>Pošalji fakturu (e-mail/SMS)</Text>
+        </Pressable>
+      ) : null}
+
       {canRefund && !isOffline ? (
         <Pressable
           style={[styles.secondaryButton, isBusy && styles.buttonDisabled]}
@@ -475,7 +491,117 @@ export function InvoiceDetailScreen({ navigation, route }: Props) {
           }}
         />
       ) : null}
+
+      {sendVisible ? (
+        <SendModal
+          invoiceId={invoice.id}
+          onClose={() => setSendVisible(false)}
+          onSent={(result) => {
+            setSendVisible(false);
+            setInfoMessage(
+              result.channel === 'EMAIL'
+                ? `Faktura je poslana e-mailom na ${result.to}.`
+                : `Faktura je poslana SMS-om na ${result.to}.`,
+            );
+          }}
+        />
+      ) : null}
     </ScrollView>
+  );
+}
+
+interface SendModalProps {
+  invoiceId: string;
+  onClose: () => void;
+  onSent: (result: SendInvoiceResult) => void;
+}
+
+/**
+ * Slanje fakture kupcu (§6 `POST /invoices/:id/send`): e-mail sa PDF-om ili SMS sa kratkotrajnim linkom.
+ * Primalac je opcion — bez njega API koristi e-mail/telefon kupca sa fakture.
+ */
+function SendModal({ invoiceId, onClose, onSent }: SendModalProps) {
+  const [channel, setChannel] = useState<'EMAIL' | 'SMS'>('EMAIL');
+  const [recipient, setRecipient] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isSending, setIsSending] = useState(false);
+
+  function handleSubmit(): void {
+    setError(null);
+    const trimmed = recipient.trim();
+    setIsSending(true);
+
+    void (async () => {
+      try {
+        const result = await sendInvoice(invoiceId, {
+          channel,
+          ...(trimmed ? { to: trimmed } : {}),
+        });
+        onSent(result);
+      } catch (caught) {
+        setError(
+          caught instanceof ApiError ? caught.message : 'Slanje nije uspjelo. Provjerite mrežu.',
+        );
+        setIsSending(false);
+      }
+    })();
+  }
+
+  return (
+    <Modal visible animationType="slide" transparent onRequestClose={onClose}>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalSheet}>
+          <Text style={styles.cardTitle}>Pošalji fakturu</Text>
+
+          <Text style={styles.label}>Kanal</Text>
+          <View style={styles.chips}>
+            {(['EMAIL', 'SMS'] as const).map((option) => (
+              <Pressable
+                key={option}
+                style={[styles.chip, channel === option && styles.chipSelected]}
+                onPress={() => setChannel(option)}
+                testID={`send-channel-${option}`}
+              >
+                <Text style={[styles.chipText, channel === option && styles.chipTextSelected]}>
+                  {option === 'EMAIL' ? 'E-mail (PDF)' : 'SMS (link)'}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <Text style={styles.label}>Primalac (opciono)</Text>
+          <TextInput
+            style={styles.input}
+            value={recipient}
+            onChangeText={setRecipient}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType={channel === 'EMAIL' ? 'email-address' : 'phone-pad'}
+            placeholder={channel === 'EMAIL' ? 'kupac@firma.ba' : '+38766123456'}
+            testID="send-recipient"
+          />
+          <Text style={styles.metaSmall}>
+            Ako ostavite prazno, koristi se {channel === 'EMAIL' ? 'e-mail' : 'telefon'} kupca sa
+            fakture.
+          </Text>
+
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+
+          <Pressable
+            style={[styles.primaryButton, isSending && styles.buttonDisabled]}
+            onPress={handleSubmit}
+            disabled={isSending}
+            testID="send-submit"
+          >
+            <Text style={styles.primaryButtonText}>{isSending ? 'Slanje…' : 'Pošalji'}</Text>
+          </Pressable>
+
+          <Pressable style={styles.linkButton} onPress={onClose} disabled={isSending}>
+            <Text style={styles.linkButtonText}>Odustani</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
   );
 }
 

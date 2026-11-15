@@ -21,15 +21,20 @@ interface LoginForm {
 }
 
 /**
- * M-01 Prijava (§8): email/telefon + lozinka.
+ * M-01 Prijava (§8): email/telefon + lozinka, uz opcionu biometrijsku prijavu.
  * Forma koristi React Hook Form + Zod šemu iz `@digitalni-asistent/shared` (§2).
- * Biometrija dolazi kasnije (Keychain biometrija).
+ * Upamćena prijava je vezana za biometriju uređaja (Keychain, vidi `biometricSession.ts`).
  */
 export function LoginScreen() {
   const signIn = useAuthStore((state) => state.signIn);
+  const signInWithBiometrics = useAuthStore((state) => state.signInWithBiometrics);
+  const enableBiometricLogin = useAuthStore((state) => state.enableBiometricLogin);
+  const biometricAvailable = useAuthStore((state) => state.biometricAvailable);
+  const biometricEnrolled = useAuthStore((state) => state.biometricEnrolled);
   const isSubmitting = useAuthStore((state) => state.isSubmitting);
   const storeError = useAuthStore((state) => state.error);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [rememberBiometrics, setRememberBiometrics] = useState(false);
 
   const { control, handleSubmit } = useForm<LoginForm>({
     defaultValues: { identifier: '', password: '' },
@@ -44,7 +49,12 @@ export function LoginScreen() {
     }
 
     setLocalError(null);
-    await signIn(parsed.data.identifier, parsed.data.password);
+    const success = await signIn(parsed.data.identifier, parsed.data.password);
+
+    // Upamti prijavu samo poslije uspješne prijave (i ako je korisnik tražio).
+    if (success && rememberBiometrics && biometricAvailable) {
+      await enableBiometricLogin(parsed.data.identifier, parsed.data.password);
+    }
   });
 
   const error = localError ?? storeError;
@@ -96,6 +106,17 @@ export function LoginScreen() {
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
+        {biometricAvailable && biometricEnrolled ? (
+          <Pressable
+            style={({ pressed }) => [styles.secondaryButton, pressed && styles.buttonPressed]}
+            onPress={() => void signInWithBiometrics()}
+            disabled={isSubmitting}
+            testID="login-biometric"
+          >
+            <Text style={styles.secondaryButtonText}>Prijavi se biometrijom</Text>
+          </Pressable>
+        ) : null}
+
         <Pressable
           style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
           onPress={() => {
@@ -110,6 +131,20 @@ export function LoginScreen() {
             <Text style={styles.buttonText}>Prijavi se</Text>
           )}
         </Pressable>
+
+        {biometricAvailable ? (
+          <Pressable
+            style={styles.checkboxRow}
+            onPress={() => setRememberBiometrics((current) => !current)}
+            disabled={isSubmitting}
+            testID="login-remember-biometrics"
+          >
+            <View style={[styles.checkbox, rememberBiometrics && styles.checkboxChecked]}>
+              {rememberBiometrics ? <Text style={styles.checkboxMark}>✓</Text> : null}
+            </View>
+            <Text style={styles.checkboxLabel}>Zapamti prijavu biometrijom</Text>
+          </Pressable>
+        ) : null}
       </View>
     </KeyboardAvoidingView>
   );
@@ -139,4 +174,26 @@ const styles = StyleSheet.create({
   },
   buttonPressed: { opacity: 0.85 },
   buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
+  secondaryButton: {
+    borderWidth: 1,
+    borderColor: '#1D4ED8',
+    borderRadius: 10,
+    paddingVertical: 13,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  secondaryButtonText: { color: '#1D4ED8', fontSize: 15, fontWeight: '600' },
+  checkboxRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: { backgroundColor: '#1D4ED8', borderColor: '#1D4ED8' },
+  checkboxMark: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
+  checkboxLabel: { color: '#4B5563', fontSize: 13 },
 });

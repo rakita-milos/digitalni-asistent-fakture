@@ -2,12 +2,14 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
+import { AccountScreen } from '../screens/AccountScreen';
 import { CustomerFormScreen } from '../screens/CustomerFormScreen';
 import { CustomersScreen } from '../screens/CustomersScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { InvoiceDetailScreen } from '../screens/InvoiceDetailScreen';
 import { InvoiceFormScreen } from '../screens/InvoiceFormScreen';
 import { InvoicesScreen } from '../screens/InvoicesScreen';
+import { LockScreen } from '../screens/LockScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { RemindersScreen } from '../screens/RemindersScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
@@ -20,6 +22,7 @@ export type RootStackParamList = {
   Setup: undefined;
   Reminders: undefined;
   Settings: undefined;
+  Account: undefined;
   Invoices: undefined;
   InvoiceForm: { invoiceId?: string } | undefined;
   InvoiceDetail: { invoiceId: string; notice?: string };
@@ -37,12 +40,16 @@ function SplashScreen() {
   );
 }
 
-/** M-01 (prijava), M-03 (početna), M-04/M-05/M-08 (fakture), M-11 (kupci). */
+/** M-01 (prijava i biometrijsko otključavanje), M-03 (početna), M-04/M-05/M-08 (fakture), M-11 (kupci), M-12 (nalog). */
 export function RootNavigator() {
   const status = useAuthStore((state) => state.status);
 
   if (status === 'loading') {
     return <SplashScreen />;
+  }
+
+  if (status === 'locked') {
+    return <LockScreen />;
   }
 
   return (
@@ -65,6 +72,11 @@ export function RootNavigator() {
               name="Settings"
               component={SettingsScreen}
               options={{ headerShown: true, title: 'Podešavanja' }}
+            />
+            <Stack.Screen
+              name="Account"
+              component={AccountScreen}
+              options={{ headerShown: true, title: 'Nalog' }}
             />
             <Stack.Screen
               name="Invoices"

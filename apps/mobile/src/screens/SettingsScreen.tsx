@@ -47,6 +47,9 @@ export function SettingsScreen({ navigation }: Props) {
   const user = useAuthStore((state) => state.user);
   const company = useAuthStore((state) => state.company);
   const signOut = useAuthStore((state) => state.signOut);
+  const biometricAvailable = useAuthStore((state) => state.biometricAvailable);
+  const biometricEnrolled = useAuthStore((state) => state.biometricEnrolled);
+  const disableBiometricLogin = useAuthStore((state) => state.disableBiometricLogin);
 
   const [subscription, setSubscription] = useState<SubscriptionDto | null>(null);
   const [isLoadingSubscription, setIsLoadingSubscription] = useState(true);
@@ -168,6 +171,40 @@ export function SettingsScreen({ navigation }: Props) {
           </Text>
         </View>
 
+        <Pressable
+          style={styles.row}
+          onPress={() => navigation.navigate('Account')}
+          testID="settings-account"
+        >
+          <View style={styles.rowMain}>
+            <Text style={styles.rowTitle}>Nalog i lozinka</Text>
+            <Text style={styles.rowHint}>Izmjena profila i promjena lozinke (M-12)</Text>
+          </View>
+          <Text style={styles.chevron}>›</Text>
+        </Pressable>
+
+        {biometricAvailable ? (
+          <View style={styles.biometricRow}>
+            <View style={styles.rowMain}>
+              <Text style={styles.rowTitle}>Prijava biometrijom</Text>
+              <Text style={styles.rowHint}>
+                {biometricEnrolled
+                  ? 'Uključena — aplikacija traži biometriju pri pokretanju.'
+                  : 'Uključite je pri prijavi (opcija „Zapamti prijavu biometrijom“).'}
+              </Text>
+            </View>
+            {biometricEnrolled ? (
+              <Pressable
+                style={styles.biometricDisable}
+                onPress={() => void disableBiometricLogin()}
+                testID="settings-biometric-disable"
+              >
+                <Text style={styles.biometricDisableText}>Isključi</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
+
         <Pressable style={styles.logout} onPress={() => void signOut()} testID="settings-logout">
           <Text style={styles.logoutText}>Odjavi se</Text>
         </Pressable>
@@ -210,5 +247,21 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   logoutText: { color: '#B91C1C', fontSize: 14, fontWeight: '600' },
+  biometricRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+    paddingVertical: 12,
+  },
+  biometricDisable: {
+    borderWidth: 1,
+    borderColor: '#B91C1C',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  biometricDisableText: { color: '#B91C1C', fontSize: 12, fontWeight: '600' },
   version: { color: '#9CA3AF', fontSize: 11, textAlign: 'center', marginTop: 16 },
 });

@@ -2,6 +2,7 @@ import type {
   CreateInvoiceInput,
   CreatePaymentInput,
   RefundInvoiceInput,
+  SendInvoiceInput,
   UpdateInvoiceInput,
 } from '@digitalni-asistent/shared';
 
@@ -117,6 +118,23 @@ export function cancelInvoice(id: string): Promise<InvoiceDetailDto> {
 /** POST /invoices/:id/refund — refundacija; vraća novi REFUND dokument (§7.7). */
 export function refundInvoice(id: string, input: RefundInvoiceInput): Promise<InvoiceDetailDto> {
   return apiRequest<InvoiceDetailDto>(`/invoices/${id}/refund`, {
+    method: 'POST',
+    body: input,
+  });
+}
+
+export interface SendInvoiceResult {
+  sent: true;
+  channel: 'EMAIL' | 'SMS';
+  to: string;
+}
+
+/**
+ * POST /invoices/:id/send — slanje fakture e-mailom (PDF u prilogu) ili SMS-om (kratkotrajni link).
+ * `to` je opcion: bez njega API koristi e-mail/telefon kupca sa fakture.
+ */
+export function sendInvoice(id: string, input: SendInvoiceInput): Promise<SendInvoiceResult> {
+  return apiRequest<SendInvoiceResult>(`/invoices/${id}/send`, {
     method: 'POST',
     body: input,
   });
