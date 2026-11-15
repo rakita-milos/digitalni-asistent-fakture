@@ -33,6 +33,22 @@ export interface TaxRateList {
   total: number;
 }
 
+/** Artikal iz kataloga (GET /items) — cijena je u feningu. */
+export interface Item {
+  id: string;
+  companyId: string;
+  name: string;
+  unit: string;
+  priceFening: number;
+  taxRateBp: number;
+  archivedAt: string | null;
+}
+
+export interface ItemList {
+  items: Item[];
+  total: number;
+}
+
 /** Jedna stavka plana automatskih podsjetnika (§7.9). */
 export interface ReminderScheduleItem {
   offsetDays: number;

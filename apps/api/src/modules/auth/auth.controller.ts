@@ -3,6 +3,7 @@ import {
   Controller,
   HttpCode,
   HttpStatus,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -10,6 +11,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import type {
   AuthSession,
+  ChangePasswordInput,
   ForgotPasswordInput,
   LoginInput,
   OtpRequestInput,
@@ -17,8 +19,10 @@ import type {
   RefreshInput,
   RegisterInput,
   ResetPasswordInput,
+  UpdateProfileInput,
 } from '@digitalni-asistent/shared';
 import {
+  changePasswordSchema,
   forgotPasswordSchema,
   loginSchema,
   otpRequestSchema,
@@ -26,6 +30,7 @@ import {
   refreshSchema,
   registerSchema,
   resetPasswordSchema,
+  updateProfileSchema,
 } from '@digitalni-asistent/shared';
 
 import type { AuthenticatedUser } from '../../common/decorators/current-user.decorator';
@@ -114,5 +119,32 @@ export class AuthController {
     @Body(new ZodValidationPipe(resetPasswordSchema)) body: ResetPasswordInput,
   ): Promise<{ reset: true }> {
     return this.auth.resetPassword(body.token, body.password);
+  }
+
+  /** M-12: profil prijavljenog korisnika (ruta nije u §6 — vidi PROGRESS, odluka 24). */
+  @Patch('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @RateLimit({ key: 'profile-update', limit: 20, windowSeconds: 3600 })
+  @ApiOperation({ summary: 'Izmjena profila (telefon; e-mail uz trenutnu lozinku)' })
+  updateProfile(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body(new ZodValidationPipe(updateProfileSchema)) body: UpdateProfileInput,
+  ): Promise<{ user: AuthSession['user'] }> {
+    return this.auth.updateProfile(user.id, body);
+  }
+
+  /** M-12: promjena lozinke iz aplikacije (ruta nije u §6 — vidi PROGRESS, odluka 24). */
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @RateLimit({ key: 'change-password', limit: 5, windowSeconds: 900 })
+  @ApiOperation({ summary: 'Promjena lozinke prijavljenog korisnika (trenutna + nova)' })
+  changePassword(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body(new ZodValidationPipe(changePasswordSchema)) body: ChangePasswordInput,
+  ): Promise<{ changed: true }> {
+    return this.auth.changePassword(user.id, user.deviceId, body);
   }
 }

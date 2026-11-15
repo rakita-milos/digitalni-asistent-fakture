@@ -15,9 +15,11 @@ import { createHash, randomInt, randomUUID, timingSafeEqual } from 'node:crypto'
 
 import type {
   AuthSession,
+  ChangePasswordInput,
   DeviceInput,
   LoginInput,
   RegisterInput,
+  UpdateProfileInput,
 } from '@digitalni-asistent/shared';
 
 import { ACCESS_TOKEN_TTL_SECONDS, REFRESH_TOKEN_TTL_SECONDS, env } from '../../config/env';
@@ -57,6 +59,11 @@ function safeEqual(first: string, second: string): boolean {
 
 function otpKey(phone: string): string {
   return `otp:${phone}`;
+}
+
+/** JSON kolona u audit logu — bez `undefined` vrijednosti. */
+function toJson(value: Record<string, unknown>): Prisma.InputJsonValue {
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
 @Injectable()
@@ -334,6 +341,122 @@ export class AuthService {
       });
     }
     return { loggedOut: true };
+  }
+
+  /**
+   * PATCH /auth/me — profil prijavljenog korisnika (§8 M-12; ruta nije u §6).
+   * Telefon se mijenja odmah; e-mail je identitet za prijavu i reset, pa traži trenutnu lozinku.
+   */
+  async updateProfile(
+    userId: string,
+    input: UpdateProfileInput,
+  ): Promise<{ user: SessionUser }> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || user.status !== 'active') {
+      throw new UnauthorizedException('Korisnik nije aktivan');
+    }
+
+    const emailChanged =
+      input.email !== undefined && input.email.toLowerCase() !== user.email.toLowerCase();
+
+    if (emailChanged) {
+      if (!input.currentPassword) {
+        throw new BadRequestException('Za promjenu e-maila unesite trenutnu lozinku');
+      }
+
+      const passwordValid = await this.verifyPassword(user.passwordHash, input.currentPassword);
+      if (!passwordValid) {
+        throw new BadRequestException('Trenutna lozinka nije ispravna');
+      }
+
+      const duplicate = await this.prisma.user.findFirst({
+        where: {
+          companyId: user.companyId,
+          email: { equals: input.email ?? '', mode: 'insensitive' },
+          NOT: { id: user.id },
+        },
+        select: { id: true },
+      });
+
+      if (duplicate) {
+        throw new ConflictException('E-mail je već u upotrebi u ovoj firmi');
+      }
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        ...(input.phone !== undefined ? { phone: input.phone } : {}),
+        ...(emailChanged && input.email ? { email: input.email.toLowerCase() } : {}),
+      },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        companyId: user.companyId,
+        userId: user.id,
+        action: 'user.profile_update',
+        entity: 'user',
+        entityId: user.id,
+        metaJson: toJson({
+          phoneChanged: input.phone !== undefined && input.phone !== user.phone,
+          emailChanged,
+        }),
+      },
+    });
+
+    return {
+      user: {
+        id: updated.id,
+        companyId: updated.companyId,
+        email: updated.email,
+        phone: updated.phone,
+        role: updated.role,
+      },
+    };
+  }
+
+  /**
+   * POST /auth/change-password — promjena lozinke prijavljenog korisnika (§10; nije u §6).
+   * Traži trenutnu lozinku; ostale sesije se opozivaju, uređaj sa kojeg se mijenja ostaje prijavljen.
+   */
+  async changePassword(
+    userId: string,
+    deviceId: string | undefined,
+    input: ChangePasswordInput,
+  ): Promise<{ changed: true }> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || user.status !== 'active') {
+      throw new UnauthorizedException('Korisnik nije aktivan');
+    }
+
+    const passwordValid = await this.verifyPassword(user.passwordHash, input.currentPassword);
+    if (!passwordValid) {
+      throw new BadRequestException('Trenutna lozinka nije ispravna');
+    }
+
+    const passwordHash = await hash(input.newPassword, { type: argon2id });
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id: user.id }, data: { passwordHash } }),
+      this.prisma.device.updateMany({
+        where: { userId: user.id, ...(deviceId ? { NOT: { id: deviceId } } : {}) },
+        data: { refreshTokenHash: null, refreshExpiresAt: null },
+      }),
+      this.prisma.auditLog.create({
+        data: {
+          companyId: user.companyId,
+          userId: user.id,
+          action: 'user.password_change',
+          entity: 'user',
+          entityId: user.id,
+          metaJson: toJson({ otherSessionsRevoked: true }),
+        },
+      }),
+    ]);
+
+    this.logger.log(`Lozinka promijenjena kroz aplikaciju (user=${user.id})`);
+    return { changed: true };
   }
 
   private async verifyPassword(passwordHash: string, password: string): Promise<boolean> {

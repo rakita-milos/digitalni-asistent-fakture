@@ -127,8 +127,7 @@ export async function updateCompanyAction(
   return { success: 'Podaci firme su sačuvani.' };
 }
 
-/** PATCH /company — numeracija i rok plaćanja (owner). */
-export async function updateNumberingAction(
+/** PATCH /company — numeracija i rok plaćanja (owner). */export async function updateNumberingAction(
   _previous: SettingsFormState,
   formData: FormData,
 ): Promise<SettingsFormState> {
@@ -208,6 +207,137 @@ export async function createTaxRateAction(
   revalidatePath('/settings');
 
   return { success: 'Porezna stopa je dodana.' };
+}
+
+/** Cijena iz forme („25,50“) → fening; `null` ako nije ispravan nenegativan broj. */
+function priceFeningValue(formData: FormData): number | null {
+  const price = decimalValue(formData, 'price');
+
+  if (price === null) {
+    return null;
+  }
+
+  const fening = Math.round(price * 100);
+  return Number.isSafeInteger(fening) && fening >= 0 ? fening : null;
+}
+
+type ItemFields = { name: string; unit: string; priceFening: number; taxRateBp: number };
+
+/** Zajednička validacija forme artikla (POST i PATCH /items). */
+function itemFieldsFromForm(formData: FormData): ItemFields | { error: string } {
+  const name = textValue(formData, 'name');
+  const unit = textValue(formData, 'unit');
+  const priceFening = priceFeningValue(formData);
+  const taxRateBp = integerValue(formData, 'taxRateBp');
+
+  if (!name) {
+    return { error: 'Naziv artikla je obavezan.' };
+  }
+  if (name.length > 200) {
+    return { error: 'Naziv artikla može imati najviše 200 znakova.' };
+  }
+  if (!unit) {
+    return { error: 'Jedinica je obavezna (npr. kom, sat).' };
+  }
+  if (unit.length > 20) {
+    return { error: 'Jedinica može imati najviše 20 znakova.' };
+  }
+  if (priceFening === null) {
+    return { error: 'Cijena mora biti broj veći ili jednak 0.' };
+  }
+  if (taxRateBp === null || taxRateBp < 0 || taxRateBp > 10000) {
+    return { error: 'Odaberite poreznu stopu.' };
+  }
+
+  return { name, unit, priceFening, taxRateBp };
+}
+
+/** POST /items — novi artikal u katalogu (owner/worker). */
+export async function createItemAction(
+  _previous: SettingsFormState,
+  formData: FormData,
+): Promise<SettingsFormState> {
+  const fields = itemFieldsFromForm(formData);
+
+  if ('error' in fields) {
+    return fields;
+  }
+
+  try {
+    await apiFetch('/items', { method: 'POST', body: JSON.stringify(fields) });
+  } catch (error) {
+    return toFormState(error);
+  }
+
+  revalidatePath('/settings');
+
+  return { success: 'Artikal je dodan u katalog.' };
+}
+
+/** PATCH /items/:id — izmjena artikla; cijena ide u feningu. */
+export async function updateItemAction(
+  _previous: SettingsFormState,
+  formData: FormData,
+): Promise<SettingsFormState> {
+  const itemId = textValue(formData, 'itemId');
+
+  if (!itemId) {
+    return { error: 'Artikal nije odabran.' };
+  }
+
+  const fields = itemFieldsFromForm(formData);
+
+  if ('error' in fields) {
+    return fields;
+  }
+
+  try {
+    await apiFetch(`/items/${itemId}`, { method: 'PATCH', body: JSON.stringify(fields) });
+  } catch (error) {
+    return toFormState(error);
+  }
+
+  revalidatePath('/settings');
+
+  return { success: 'Artikal je sačuvan.' };
+}
+
+/** PATCH /items/:id — arhiviranje (`archivedAt`) ili vraćanje iz arhive; §6 nema DELETE. */
+export async function archiveItemAction(
+  _previous: SettingsFormState,
+  formData: FormData,
+): Promise<SettingsFormState> {
+  const itemId = textValue(formData, 'itemId');
+  const restore = formData.get('restore') === '1';
+
+  if (!itemId) {
+    return { error: 'Artikal nije odabran.' };
+  }
+
+  try {
+    await apiFetch(`/items/${itemId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ archivedAt: restore ? null : new Date().toISOString() }),
+    });
+  } catch (error) {
+    return toFormState(error);
+  }
+
+  revalidatePath('/settings');
+
+  return { success: restore ? 'Artikal je vraćen u katalog.' : 'Artikal je arhiviran.' };
+}
+
+/** Dispečer za formu artikla: „Sačuvaj“ ide PATCH sa poljima, „Arhiviraj“ samo mijenja `archivedAt`. */
+export async function itemRowAction(
+  previous: SettingsFormState,
+  formData: FormData,
+): Promise<SettingsFormState> {
+  if (formData.get('intent') === 'archive') {
+    return archiveItemAction(previous, formData);
+  }
+
+  return updateItemAction(previous, formData);
 }
 
 /** PUT /reminder-settings — plan i šablon automatskih podsjetnika (owner, max 4 stavke). */

@@ -1,7 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 
-import type { CreateItemInput, ListQuery } from '@digitalni-asistent/shared';
+import type { CreateItemInput, ListQuery, UpdateItemInput } from '@digitalni-asistent/shared';
 
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -53,6 +53,36 @@ export class ItemsService {
         unit: input.unit,
         priceFening: BigInt(input.priceFening),
         taxRateBp: input.taxRateBp,
+      },
+    });
+
+    return toItemDto(item);
+  }
+
+  /**
+   * PATCH /items/:id — izmjena ili arhiviranje (S11, van §6 kao i `PATCH /customers/:id`).
+   * Tuđi artikal se ne razlikuje od nepostojećeg (404, ne 403) da se ne otkrije IDOR.
+   */
+  async update(companyId: string, id: string, input: UpdateItemInput) {
+    const existing = await this.prisma.item.findFirst({
+      where: { id, companyId },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Artikal nije pronađen');
+    }
+
+    const { archivedAt, priceFening, ...rest } = input;
+
+    const item = await this.prisma.item.update({
+      where: { id },
+      data: {
+        ...rest,
+        ...(priceFening !== undefined ? { priceFening: BigInt(priceFening) } : {}),
+        ...(archivedAt !== undefined
+          ? { archivedAt: archivedAt === null ? null : new Date(archivedAt) }
+          : {}),
       },
     });
 

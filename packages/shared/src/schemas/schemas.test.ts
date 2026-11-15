@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  changePasswordSchema,
   createCustomerSchema,
   createItemSchema,
   createTaxRateSchema,
@@ -9,6 +10,8 @@ import {
   registerSchema,
   updateCompanySchema,
   updateCustomerSchema,
+  updateItemSchema,
+  updateProfileSchema,
 } from '..';
 
 const validCompany = {
@@ -101,6 +104,41 @@ describe('item šeme (§6 POST /items)', () => {
       createItemSchema.safeParse({ name: 'Kabl', unit: 'kom', priceFening: 1, taxRateBp: 10001 })
         .success,
     ).toBe(false);
+  });
+});
+
+describe('updateItemSchema (PATCH /items/:id)', () => {
+  it('prihvata djelimičnu izmjenu i arhiviranje', () => {
+    expect(updateItemSchema.parse({ priceFening: 500 }).priceFening).toBe(500);
+    expect(updateItemSchema.parse({ archivedAt: null }).archivedAt).toBeNull();
+  });
+
+  it('odbija prazan objekat i neispravan datum arhive', () => {
+    expect(updateItemSchema.safeParse({}).success).toBe(false);
+    expect(updateItemSchema.safeParse({ archivedAt: 'juče' }).success).toBe(false);
+  });
+});
+
+describe('M-12 — profil i lozinka', () => {
+  it('updateProfileSchema traži najmanje jedno polje', () => {
+    expect(updateProfileSchema.safeParse({}).success).toBe(false);
+    expect(updateProfileSchema.parse({ phone: '+38766123456' }).phone).toBe('+38766123456');
+    expect(updateProfileSchema.safeParse({ phone: '066123456' }).success).toBe(false);
+  });
+
+  it('changePasswordSchema traži različitu novu lozinku od 8+ znakova', () => {
+    expect(
+      changePasswordSchema.safeParse({ currentPassword: 'lozinka123', newPassword: 'lozinka123' })
+        .success,
+    ).toBe(false);
+    expect(
+      changePasswordSchema.safeParse({ currentPassword: 'lozinka123', newPassword: 'kratka' })
+        .success,
+    ).toBe(false);
+    expect(
+      changePasswordSchema.parse({ currentPassword: 'lozinka123', newPassword: 'novaLozinka1' })
+        .newPassword,
+    ).toBe('novaLozinka1');
   });
 });
 

@@ -87,6 +87,36 @@ export const resetPasswordSchema = z.object({
 });
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 
+/**
+ * POST /auth/change-password — promjena lozinke prijavljenog korisnika (§10; ruta nije u §6).
+ * Traži trenutnu lozinku da ukradena sesija ne može trajno preuzeti nalog.
+ */
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1).max(128),
+    newPassword: passwordSchema,
+  })
+  .refine((value) => value.currentPassword !== value.newPassword, {
+    message: 'Nova lozinka mora biti različita od trenutne',
+    path: ['newPassword'],
+  });
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
+/**
+ * PATCH /auth/me — profil prijavljenog korisnika (§8 M-12; ruta nije u §6).
+ * Promjena e-maila traži trenutnu lozinku jer je e-mail identitet za prijavu i reset.
+ */
+export const updateProfileSchema = z
+  .object({
+    phone: phoneSchema.optional(),
+    email: emailSchema.optional(),
+    currentPassword: z.string().min(1).max(128).optional(),
+  })
+  .refine((value) => value.phone !== undefined || value.email !== undefined, {
+    message: 'Najmanje jedno polje je obavezno',
+  });
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+
 /** Sesija koju vraćaju register/login/refresh. */
 export interface AuthSession {
   accessToken: string;

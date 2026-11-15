@@ -4,10 +4,11 @@ import { ApiFailure, apiFetch } from '@/lib/api';
 
 import { AccountSection } from './account-section';
 import { CompanyForm } from './company-form';
+import { ItemsSection } from './items-section';
 import { NumberingForm } from './numbering-form';
 import { RemindersForm } from './reminders-form';
 import { TaxRateForm } from './tax-rate-form';
-import type { CompanySettings, ReminderSettings, TaxRateList } from './types';
+import type { CompanySettings, ItemList, ReminderSettings, TaxRateList } from './types';
 
 const sectionClass = 'rounded-[var(--radius-card)] bg-white p-6 shadow-sm ring-1 ring-black/5';
 const sectionTitleClass = 'text-lg font-semibold';
@@ -17,12 +18,14 @@ const sectionHintClass = 'mb-4 text-sm text-foreground/50';
 export default async function SettingsPage() {
   let company: CompanySettings;
   let taxRates: TaxRateList;
+  let items: ItemList;
   let reminders: ReminderSettings | null = null;
 
   try {
-    [company, taxRates] = await Promise.all([
+    [company, taxRates, items] = await Promise.all([
       apiFetch<CompanySettings>('/company'),
       apiFetch<TaxRateList>('/tax-rates'),
+      apiFetch<ItemList>('/items?limit=100'),
     ]);
   } catch (error) {
     if (error instanceof ApiFailure && error.status === 401) {
@@ -84,6 +87,14 @@ export default async function SettingsPage() {
           Stope koje se nude na stavkama faktura; aktivne stope su podrazumijevane.
         </p>
         <TaxRateForm items={taxRates.items} />
+      </section>
+
+      <section className={sectionClass}>
+        <h2 className={sectionTitleClass}>Artikli</h2>
+        <p className={sectionHintClass}>
+          Katalog usluga i robe za brži unos faktura; arhivirani artikli se ne nude u editoru.
+        </p>
+        <ItemsSection items={items.items} taxRates={taxRates.items} />
       </section>
 
       <section className={sectionClass}>
