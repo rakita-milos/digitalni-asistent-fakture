@@ -118,7 +118,6 @@
    da šablon prolazi pravila provajdera.
 4. **Offline retry (E6)** je zatvoren; ako pilot pokaže česte `FAILED` stavke, dodati lokalnu
    notifikaciju (native) umjesto samo in-app upozorenja.
-   da šablon prolazi pravila provajdera.
 
 ## 4. Kako ponoviti provjere (dokazi)
 

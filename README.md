@@ -150,6 +150,8 @@ Legenda: `*` = ruta nije u MASTER PROMPT §6 (svjesno dodata, upisano u odluke).
 | POST | `/auth/forgot-password` * | — | link za reset (uvijek isti odgovor, 5/15 min) |
 | POST | `/auth/reset-password` * | token | nova lozinka; opoziva sve sesije |
 | POST | `/auth/logout` * | JWT | opoziv refresh tokena trenutnog uređaja |
+| PATCH | `/auth/me` * | JWT | profil (telefon; e-mail uz trenutnu lozinku) — M-12 |
+| POST | `/auth/change-password` * | JWT | promjena lozinke; ostale uređaje odjavljuje — M-12 |
 | GET | `/account/export` * | owner | GDPR izvoz (JSON, bez hash-eva/tajni) |
 | DELETE | `/account` * | owner | GDPR brisanje (anonimizacija; fiskalni podaci ostaju) |
 
@@ -161,7 +163,7 @@ Legenda: `*` = ruta nije u MASTER PROMPT §6 (svjesno dodata, upisano u odluke).
 | POST | `/company/setup-complete` * | owner | server-side signal da je setup završen (S11-7, idempotentno) |
 | GET / POST | `/customers` | JWT | lista sa `?q`, pretraga po imenu/JIB/telefonu/emailu |
 | GET / PATCH | `/customers/:id` | JWT | arhiviranje kroz `archivedAt`; uključuje `reminderOptOut` (§7.9) |
-| GET / POST | `/items` | JWT | katalog; POST dozvoljen `owner` i `worker` |
+| GET / POST / PATCH | `/items` | JWT | katalog; PATCH `/items/:id` mijenja ili arhivira (`archivedAt`) — nije u §6 |
 | GET / POST | `/tax-rates` * | JWT | POST nije u §6 — potreban za setup „porezi“ |
 | GET / POST | `/invoices` | JWT | filteri (`status`, `from`/`to`, `customerId`, `q`) + paginacija; POST = DRAFT |
 | GET / PATCH | `/invoices/:id` | JWT | PATCH samo dok je `DRAFT` (409 inače) |
@@ -294,6 +296,28 @@ worker padovi, queue backlog (Sprint 10, kad DSN bude postavljen).
   `pnpm --filter api db:explain` — EXPLAIN je pokazao seq scan za listu faktura, dodat indeks
   `invoices_company_id_created_at_idx` (migracija `20261113180000`); sada 0 seq scan.
 
+## S11-8 — dopuna M-01/M-12, katalog artikala i rate limiter e2e (15. 11. 2026)
+
+- **M-01 biometrijska prijava** — `apps/mobile/src/storage/biometricSession.ts` (Keychain zapis vezan za
+  `ACCESS_CONTROL.BIOMETRY_ANY`, `WHEN_UNLOCKED_THIS_DEVICE_ONLY`): opcija „Zapamti prijavu biometrijom“
+  na prijavi, dugme „Prijavi se biometrijom“, **zaključan ekran pri pokretanju** (`LockScreen`, status
+  `locked`) kada je prijava upamćena; isključivanje u podešavanjima, brisanje pri odjavi i pri promjeni
+  lozinke; `USE_BIOMETRIC` u AndroidManifest-u (odluka 25 u `PROGRESS.md`). 21 novi Jest test
+  (`biometricSession` 9, auth store 10, slanje fakture 2).
+- **Slanje fakture iz mobilne aplikacije** — `sendInvoice()` u `api/invoices.ts` i modal na M-08
+  (kanal e-mail/SMS + opcioni primalac); poruka prikazuje stvarnog primaoca iz API odgovora.
+- **M-12 nalog i lozinka** — nove rute `PATCH /auth/me` (telefon; e-mail uz trenutnu lozinku, 409 za
+  duplikat u firmi, audit `user.profile_update`) i `POST /auth/change-password` (trenutna + nova lozinka,
+  opoziv ostalih uređaja, audit `user.password_change`, rate limit 5/15 min); mobilni ekran `Account`
+  (profil + lozinka) dostupan iz podešavanja.
+- **`PATCH /items/:id`** — djelimična izmjena i arhiviranje artikla (`archivedAt`, isti obrazac kao
+  kupci), IDOR 404; web sekcija „Artikli“ u podešavanjima (izmjena u mjestu, arhiviranje, novi artikal).
+- **Rate limiter e2e na stvarnom Redis-u** — `test/rate-limit.e2e-spec.ts`: 5 prijava/min pa 429
+  (i sa ispravnom lozinkom), limit je po ruti (`forgot-password` i `/health` rade dalje); brojači se
+  čiste iz Redis-a prije svakog testa.
+- **Dokumentacija** — poččišćeni zaostali fragmenti u `README` (offline retry) i
+  `docs/PRE_DEPLOYMENT_AUDIT.md`.
+
 ## Testovi
 
 ```bash
@@ -301,16 +325,22 @@ pnpm test                                  # unit + API e2e (shared, api, web, m
 pnpm --filter web test:e2e                 # Playwright e2e (web)
 ```
 
-- `packages/shared` — **47** testova: Zod šeme, numeracija, JIB, telefon, UUID v7, enumi, error envelope.
-- `apps/api` — **146** testova (28 fajlova): e2e auth/firma/kupci/artikli/porezi, fakture (obračun,
+- `packages/shared` — **51** testova: Zod šeme, numeracija, JIB, telefon, UUID v7, enumi, error envelope.
+- `apps/api` — **158** testova (31 fajl): e2e auth/firma/kupci/artikli/porezi, fakture (obračun,
   draft, filteri, DRAFT-only, IDOR), fiskalizacija (mock, numeracija bez rupa, PRAČUN 409, PDF, ESIR pad),
   naplata, podsjetnici (uključujući opt-out), izvještaji, storno/refundacija, worker (retry + alarm),
-  sync, idempotencija, reset lozinke, slanje fakture, GDPR, logout, setup-complete; unit obračun/PDF token/alarm/R2/monitoring,
-  health readiness, request-id middleware i analitika.
+  sync, idempotencija, reset lozinke, slanje fakture, GDPR, logout, setup-complete, **PATCH /items/:id**,
+  **profil i promjena lozinke (M-12)** i **rate limiter na stvarnom Redis-u**; unit obračun/PDF
+  token/alarm/R2/monitoring, health readiness, request-id middleware i analitika.
 - `apps/web` — **13** testova (Vitest): format, obračun pregleda, parsiranje forme, pravila masovnih akcija.
-- `apps/mobile` — **72** testa (Jest): API klijenti, auth store (uključujući logout offline),
-  sync engine + retry/backoff, offline draft/detalj, setup helperi, obračun.
-- **Ukupno 278 unit/API testova + 8 Playwright e2e.**
+- `apps/mobile` — **93** testa (Jest): API klijenti (uključujući slanje fakture), auth store
+  (biometrijsko otključavanje, odjava offline), sync engine + retry/backoff, offline draft/detalj,
+  setup helperi, obračun, biometrijska prijava.
+- **Ukupno 315 unit/API testova + 8 Playwright e2e.**
+
+**Napomena (15. 11. 2026):** novi API e2e fajlovi (`items`, `auth-profile`, `rate-limit`) su napisani i
+typecheck-ovani, ali u ovoj sesiji nisu izvršeni — lokalni Docker/Postgres/Redis nisu bili dostupni, a
+sandbox blokira `vitest` (esbuild `spawn EPERM`). Pokreću se u CI-ju (`verify`/`e2e` jobovi).
 
 API e2e koristi pravu bazu i Redis; testovi `TRUNCATE`-uju bazu, pa poslije njih pokreni `pnpm db:seed`.
 
@@ -389,6 +419,15 @@ Web e2e je u CI-ju (`e2e` job: build + Chromium + `pnpm --filter web test:e2e`, 
     1m/5m/15m/1h/6h, max 5 pokušaja → `FAILED`, alarm u UI poslije 3 dana i ručni retry.
 22. **Setup signal (S11-7):** `POST /company/setup-complete` je owner-only i idempotentan;
     `setup_completed` se emituje samo prvi put; mobilni ga zove best-effort pri završetku.
+23. **Artikli (S11-8):** `PATCH /items/:id` (nije u §6) mijenja naziv/jedinicu/cijenu/stopu i arhivira
+    kroz `archivedAt` (null = vraćanje); tuđi artikal vraća 404, ne 403.
+24. **Nalog (S11-8):** `PATCH /auth/me` i `POST /auth/change-password` (nisu u §6) — profil i lozinka
+    bez odlaska na web. Promjena e-maila traži trenutnu lozinku (e-mail je identitet za prijavu/reset);
+    promjena lozinke opoziva ostale uređaje, a uređaj sa kojeg je izvršena ostaje prijavljen.
+25. **Biometrija (S11-8):** upamćena prijava je Keychain zapis sa `ACCESS_CONTROL.BIOMETRY_ANY` i
+    `WHEN_UNLOCKED_THIS_DEVICE_ONLY`; aplikacija se pri pokretanju zaključava (`locked`) dok se ne
+    otključa biometrijom ili prijavom lozinkom; odjava i promjena lozinke brišu upamćenu prijavu;
+    uređaj bez biometrije radi kao ranije (bez zaključavanja).
 
 ## Poznata ograničenja (prije produkcije)
 
@@ -403,11 +442,11 @@ Web e2e je u CI-ju (`e2e` job: build + Chromium + `pnpm --filter web test:e2e`, 
 - **Kredit kupca pri preplati** — nema polja u §5; preplata se odbija dok vlasnik/računovođa ne odluče
   o modelu kredita (S11-2b). Opt-out podsjetnika je urađen (S11-2a).
 - **Mobilni offline** je implementiran i typecheck-ovan, ali nije verifikovan na fizičkom uređaju
-  (u ovom okruženju nema JDK 17; APK ide kroz CI). Offline queue sada ima retry/backoff
-  (`sync/retry.ts`, `attempts`/`nextAttemptAt`), `FAILED` stavke i alarm poslije 3 dana.
-  automatski retry/backoff ni alarm — vidi `docs/PRE_DEPLOYMENT_AUDIT.md` (E6).
-- **`PATCH /items/:id`** nije u §6 — artikli se mogu dodavati, ali ne mijenjati/arhivirati.
-- **M-12 profil/lozinka** — osnovne sekcije rade; promjena lozinke ide kroz web reset tok.
+  (u ovom okruženju nema JDK 17; APK ide kroz CI). Offline queue ima retry/backoff
+  (`sync/retry.ts`, `attempts`/`nextAttemptAt`), `FAILED` stavke i alarm poslije 3 dana
+  (vidi `docs/PRE_DEPLOYMENT_AUDIT.md`, E6); test na uređaju ostaje za S10-2.
+- **Biometrija (M-01)** — kod i testovi postoje, ali prompt nije verifikovan na fizičkom uređaju
+  (nema APK-a); potvrditi na 3 uređaja u S10-2 (otključavanje, otkazivanje, uređaj bez biometrije).
 - **JIB checksum**, **role/status vrijednosti**, **numeracija format** — potvrditi sa računovođom.
 - **Play/brend** — package name `com.digitalniasistent` je privremen.
 
