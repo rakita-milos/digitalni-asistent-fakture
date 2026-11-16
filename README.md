@@ -4,13 +4,11 @@ SaaS za fakturisanje i naplatu za mikro-poduzeća u Republici Srpskoj.
 Jedini izvor istine za proizvod, model, API i pravila je
 [`MASTER_PROMPT_IZgradnja_Aplikacije.md`](../MASTER_PROMPT_IZgradnja_Aplikacije.md) (izvan repoa).
 
-**Stanje:** Sprint 0–9 završeni; **Sprint 10** (integracije) i **Sprint 11** (launch/pilot) su u pripremi —
-kod za R2, Sentry, Playwright CI, opt-out, analitiku, audit i Play potpisivanje je spreman, a čekaju
-kredencijale i odluke (GitHub, Sentry DSN, R2, SMS, staging, brend, JDK 17). Aplikacija ima mobilni
-(`apps/mobile`), web (`apps/web`) i API (`apps/api`), mock fiskalizaciju do G0 i demo seed.
-Preostalo prije produkcije: integracije sa kredencijalima, Play objava i prava ESIR fiskalizacija
-poslije odgovora operatera — vidi [`PLAN_DALJEG_RADA.md`](../PLAN_DALJEG_RADA.md) i
-[`PROGRESS.md`](../PROGRESS.md).
+**Stanje:** Sprint 0–11 + S11-8 završeni; **316 testova + 9 Playwright e2e zeleno**; APK i integracije
+čekaju GitHub/naloge. Aplikacija ima mobilni (`apps/mobile`), web (`apps/web`) i API (`apps/api`), mock
+fiskalizaciju do G0 i demo seed. Preostalo prije produkcije: CI/APK, integracije sa kredencijalima, Play
+objava, pilot i prava ESIR fiskalizacija poslije odgovora operatera — vidi
+[`PLAN_DALJEG_RADA_v2.md`](../PLAN_DALJEG_RADA_v2.md) (v1 je arhiva) i [`PROGRESS.md`](../PROGRESS.md).
 
 Operativni dokumenti: [`docs/STAGING_DEPLOY.md`](docs/STAGING_DEPLOY.md) (staging, deploy, rollback,
 backup/restore), [`docs/INCIDENT_RUNBOOK.md`](docs/INCIDENT_RUNBOOK.md) (incidenti i podrška) i
