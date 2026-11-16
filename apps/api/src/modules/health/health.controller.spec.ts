@@ -47,4 +47,22 @@ describe('HealthController', () => {
     expect(body.checks).toEqual({ database: 'ok', redis: 'error' });
     expect(response.status).toHaveBeenCalledWith(HttpStatus.SERVICE_UNAVAILABLE);
   });
+
+  it('ponavlja PING jednom dok se Redis još povezuje', async () => {
+    const prisma = { $queryRaw: vi.fn(() => Promise.resolve([{ 1: 1 }])) } as unknown as PrismaService;
+    const ping = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('connecting'))
+      .mockResolvedValueOnce(undefined);
+    const redis = { ping } as unknown as RedisService;
+    const response = { status: vi.fn() };
+
+    const controller = new HealthController(prisma, redis);
+    const body = await controller.check(response as never);
+
+    expect(body.status).toBe('ok');
+    expect(body.checks.redis).toBe('ok');
+    expect(ping).toHaveBeenCalledTimes(2);
+    expect(response.status).not.toHaveBeenCalled();
+  });
 });

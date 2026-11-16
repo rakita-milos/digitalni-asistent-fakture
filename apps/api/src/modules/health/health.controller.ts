@@ -74,11 +74,20 @@ export class HealthController {
   }
 
   private async checkRedis(): Promise<DependencyStatus> {
-    try {
-      await this.redis.ping();
-      return 'ok';
-    } catch {
-      return 'error';
+    // ioredis se povezuje asinhrono: prvi PING odmah poslije starta može pasti dok je
+    // status još 'connecting' (enableOfflineQueue=false). Jedan kratki retry čini
+    // readiness provjeru stabilnom, a pravi pad Redis-a i dalje vraća 503.
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        await this.redis.ping();
+        return 'ok';
+      } catch {
+        if (attempt === 0) {
+          await new Promise((resolve) => setTimeout(resolve, 250));
+        }
+      }
     }
+
+    return 'error';
   }
 }
