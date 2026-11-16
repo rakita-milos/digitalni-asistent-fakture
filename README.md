@@ -67,7 +67,11 @@ digitalni-asistent/
 - **Node.js ≥ 22.11** (React Native 0.88 zahtijeva)
 - **pnpm 10.34.9** — preko Corepacka: `corepack enable` (repo ima `packageManager` polje)
 - **Docker Desktop** (Postgres 16 + Redis 7)
-- Za Android build: **JDK 17** + **Android Studio / SDK 36** (nije potrebno za `pnpm lint/typecheck/test`)
+- Za Android build: **JDK 17** + **Android SDK** (compileSdk 37, build-tools 37, NDK 27.1) — nije
+  potrebno za `pnpm lint/typecheck/test`. pnpm je u `hoisted` režimu, pa `settings.gradle` RN šablona
+  traži plugin u `apps/mobile/node_modules`; jednom napravi link:
+  `mkdir -p apps/mobile/node_modules/@react-native && ln -s ../../../node_modules/@react-native/gradle-plugin apps/mobile/node_modules/@react-native/gradle-plugin`
+  (na Windowsu: junction na istu putanju). CI `android` job to radi automatski.
 
 ## Instalacija
 
@@ -315,8 +319,20 @@ worker padovi, queue backlog (Sprint 10, kad DSN bude postavljen).
 - **Rate limiter e2e na stvarnom Redis-u** — `test/rate-limit.e2e-spec.ts`: 5 prijava/min pa 429
   (i sa ispravnom lozinkom), limit je po ruti (`forgot-password` i `/health` rade dalje); brojači se
   čiste iz Redis-a prije svakog testa.
+- **Health readiness stabilizovan** — `GET /health` je vraćao 503 na prvom zahtjevu poslije starta jer
+  `ioredis` još nije bio povezan (`enableOfflineQueue=false`); `checkRedis` sada radi jedan kratki retry
+  (250 ms), a pravi pad Redis-a i dalje vraća 503 (+1 unit test).
 - **Dokumentacija** — poččišćeni zaostali fragmenti u `README` (offline retry) i
   `docs/PRE_DEPLOYMENT_AUDIT.md`.
+- **Verifikovano lokalno (16. 11. 2026):** lint 5/5, typecheck 5/5, `pnpm build` **3/3** (Next
+  kompajliran), **316 testova** (shared 51, api 159, web 13, mobile 93) i **Playwright e2e 9/9**
+  (31,8 s) — sve zeleno; `prisma migrate deploy` na Postgres 16 + Redis 7.
+- **Android build (S11-8h)** — `settings.gradle` sada sam nađe RN Gradle plugin i poziva
+  `@react-native-community/cli config` kroz `node` (pnpm `hoisted` nema `.bin` u `apps/mobile`);
+  CI `android` job dodaje linkove za `react-native` i `@react-native` prije `gradlew`.
+  Lokalni APK build je prošao compile/codegen/NDK korake, ali pao na `op-sqlite` native buildu zbog
+  Windows `MAX_OBJECT_PATH` (putanja repoa > 250 znakova) — APK ide kroz CI ili iz kraće putanje
+  (npr. `C:\da`).
 
 ## Testovi
 
@@ -326,21 +342,17 @@ pnpm --filter web test:e2e                 # Playwright e2e (web)
 ```
 
 - `packages/shared` — **51** testova: Zod šeme, numeracija, JIB, telefon, UUID v7, enumi, error envelope.
-- `apps/api` — **158** testova (31 fajl): e2e auth/firma/kupci/artikli/porezi, fakture (obračun,
+- `apps/api` — **159** testova (31 fajl): e2e auth/firma/kupci/artikli/porezi, fakture (obračun,
   draft, filteri, DRAFT-only, IDOR), fiskalizacija (mock, numeracija bez rupa, PRAČUN 409, PDF, ESIR pad),
   naplata, podsjetnici (uključujući opt-out), izvještaji, storno/refundacija, worker (retry + alarm),
   sync, idempotencija, reset lozinke, slanje fakture, GDPR, logout, setup-complete, **PATCH /items/:id**,
   **profil i promjena lozinke (M-12)** i **rate limiter na stvarnom Redis-u**; unit obračun/PDF
-  token/alarm/R2/monitoring, health readiness, request-id middleware i analitika.
+  token/alarm/R2/monitoring, health readiness (uključujući retry), request-id middleware i analitika.
 - `apps/web` — **13** testova (Vitest): format, obračun pregleda, parsiranje forme, pravila masovnih akcija.
 - `apps/mobile` — **93** testa (Jest): API klijenti (uključujući slanje fakture), auth store
   (biometrijsko otključavanje, odjava offline), sync engine + retry/backoff, offline draft/detalj,
   setup helperi, obračun, biometrijska prijava.
-- **Ukupno 315 unit/API testova + 8 Playwright e2e.**
-
-**Napomena (15. 11. 2026):** novi API e2e fajlovi (`items`, `auth-profile`, `rate-limit`) su napisani i
-typecheck-ovani, ali u ovoj sesiji nisu izvršeni — lokalni Docker/Postgres/Redis nisu bili dostupni, a
-sandbox blokira `vitest` (esbuild `spawn EPERM`). Pokreću se u CI-ju (`verify`/`e2e` jobovi).
+- **Ukupno 316 unit/API testova + 9 Playwright e2e** — svi izvršeni lokalno 16. 11. 2026. i zeleni.
 
 API e2e koristi pravu bazu i Redis; testovi `TRUNCATE`-uju bazu, pa poslije njih pokreni `pnpm db:seed`.
 
@@ -357,7 +369,8 @@ pnpm --filter web test:e2e
 - `e2e/global-setup.ts` radi `prisma migrate deploy` + **svježi demo seed** (`SEED_RESET=1`);
   preskoči sa `E2E_SKIP_DB_SETUP=1` ako je baza već pripremljena.
 - Scenariji: prijava, pogrešna lozinka, zaboravljena lozinka, nevažeći reset token, odjava,
-  kreiranje drafta → izdavanje → PDF, lista faktura, masovno izdavanje.
+  kreiranje drafta → izdavanje → PDF, lista faktura, masovno izdavanje, **artikli u podešavanjima
+  (dodavanje → izmjena cijene → arhiviranje)**.
 - Artefakti (`test-results/`, `playwright-report/`) su u `.gitignore`.
 
 ## Skripte
@@ -461,4 +474,6 @@ Web e2e je u CI-ju (`e2e` job: build + Chromium + `pnpm --filter web test:e2e`, 
 | Port 5432 zauzet | promijeni `POSTGRES_PORT` u `.env` i `DATABASE_URL` |
 | Playwright: „Executable doesn't exist“ | `pnpm --filter web exec playwright install chromium` |
 | Playwright: port 3000/3001 zauzet | zaustavi dev servere ili pusti Playwright da ih podigne (config ih sam startuje) |
+| API test worker padne (`ERR_IPC_CHANNEL_CLOSED`, „Channel closed") | pun set (19 e2e fajlova) traži više heap-a: `$env:NODE_OPTIONS='--max-old-space-size=6144'` prije `pnpm test` |
+| Android build padne na `ninja: manifest 'build.ninja' still dirty` / `MAX_OBJECT_PATH` | putanja repoa je preduga za Windows (CMake limit 250); build iz kraće putanje (`C:\da`) ili kroz CI |
 | e2e pao poslije `SEED_RESET` | testovi mijenjaju demo bazu; ponovi `pnpm db:seed` prije ručnog pregleda |

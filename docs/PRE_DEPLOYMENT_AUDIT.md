@@ -66,7 +66,7 @@
 | B1 | Globalni error filter: `{code,message}`, bez stack trace i SQL detalja | `src/common/filters/all-exceptions.filter.ts:40-128`; `all-exceptions.filter.spec.ts`; 5xx vraća generičku poruku | ✅ |
 | B2 | Korisničke poruke na bosanskom, tehnički detalji u logu | `DEFAULT_MESSAGES` u filteru; poruke u servisima; stack ide samo u `logger.error` + Sentry | ✅ |
 | B3 | Korelacijski ID u svakom odgovoru i logu | **novo**: `src/common/middleware/request-id.middleware.ts` + `app.module.ts` (middleware na sve rute); filter koristi isti ID za log/Sentry; `request-id.middleware.spec.ts` (3 testa) | ✅ |
-| B4 | `/health` provjerava bazu i Redis | **novo**: `src/modules/health/health.controller.ts` — `SELECT 1` + `PING`, 503 kada padne; `health.controller.spec.ts` (3 testa), `test/health.e2e-spec.ts` provjerava `checks` | ✅ |
+| B4 | `/health` provjerava bazu i Redis | **novo**: `src/modules/health/health.controller.ts` — `SELECT 1` + `PING`, 503 kada padne; `health.controller.spec.ts` (4 testa, uključujući retry za `ioredis` konekciju — S11-8), `test/health.e2e-spec.ts` provjerava `checks` | ✅ |
 
 ### C. Baza podataka
 

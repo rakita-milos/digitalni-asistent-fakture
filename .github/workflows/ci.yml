@@ -52,6 +52,9 @@ jobs:
       JWT_REFRESH_SECRET: ci-refresh-secret-0123456789
       SMS_PROVIDER: log
       RATE_LIMIT_ENABLED: 'false'
+      # Pun API e2e set (19 fajlova) traži više heap-a; bez ovoga worker može pasti sa
+      # ERR_IPC_CHANNEL_CLOSED (viđeno lokalno na Windowsu, S11-8).
+      NODE_OPTIONS: '--max-old-space-size=4096'
 
     steps:
       - uses: actions/checkout@v4
@@ -126,6 +129,13 @@ jobs:
 
       - name: Instalacija zavisnosti
         run: pnpm install --frozen-lockfile
+
+      - name: Link React Native packages (pnpm hoisted)
+        working-directory: apps/mobile
+        run: |
+          mkdir -p node_modules
+          ln -sfn ../../../node_modules/react-native node_modules/react-native
+          ln -sfn ../../../node_modules/@react-native node_modules/@react-native
 
       - name: Debug APK
         working-directory: apps/mobile/android
