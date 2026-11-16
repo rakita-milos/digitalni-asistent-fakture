@@ -9,10 +9,10 @@ Jedini izvor istine za proizvod, model, API i pravila je
 [`MASTER_PROMPT_IZgradnja_Aplikacije.md`](../MASTER_PROMPT_IZgradnja_Aplikacije.md) (izvan repoa).
 
 **Stanje:** Sprint 0–11 + S11-8 završeni; **316 testova + 9 Playwright e2e zeleno**; repo je na GitHubu,
-CI (`verify`, `compose`, `android`, `e2e`) se pokreće na svaki push. APK i integracije čekaju naloge
-(SMS, Sentry, R2, staging). Aplikacija ima mobilni (`apps/mobile`), web (`apps/web`) i API (`apps/api`),
-mock fiskalizaciju do G0 i demo seed. Preostalo prije produkcije: APK i test na uređajima, integracije sa
-kredencijalima, Play objava, pilot i prava ESIR fiskalizacija poslije odgovora operatera — vidi
+**CI zelen (4/4, 8 min 43 s)** i **APK artifact (~49 MB)** se pravi na svaki push. Aplikacija ima mobilni
+(`apps/mobile`), web (`apps/web`) i API (`apps/api`), mock fiskalizaciju do G0 i demo seed. Preostalo
+prije produkcije: test APK-a na 3 uređaja, integracije sa kredencijalima (SMS, Sentry, R2, staging), Play
+objava, pilot i prava ESIR fiskalizacija poslije odgovora operatera — vidi
 [`PLAN_DALJEG_RADA_v2.md`](../PLAN_DALJEG_RADA_v2.md) (v1 je arhiva) i [`PROGRESS.md`](../PROGRESS.md).
 
 Operativni dokumenti: [`docs/STAGING_DEPLOY.md`](docs/STAGING_DEPLOY.md) (staging, deploy, rollback,
