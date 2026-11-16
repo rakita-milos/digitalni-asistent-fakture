@@ -62,7 +62,7 @@ Tajne u GitHub Secrets (ili provider secret store): `DATABASE_URL`, `REDIS_URL`,
 
 ## 5. Rutina za svaki release
 
-1. CI zelen na `master` (lint, typecheck, test, build, e2e, android).
+1. CI zelen na `main` (lint, typecheck, test, build, e2e, android).
 2. **Backup** baze prije migracija (§6.1).
 3. `pnpm db:deploy` — migracije **prije** aplikacije.
 4. Deploy API → worker → web (isti commit; `APP_RELEASE` = SHA).

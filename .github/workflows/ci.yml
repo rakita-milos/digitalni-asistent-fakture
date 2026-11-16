@@ -125,8 +125,22 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Android SDK
-        uses: android-actions/setup-android@v3
+      # GitHub runneri imaju Android SDK preinstaliran; setup-android@v3 je pao na
+      # prvom runu (16.11.2026) prije ijednog koraka projekta, pa koristimo SDK sa image-a.
+      - name: Android SDK (preinstalled na runneru)
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          if [ ! -d "$SDK" ]; then echo "Android SDK nije na $SDK"; exit 1; fi
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          echo "SDK=$SDK"
+          ls "$SDK"
+          SDKMGR="$SDK/cmdline-tools/latest/bin/sdkmanager"
+          if [ -x "$SDKMGR" ]; then
+            yes | "$SDKMGR" --licenses > /dev/null 2>&1 || true
+            "$SDKMGR" --version || true
+          fi
 
       - name: Instalacija zavisnosti
         run: pnpm install --frozen-lockfile
