@@ -106,7 +106,8 @@ jobs:
   android:
     name: android debug build (APK)
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    # Hladan run skida NDK 27.1, CMake, platform 37 i Gradle 9.4.1; 40 min je tijesno.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
@@ -129,6 +130,16 @@ jobs:
 
       - name: Instalacija zavisnosti
         run: pnpm install --frozen-lockfile
+
+      - name: Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('apps/mobile/android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
 
       - name: Link React Native packages (pnpm hoisted)
         working-directory: apps/mobile
@@ -211,6 +222,14 @@ jobs:
 
       - name: Build (web + api + shared)
         run: pnpm build
+
+      - name: Playwright cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
 
       - name: Playwright browser
         run: pnpm --filter web exec playwright install --with-deps chromium
