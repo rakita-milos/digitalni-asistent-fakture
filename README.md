@@ -8,7 +8,7 @@ SaaS za fakturisanje i naplatu za mikro-poduzeća u Republici Srpskoj.
 Jedini izvor istine za proizvod, model, API i pravila je
 [`MASTER_PROMPT_IZgradnja_Aplikacije.md`](../MASTER_PROMPT_IZgradnja_Aplikacije.md) (izvan repoa).
 
-**Stanje:** Sprint 0–11 + S11-8 završeni; **316 testova + 9 Playwright e2e zeleno**; repo je na GitHubu,
+**Stanje:** Sprint 0–11 + S11-8 završeni; **320 testova + 9 Playwright e2e zeleno**; repo je na GitHubu,
 **CI zelen (4/4, 8 min 43 s)** i **APK artifact (~49 MB)** se pravi na svaki push. Aplikacija ima mobilni
 (`apps/mobile`), web (`apps/web`) i API (`apps/api`), mock fiskalizaciju do G0 i demo seed. Preostalo
 prije produkcije: test APK-a na 3 uređaja, integracije sa kredencijalima (SMS, Sentry, R2, staging), Play
@@ -328,7 +328,7 @@ worker padovi, queue backlog (Sprint 10, kad DSN bude postavljen).
 - **Dokumentacija** — poččišćeni zaostali fragmenti u `README` (offline retry) i
   `docs/PRE_DEPLOYMENT_AUDIT.md`.
 - **Verifikovano lokalno (16. 11. 2026):** lint 5/5, typecheck 5/5, `pnpm build` **3/3** (Next
-  kompajliran), **316 testova** (shared 51, api 159, web 13, mobile 93) i **Playwright e2e 9/9**
+  kompajliran), **320 testova** (shared 51, api 159, web 13, mobile 97) i **Playwright e2e 9/9**
   (31,8 s) — sve zeleno; `prisma migrate deploy` na Postgres 16 + Redis 7.
 - **Android build (S11-8h)** — `settings.gradle` sada sam nađe RN Gradle plugin i poziva
   `@react-native-community/cli config` kroz `node` (pnpm `hoisted` nema `.bin` u `apps/mobile`);
@@ -352,10 +352,10 @@ pnpm --filter web test:e2e                 # Playwright e2e (web)
   **profil i promjena lozinke (M-12)** i **rate limiter na stvarnom Redis-u**; unit obračun/PDF
   token/alarm/R2/monitoring, health readiness (uključujući retry), request-id middleware i analitika.
 - `apps/web` — **13** testova (Vitest): format, obračun pregleda, parsiranje forme, pravila masovnih akcija.
-- `apps/mobile` — **93** testa (Jest): API klijenti (uključujući slanje fakture), auth store
-  (biometrijsko otključavanje, odjava offline), sync engine + retry/backoff, offline draft/detalj,
-  setup helperi, obračun, biometrijska prijava.
-- **Ukupno 316 unit/API testova + 9 Playwright e2e** — svi izvršeni lokalno 16. 11. 2026. i zeleni.
+- `apps/mobile` — **97** testova (Jest): API klijenti (uključujući slanje fakture i **auto-refresh na 401**),
+  auth store (biometrijsko otključavanje, odjava offline), sync engine + retry/backoff, offline
+  draft/detalj, setup helperi, obračun, biometrijska prijava.
+- **Ukupno 320 unit/API testova + 9 Playwright e2e** — svi izvršeni lokalno 16. 11. 2026. i zeleni.
 
 API e2e koristi pravu bazu i Redis; testovi `TRUNCATE`-uju bazu, pa poslije njih pokreni `pnpm db:seed`.
 
