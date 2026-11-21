@@ -9,7 +9,7 @@ Jedini izvor istine za proizvod, model, API i pravila je
 [`MASTER_PROMPT_IZgradnja_Aplikacije.md`](../MASTER_PROMPT_IZgradnja_Aplikacije.md) (izvan repoa).
 
 **Stanje:** Sprint 0–11 + S11-8 završeni, Sprint 12 (release engineering) u toku; **333 testa + 9 Playwright e2e zeleno**; repo je na GitHubu,
-**CI zelen (4/4, 8 min 43 s)** i **APK artifact (~49 MB)** se pravi na svaki push. Aplikacija ima mobilni
+**CI zelen (5/5)** i **APK artifact (~49 MB)** se pravi na svaki push. Aplikacija ima mobilni
 (`apps/mobile`), web (`apps/web`) i API (`apps/api`), mock fiskalizaciju do G0 i demo seed. Preostalo
 prije produkcije: test APK-a na 3 uređaja, integracije sa kredencijalima (SMS, Sentry, R2, staging), Play
 objava, pilot i prava ESIR fiskalizacija poslije odgovora operatera — vidi
@@ -355,8 +355,9 @@ worker padovi, queue backlog i SMS greške (kad DSN bude postavljen).
 
 ## Sprint 12 — release engineering (u toku, 17. 11. 2026)
 
-- **T12-1 GitHub + CI** — repo `rakita-milos/digitalni-asistent-fakture`, CI **4/4 zelen** (`verify`,
-  `e2e`, `compose`, `android`), APK artifact ~49 MB na svaki push; `main` zaštićen obaveznim checkovima.
+- **T12-1 GitHub + CI** — repo `rakita-milos/digitalni-asistent-fakture`, CI **5/5 zelen** (`verify`,
+  `e2e`, `integracije (R2/SMS/Sentry)`, `compose`, `android`), APK artifact ~49 MB na svaki push;
+  `main` zaštićen obaveznim checkovima.
 - **T12-3 (dio) Android emulator** — APK iz CI-ja instaliran na Android 17 (API 37): prijava, aging,
   lista/detalj fakture sa PFR + QR, slanje e-mailom i ekran Nalog; nađen i popravljen P1 bug
   (mobilni nije osvježavao access token → single-flight `/auth/refresh` na 401). Fizički uređaji ostaju.
@@ -513,7 +514,7 @@ Web e2e je u CI-ju (`e2e` job: build + Chromium + `pnpm --filter web test:e2e`, 
 
 - **G0 operater ESIR** — fiskalizacija je mock; PFR/QR placeholder; storno fiskalizacija i PDV tretman
   refundacije čekaju odgovor operatera/računovođu.
-- **GitHub/CI** — repo je povezan i CI je zelen (4/4); ostaje testiranje APK-a na fizičkim uređajima.
+- **GitHub/CI** — repo je povezan i CI je zelen (5/5); ostaje testiranje APK-a na fizičkim uređajima.
 - **Sentry/monitoring** — kod je spreman: API/worker (`MonitoringService`) i web
   (`apps/web/instrumentation.ts`), no-op bez DSN-a; čeka se DSN za provjeru testne greške i alarma.
 - **R2** — kod za upload i signed URL je spreman (`R2StorageService`, 302 na signed URL kad su ključevi
