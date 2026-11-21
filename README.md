@@ -8,7 +8,7 @@ SaaS za fakturisanje i naplatu za mikro-poduzeća u Republici Srpskoj.
 Jedini izvor istine za proizvod, model, API i pravila je
 [`MASTER_PROMPT_IZgradnja_Aplikacije.md`](../MASTER_PROMPT_IZgradnja_Aplikacije.md) (izvan repoa).
 
-**Stanje:** Sprint 0–11 + S11-8 završeni; **320 testova + 9 Playwright e2e zeleno**; repo je na GitHubu,
+**Stanje:** Sprint 0–11 + S11-8 završeni, Sprint 12 (release engineering) u toku; **332 testa + 9 Playwright e2e zeleno**; repo je na GitHubu,
 **CI zelen (4/4, 8 min 43 s)** i **APK artifact (~49 MB)** se pravi na svaki push. Aplikacija ima mobilni
 (`apps/mobile`), web (`apps/web`) i API (`apps/api`), mock fiskalizaciju do G0 i demo seed. Preostalo
 prije produkcije: test APK-a na 3 uređaja, integracije sa kredencijalima (SMS, Sentry, R2, staging), Play
@@ -228,7 +228,16 @@ rotacija + revokacija po uređaju, rate limiting u Redis-u, Zod validacija svako
 | `FEATURE_SMS_ENABLED` | `true` | `false` → SMS adapter vraća 503 (OTP/podsjetnici) |
 | `FEATURE_ACCOUNT_DELETION` | `true` | `false` → brisanje naloga vraća 503 |
 | `MAIL_PROVIDER` | `log` | `log` ispisuje e-mail u log (dev/test); pravi provajder u Sprintu 10 |
-| `SMS_PROVIDER` | `log` | isto za SMS; u produkciji `log` baca grešku |
+| `SMS_PROVIDER` | `log` | `log` u dev/test; u produkciji `log` baca grešku; `http` = generički provajder |
+| `SMS_HTTP_URL` | — | endpoint provajdera; bez njega `http` režim vraća 503 |
+| `SMS_HTTP_TOKEN` / `SMS_API_KEY` | — | `Authorization: Bearer` (token ima prednost nad ključem) |
+| `SMS_SENDER_ID` | — | sender ID u tijelu zahtjeva (kad ga provajder traži) |
+| `SMS_HTTP_TIMEOUT_MS` | `5000` | 1–15 s po poruci; prekid se prijavljuje kao greška (za retry) |
+
+`http` adapter (T12-6) je namjerno **generički**: izbor provajdera je konfiguracija, ne kod. Šalje
+`POST SMS_HTTP_URL` sa JSON tijelom `{ to, message, sender }`; tijelo odgovora se ne loguje (može
+sadržati broj telefona), a greška provajdera nosi samo HTTP status. U produkciji `SMS_PROVIDER=log`
+namjerno pada da ne bi bilo „tihog“ ne-slanja; stvarni provajder, sender ID i ugovor se još čekaju.
 
 ## R2 (čuvanje PDF-a, opciono)
 
@@ -253,11 +262,12 @@ Bez kredencijala ista ruta **streamuje** PDF — ponašanje i ugovor rute se ne 
   `playwright install --with-deps chromium`, `pnpm --filter web test:e2e`, izvještaj kao artifact).
 - **Monitoring (Sentry, API/worker)** — `MonitoringService` sa `@sentry/node`: bez `SENTRY_DSN` je no-op
   (greške ostaju u logu); sa DSN-om šalje 5xx iz globalnog filtera (tagovi: request-id, ruta, status)
-  i `FISCAL_ALARM`/worker padove. Web instrumentacija dolazi uz DSN.
+  i `FISCAL_ALARM`/worker padove. Web instrumentacija (T12-4) je dodata — `apps/web/instrumentation.ts`
+  šalje serverske greške iz server komponenti/akcija sa `x-request-id` tagom kada je `SENTRY_DSN`
+  postavljen; bez DSN-a je no-op.
 - **Operativni runbook** — `docs/STAGING_DEPLOY.md` (prvi deploy, rutina release-a, rollback,
   backup + test restore) i `docs/INCIDENT_RUNBOOK.md` (S1/S2 scenariji, komunikacija, post-mortem).
-- **Čeka tvoje akcije:** GitHub remote (da CI uopšte krene), Sentry DSN, R2 ključevi, SMS provajder,
-  staging nalozi, JDK 17 za lokalni APK.
+- **Čekalo se (zatvara se u Sprintu 12):** Sentry DSN, R2 ključevi, SMS provajder i staging nalozi.
 
 ## Monitoring (Sentry)
 
@@ -268,8 +278,12 @@ Bez kredencijala ista ruta **streamuje** PDF — ponašanje i ugovor rute se ne 
 | `SENTRY_TRACES_SAMPLE_RATE` | `0` | performance tracing isključen |
 | `APP_RELEASE` | — | release tag (npr. commit SHA) |
 
-Alarmi koje treba podesiti u Sentry-ju: 5xx stopa, `FISCAL_ALARM` (PENDING_FISCAL > 3 dana),
-worker padovi, queue backlog (Sprint 10, kad DSN bude postavljen).
+API i worker koriste `MonitoringService` (`@sentry/node`); web koristi Next 15 hookove u
+`apps/web/instrumentation.ts` (`register` + `onRequestError`, samo Node runtime). Bez DSN-a su svi
+no-op, a build i ponašanje su isti kao ranije. Na stagingu `APP_RELEASE` postaviti na commit SHA.
+
+Alarmi koje treba podesiti u Sentry-ju: 5xx stopa, p95, `FISCAL_ALARM` (PENDING_FISCAL > 3 dana),
+worker padovi, queue backlog i SMS greške (kad DSN bude postavljen).
 
 ## Sprint 11 — priprema (13. 11. 2026)
 
@@ -337,6 +351,21 @@ worker padovi, queue backlog (Sprint 10, kad DSN bude postavljen).
   Windows `MAX_OBJECT_PATH` (putanja repoa > 250 znakova) — APK ide kroz CI ili iz kraće putanje
   (npr. `C:\da`).
 
+## Sprint 12 — release engineering (u toku, 17. 11. 2026)
+
+- **T12-1 GitHub + CI** — repo `rakita-milos/digitalni-asistent-fakture`, CI **4/4 zelen** (`verify`,
+  `e2e`, `compose`, `android`), APK artifact ~49 MB na svaki push; `main` zaštićen obaveznim checkovima.
+- **T12-3 (dio) Android emulator** — APK iz CI-ja instaliran na Android 17 (API 37): prijava, aging,
+  lista/detalj fakture sa PFR + QR, slanje e-mailom i ekran Nalog; nađen i popravljen P1 bug
+  (mobilni nije osvježavao access token → single-flight `/auth/refresh` na 401). Fizički uređaji ostaju.
+- **T12-4 (dio) Web Sentry instrumentacija** — `apps/web/instrumentation.ts` (`register` +
+  `onRequestError`) i 4 Vitest testa; `@sentry/node` u `serverExternalPackages`; serverske greške nose
+  `request_id`/`http_path`/`route` tagove; bez DSN-a no-op. Ostaje: DSN, alarmi i testna greška.
+- **T12-6 (dio) Generički SMS HTTP adapter** — `SmsService` režim `http`: JSON POST na `SMS_HTTP_URL`
+  (`{ to, message, sender }`), `Authorization: Bearer`, sender ID, timeout 1–15 s, greška bez tijela
+  odgovora; 8 unit testova; nove varijable u `.env.example`. Ostaje: izbor provajdera, kredencijali,
+  test na 2 broja i opt-out provjera.
+
 ## Testovi
 
 ```bash
@@ -345,17 +374,19 @@ pnpm --filter web test:e2e                 # Playwright e2e (web)
 ```
 
 - `packages/shared` — **51** testova: Zod šeme, numeracija, JIB, telefon, UUID v7, enumi, error envelope.
-- `apps/api` — **159** testova (31 fajl): e2e auth/firma/kupci/artikli/porezi, fakture (obračun,
+- `apps/api` — **167** testova (32 fajla): e2e auth/firma/kupci/artikli/porezi, fakture (obračun,
   draft, filteri, DRAFT-only, IDOR), fiskalizacija (mock, numeracija bez rupa, PRAČUN 409, PDF, ESIR pad),
   naplata, podsjetnici (uključujući opt-out), izvještaji, storno/refundacija, worker (retry + alarm),
   sync, idempotencija, reset lozinke, slanje fakture, GDPR, logout, setup-complete, **PATCH /items/:id**,
   **profil i promjena lozinke (M-12)** i **rate limiter na stvarnom Redis-u**; unit obračun/PDF
-  token/alarm/R2/monitoring, health readiness (uključujući retry), request-id middleware i analitika.
-- `apps/web` — **13** testova (Vitest): format, obračun pregleda, parsiranje forme, pravila masovnih akcija.
+  token/alarm/R2/monitoring, health readiness (uključujući retry), request-id middleware, analitika i
+  **SMS adapter (`log` i generički `http`)**.
+- `apps/web` — **17** testova (Vitest): format, obračun pregleda, parsiranje forme, pravila masovnih akcija
+  i **Sentry instrumentacija** (`instrumentation.test.ts`).
 - `apps/mobile` — **97** testova (Jest): API klijenti (uključujući slanje fakture i **auto-refresh na 401**),
   auth store (biometrijsko otključavanje, odjava offline), sync engine + retry/backoff, offline
   draft/detalj, setup helperi, obračun, biometrijska prijava.
-- **Ukupno 320 unit/API testova + 9 Playwright e2e** — svi izvršeni lokalno 16. 11. 2026. i zeleni.
+- **Ukupno 332 unit/API testa + 9 Playwright e2e** — zadnji puni prolaz lokalno 21. 11. 2026. i zeleni.
 
 API e2e koristi pravu bazu i Redis; testovi `TRUNCATE`-uju bazu, pa poslije njih pokreni `pnpm db:seed`.
 
@@ -449,12 +480,14 @@ Web e2e je u CI-ju (`e2e` job: build + Chromium + `pnpm --filter web test:e2e`, 
 
 - **G0 operater ESIR** — fiskalizacija je mock; PFR/QR placeholder; storno fiskalizacija i PDV tretman
   refundacije čekaju odgovor operatera/računovođu.
-- **GitHub/CI** — remote nije povezan, pa CI i Android APK job nisu pokrenuti.
-- **Sentry/monitoring** — kod je spreman (`MonitoringService`, @sentry/node, no-op bez DSN-a);
-  čeka se DSN i instrumentacija web aplikacije (`@sentry/nextjs`).
+- **GitHub/CI** — repo je povezan i CI je zelen (4/4); ostaje testiranje APK-a na fizičkim uređajima.
+- **Sentry/monitoring** — kod je spreman: API/worker (`MonitoringService`) i web
+  (`apps/web/instrumentation.ts`), no-op bez DSN-a; čeka se DSN za provjeru testne greške i alarma.
 - **R2** — kod za upload i signed URL je spreman (`R2StorageService`, 302 na signed URL kad su ključevi
   postavljeni); bez kredencijala PDF se streamuje. Čekaju se R2 ključevi.
-- **SMS provajder** — `log` adapter; bez provajdera nema stvarnih podsjetnika/OTP-a.
+- **SMS provajder** — `log` adapter u razvoju; generički `http` adapter je spreman (T12-6, JSON POST +
+  Bearer + timeout). Čekaju se izbor provajdera, sender ID i ugovor; bez toga nema stvarnih
+  podsjetnika/OTP-a.
 - **Kredit kupca pri preplati** — nema polja u §5; preplata se odbija dok vlasnik/računovođa ne odluče
   o modelu kredita (S11-2b). Opt-out podsjetnika je urađen (S11-2a).
 - **Mobilni offline** je implementiran i typecheck-ovan, ali nije verifikovan na fizičkom uređaju

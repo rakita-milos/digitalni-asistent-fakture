@@ -36,6 +36,12 @@ const envSchema = z.object({
   JWT_REFRESH_TTL: z.string().default('30d'),
   RATE_LIMIT_ENABLED: z.enum(['true', 'false']).default('true'),
   SMS_PROVIDER: z.string().default('log'),
+  /// Sender ID i HTTP provider (T12-6): `SMS_PROVIDER=http` šalje POST na SMS_HTTP_URL.
+  SMS_SENDER_ID: z.string().trim().max(20).optional(),
+  SMS_API_KEY: z.string().optional(),
+  SMS_HTTP_URL: z.union([z.string().url(), z.literal('')]).optional(),
+  SMS_HTTP_TOKEN: z.string().optional(),
+  SMS_HTTP_TIMEOUT_MS: z.coerce.number().int().min(1000).max(15000).default(5000),
   /// E-mail: 'log' u razvoju (link se ispiše u log); pravi provajder u Sprintu 10.
   MAIL_PROVIDER: z.string().default('log'),
   MAIL_FROM: z.string().default('Digitalni Asistent <no-reply@digitalni-asistent.ba>'),
