@@ -43,6 +43,16 @@ describe('SmsService (T12-6)', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('prazan SMS_PROVIDER se tretira kao log (starije konfiguracije)', async () => {
+    Object.assign(env, { SMS_PROVIDER: '' });
+    const fetchMock = mockFetch();
+
+    await service.send('+38766123001', 'Test');
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(service.lastMessage).toEqual({ phone: '+38766123001', text: 'Test' });
+  });
+
   it('u produkciji log provajder pada (da ne bude tiho ne-slanje)', async () => {
     Object.assign(env, { NODE_ENV: 'production' });
     mockFetch();

@@ -23,7 +23,11 @@ export class SmsService {
 
     this.lastMessage = { phone, text };
 
-    if (env.SMS_PROVIDER === 'log') {
+    // Prazna vrijednost u .env (SMS_PROVIDER=) se ponaša kao `log` — starije konfiguracije
+    // ne smiju pasti na „nepoznat provajder“; u produkciji `log` i dalje baca grešku.
+    const provider = env.SMS_PROVIDER?.trim() || 'log';
+
+    if (provider === 'log') {
       if (env.NODE_ENV === 'production') {
         throw new Error('SMS provajder nije konfigurisan (SMS_PROVIDER=log u produkciji)');
       }
@@ -32,12 +36,12 @@ export class SmsService {
       return;
     }
 
-    if (env.SMS_PROVIDER === 'http') {
+    if (provider === 'http') {
       await this.sendHttp(phone, text);
       return;
     }
 
-    throw new ServiceUnavailableException(`Nepoznat SMS provajder: ${env.SMS_PROVIDER}`);
+    throw new ServiceUnavailableException(`Nepoznat SMS provajder: ${provider}`);
   }
 
   /** Generički HTTP adapter — provajder se bira konfiguracijom, ne kodom. */
