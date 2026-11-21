@@ -38,7 +38,7 @@
 | `WEB_APP_URL` | ✓ | — | — | linkovi u e-mailovima |
 | `PUBLIC_API_URL` | ✓ | — | — | linkovi u SMS/PDF porukama |
 | `MAIL_PROVIDER` / `MAIL_FROM` | ✓ | — | — | `log` samo u dev/test |
-| `SMS_PROVIDER` / `SMS_API_KEY` / `SMS_SENDER_ID` | ✓ | ✓ | — | pravi provajder za staging |
+| `SMS_PROVIDER=http` + `SMS_HTTP_URL` / `SMS_HTTP_TOKEN` / `SMS_SENDER_ID` | ✓ | ✓ | — | pravi provajder za staging; `log` u produkciji namjerno pada |
 | `ESIR_MODE=mock` | ✓ | ✓ | — | do G0; `esir` namjerno pada |
 | `FEATURE_*` | ✓ | ✓ | — | po potrebi isključiti rizično |
 | `R2_*` | ✓ | — | — | opciono; bez njih stream fallback |
@@ -144,7 +144,7 @@ bez odobrenja i prethodnog backup-a.
 
 ## 9. Šta treba prije prvog staging deploya
 
-- [ ] GitHub repo + CI zelen (Sprint 10, S10-1)
+- [x] GitHub repo + CI zelen (Sprint 10, S10-1; run 44935671851, 4/4)
 - [ ] Neon/Upstash/Vercel (ili VPS) nalozi i pristupi
 - [ ] Domen/subdomeni: `app-staging.<domen>`, `api-staging.<domen>`
 - [ ] Sentry projekat + DSN (API i web)
