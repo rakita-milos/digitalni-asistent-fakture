@@ -8,7 +8,7 @@ SaaS za fakturisanje i naplatu za mikro-poduzeća u Republici Srpskoj.
 Jedini izvor istine za proizvod, model, API i pravila je
 [`MASTER_PROMPT_IZgradnja_Aplikacije.md`](../MASTER_PROMPT_IZgradnja_Aplikacije.md) (izvan repoa).
 
-**Stanje:** Sprint 0–11 + S11-8 završeni, Sprint 12 (release engineering) u toku; **332 testa + 9 Playwright e2e zeleno**; repo je na GitHubu,
+**Stanje:** Sprint 0–11 + S11-8 završeni, Sprint 12 (release engineering) u toku; **333 testa + 9 Playwright e2e zeleno**; repo je na GitHubu,
 **CI zelen (4/4, 8 min 43 s)** i **APK artifact (~49 MB)** se pravi na svaki push. Aplikacija ima mobilni
 (`apps/mobile`), web (`apps/web`) i API (`apps/api`), mock fiskalizaciju do G0 i demo seed. Preostalo
 prije produkcije: test APK-a na 3 uređaja, integracije sa kredencijalima (SMS, Sentry, R2, staging), Play
@@ -360,11 +360,26 @@ worker padovi, queue backlog i SMS greške (kad DSN bude postavljen).
   (mobilni nije osvježavao access token → single-flight `/auth/refresh` na 401). Fizički uređaji ostaju.
 - **T12-4 (dio) Web Sentry instrumentacija** — `apps/web/instrumentation.ts` (`register` +
   `onRequestError`) i 4 Vitest testa; `@sentry/node` u `serverExternalPackages`; serverske greške nose
-  `request_id`/`http_path`/`route` tagove; bez DSN-a no-op. Ostaje: DSN, alarmi i testna greška.
+  `request_id`/`http_path`/`route` tagove; bez DSN-a no-op. **Provjereno lokalno:** kompajlirana
+  instrumentacija šalje envelope sa tagovima i release-om na lokalni kolektor
+  (`tools/local-integration/verify-sentry.mjs`, 4/4). Ostaje: DSN, alarmi i testna greška.
+- **T12-5 (dio) R2 signed URL** — PDF ruta provjerena protiv lokalnog S3 servera: **302** na presigned
+  URL sa `X-Amz-Signature`/`X-Amz-Expires=900`, objekat se servira (PDF), drugi poziv radi `HEAD` bez
+  novog uploada, a bez R2 kredencijala PDF se **streamuje** (200, bez `Location`). Ostaje: bucket i
+  ključevi, provjera isteka potpisa na stvarnom R2.
 - **T12-6 (dio) Generički SMS HTTP adapter** — `SmsService` režim `http`: JSON POST na `SMS_HTTP_URL`
   (`{ to, message, sender }`), `Authorization: Bearer`, sender ID, timeout 1–15 s, greška bez tijela
-  odgovora; 8 unit testova; nove varijable u `.env.example`. Ostaje: izbor provajdera, kredencijali,
-  test na 2 broja i opt-out provjera.
+  odgovora; 9 unit testova; nove varijable u `.env.example`. **Provjereno end-to-end** protiv lokalnog
+  SMS endpointa: OTP (6 cifara) i ručni podsjetnik stižu sa sender ID-om i Bearer tokenom
+  (`tools/local-integration/verify-integrations.mjs`, 15/15). Prazan `SMS_PROVIDER` se tretira kao `log`.
+  Ostaje: izbor provajdera, kredencijali, test na 2 broja i opt-out provjera.
+
+## Lokalna provjera integracija (bez cloud naloga)
+
+`tools/local-integration/` sadrži tri mini servera (S3, SMS, Sentry kolektor) i dvije skripte koje
+provjeravaju R2 signed URL, SMS `http` adapter i web Sentry instrumentaciju bez ijednog naloga:
+`verify-integrations.mjs` (15 provjera) i `verify-sentry.mjs` (4 provjere). Detalji i komande:
+[`tools/local-integration/README.md`](tools/local-integration/README.md).
 
 ## Testovi
 
@@ -374,7 +389,7 @@ pnpm --filter web test:e2e                 # Playwright e2e (web)
 ```
 
 - `packages/shared` — **51** testova: Zod šeme, numeracija, JIB, telefon, UUID v7, enumi, error envelope.
-- `apps/api` — **167** testova (32 fajla): e2e auth/firma/kupci/artikli/porezi, fakture (obračun,
+- `apps/api` — **168** testova (32 fajla): e2e auth/firma/kupci/artikli/porezi, fakture (obračun,
   draft, filteri, DRAFT-only, IDOR), fiskalizacija (mock, numeracija bez rupa, PRAČUN 409, PDF, ESIR pad),
   naplata, podsjetnici (uključujući opt-out), izvještaji, storno/refundacija, worker (retry + alarm),
   sync, idempotencija, reset lozinke, slanje fakture, GDPR, logout, setup-complete, **PATCH /items/:id**,
@@ -386,7 +401,7 @@ pnpm --filter web test:e2e                 # Playwright e2e (web)
 - `apps/mobile` — **97** testova (Jest): API klijenti (uključujući slanje fakture i **auto-refresh na 401**),
   auth store (biometrijsko otključavanje, odjava offline), sync engine + retry/backoff, offline
   draft/detalj, setup helperi, obračun, biometrijska prijava.
-- **Ukupno 332 unit/API testa + 9 Playwright e2e** — zadnji puni prolaz lokalno 21. 11. 2026. i zeleni.
+- **Ukupno 333 unit/API testa + 9 Playwright e2e** — zadnji puni prolaz lokalno 21. 11. 2026. i zeleni.
 
 API e2e koristi pravu bazu i Redis; testovi `TRUNCATE`-uju bazu, pa poslije njih pokreni `pnpm db:seed`.
 
