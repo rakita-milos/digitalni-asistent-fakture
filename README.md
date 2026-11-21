@@ -13,7 +13,8 @@ Jedini izvor istine za proizvod, model, API i pravila je
 (`apps/mobile`), web (`apps/web`) i API (`apps/api`), mock fiskalizaciju do G0 i demo seed. Preostalo
 prije produkcije: test APK-a na 3 uređaja, integracije sa kredencijalima (SMS, Sentry, R2, staging), Play
 objava, pilot i prava ESIR fiskalizacija poslije odgovora operatera — vidi
-[`PLAN_DALJEG_RADA_v2.md`](../PLAN_DALJEG_RADA_v2.md) (v1 je arhiva) i [`PROGRESS.md`](../PROGRESS.md).
+[`PLAN_DALJEG_RADA_v2.md`](PLAN_DALJEG_RADA_v2.md) (v1 je arhiva) i [`PROGRESS.md`](PROGRESS.md)
+(stanje projekta između chatova, sa dokazima).
 
 Operativni dokumenti: [`docs/STAGING_DEPLOY.md`](docs/STAGING_DEPLOY.md) (staging, deploy, rollback,
 backup/restore), [`docs/INCIDENT_RUNBOOK.md`](docs/INCIDENT_RUNBOOK.md) (incidenti i podrška),
