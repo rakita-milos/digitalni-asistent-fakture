@@ -16,8 +16,10 @@ objava, pilot i prava ESIR fiskalizacija poslije odgovora operatera — vidi
 [`PLAN_DALJEG_RADA_v2.md`](../PLAN_DALJEG_RADA_v2.md) (v1 je arhiva) i [`PROGRESS.md`](../PROGRESS.md).
 
 Operativni dokumenti: [`docs/STAGING_DEPLOY.md`](docs/STAGING_DEPLOY.md) (staging, deploy, rollback,
-backup/restore), [`docs/INCIDENT_RUNBOOK.md`](docs/INCIDENT_RUNBOOK.md) (incidenti i podrška) i
-[`docs/PRE_DEPLOYMENT_AUDIT.md`](docs/PRE_DEPLOYMENT_AUDIT.md) (audit checkliste sa dokazima).
+backup/restore), [`docs/INCIDENT_RUNBOOK.md`](docs/INCIDENT_RUNBOOK.md) (incidenti i podrška),
+[`docs/PRE_DEPLOYMENT_AUDIT.md`](docs/PRE_DEPLOYMENT_AUDIT.md) (audit checkliste sa dokazima) i
+[`docs/INTEGRATIONS_GO_LIVE.md`](docs/INTEGRATIONS_GO_LIVE.md) (Sentry/R2/SMS/staging/restore korak po
+korak). Sigurnost zavisnosti: [`docs/SECURITY_AUDIT.md`](docs/SECURITY_AUDIT.md).
 Priprema objave i pilota: [`docs/PLAY_RELEASE.md`](docs/PLAY_RELEASE.md) (Play listing, Data Safety,
 potpisivanje), [`docs/PILOT_KIT.md`](docs/PILOT_KIT.md) (onboarding, upitnik, metrike) i
 [`docs/ANALYTICS.md`](docs/ANALYTICS.md) (minimalni događaji bez PII). Pravni drafti:
@@ -380,6 +382,16 @@ worker padovi, queue backlog i SMS greške (kad DSN bude postavljen).
 provjeravaju R2 signed URL, SMS `http` adapter i web Sentry instrumentaciju bez ijednog naloga:
 `verify-integrations.mjs` (15 provjera) i `verify-sentry.mjs` (4 provjere). Detalji i komande:
 [`tools/local-integration/README.md`](tools/local-integration/README.md).
+
+## Sprint 13 — sigurnost i kvalitet (u toku, 21. 11. 2026)
+
+- **T13-5 (dio) Security pass** — `pnpm audit`: produkcija **0 high/critical** (34 → **6** nalaza:
+  4 moderate + 2 low), ukupno 46 → 13 (2 critical su dev-only `tinypool` u vitest-u). Popravljeno kroz
+  11 `pnpm.overrides` (multer, body-parser, `qs`, lodash, js-yaml, postcss, picomatch, glob, tmp,
+  deepmerge-ts, effect). Poslije: lint 5/5, typecheck 5/5, build 3/3, **333 testa**, e2e 9/9,
+  `prisma validate`/`migrate status` ✅. Prihvaćeni P2 i plan: [`docs/SECURITY_AUDIT.md`](docs/SECURITY_AUDIT.md).
+- **Go-live runbook** — [`docs/INTEGRATIONS_GO_LIVE.md`](docs/INTEGRATIONS_GO_LIVE.md) sa komandama,
+  provjerama, rollback-om i tabelom dokaza za Sentry DSN, R2, SMS, staging i restore.
 
 ## Testovi
 

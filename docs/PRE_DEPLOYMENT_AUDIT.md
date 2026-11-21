@@ -3,6 +3,8 @@
 > Verzija 1.0 · 13. 11. 2026. · Osnova: `Pre-Deployment_Checklist.docx` (32 stavke),
 > `PROGRESS.md`, `PLAN_DALJEG_RADA.md`. Pravilo: **bez dokaza nema čekiranja** —
 > svaka stavka ima fajl/test/komandu ili je izričito označena kao blokirana spolja.
+> Zavisnosti: rezultati `pnpm audit` i P2 plan su u [`SECURITY_AUDIT.md`](SECURITY_AUDIT.md)
+> (T13-5, 21. 11. 2026: produkcija 0 high/critical).
 
 ## 0. Kako je rađeno
 
