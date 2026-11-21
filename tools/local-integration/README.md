@@ -40,10 +40,20 @@ node apps/api/dist/main.js
 
 ## 4. Provjeri
 
+Sve odjednom (podiže mini servere i API, pa ih gasi):
+
+```bash
+pnpm test:integrations
+```
+
+Ili pojedinačno (uz već pokrenut API i servere):
+
 ```bash
 node tools/local-integration/verify-integrations.mjs   # R2 + SMS (15 provjera)
 node tools/local-integration/verify-sentry.mjs         # Sentry envelope (4 provjere)
 ```
+
+Isti runner koristi CI job **`integracije (R2 / SMS / Sentry)`** (`.github/workflows/ci.yml`).
 
 Logovi za dokaz: `fake-s3.log`, `fake-sms.log`, `fake-sentry.log`, `fake-sentry-raw.log`
 (u ovom folderu, nisu u gitu).

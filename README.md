@@ -378,10 +378,16 @@ worker padovi, queue backlog i SMS greške (kad DSN bude postavljen).
 
 ## Lokalna provjera integracija (bez cloud naloga)
 
-`tools/local-integration/` sadrži tri mini servera (S3, SMS, Sentry kolektor) i dvije skripte koje
-provjeravaju R2 signed URL, SMS `http` adapter i web Sentry instrumentaciju bez ijednog naloga:
-`verify-integrations.mjs` (15 provjera) i `verify-sentry.mjs` (4 provjere). Detalji i komande:
-[`tools/local-integration/README.md`](tools/local-integration/README.md).
+`tools/local-integration/` sadrži tri mini servera (S3, SMS, Sentry kolektor) i skripte koje
+provjeravaju R2 signed URL, SMS `http` adapter i web Sentry instrumentaciju bez ijednog naloga.
+Jedna komanda podiže servere i API, izvrši sve provjere i ugasi ih:
+
+```bash
+pnpm test:integrations    # 15 + 4 provjere (traži izgrađen api/web i seedovanu bazu)
+```
+
+Isto se izvršava u CI-ju kao job **`integracije (R2 / SMS / Sentry)`**. Detalji i pojedinačne
+komande: [`tools/local-integration/README.md`](tools/local-integration/README.md).
 
 ## Sprint 13 — sigurnost i kvalitet (u toku, 21. 11. 2026)
 
