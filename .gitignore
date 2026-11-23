@@ -22,6 +22,7 @@ blob-report/
 .env
 .env.*
 !.env.example
+!infra/.env.production.example
 *.keystore
 !android/app/debug.keystore
 # release potpisivanje (S11-4) — samo primjer ide u git

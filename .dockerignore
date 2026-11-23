@@ -1,0 +1,23 @@
+# Docker build context — samo ono što treba za image.
+.git
+.github
+.tools
+.turbo
+node_modules
+**/node_modules
+**/dist
+**/build
+apps/web/.next
+apps/mobile/android/app/build
+apps/mobile/android/.gradle
+apps/mobile/android/local.properties
+*.log
+.env
+.env.*
+!.env.example
+docs
+img
+extracted
+*.docx
+*.md
+!README.md

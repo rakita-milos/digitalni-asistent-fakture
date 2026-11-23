@@ -1,0 +1,119 @@
+name: digitalni-asistent-prod
+
+# Produkcijski/staging compose: API + worker + migracije, uz Postgres i Redis za self-hosted
+# ili lokalnu probu. Za managed servise (Neon/Upstash) obriši `postgres`/`redis` servise i
+# postavi DATABASE_URL/REDIS_URL na spoljne adrese — API/worker se ne mijenjaju.
+#
+# Lokalna proba:
+#   docker compose -f infra/docker-compose.prod.yml build
+#   docker compose -f infra/docker-compose.prod.yml up -d
+#   docker compose -f infra/docker-compose.prod.yml logs -f migrate api
+#   docker compose -f infra/docker-compose.prod.yml down -v
+#
+# Produkcija: obavezno postavi JWT_* i lozinke (vidi infra/.env.production.example).
+
+x-api-env: &api-env
+  NODE_ENV: production
+  DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-digitalni}:${POSTGRES_PASSWORD:-digitalni}@postgres:5432/${POSTGRES_DB:-digitalni_asistent}?schema=public}
+  REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+  API_PORT: '3001'
+  CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+  PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:3001}
+  WEB_APP_URL: ${WEB_APP_URL:-http://localhost:3000}
+  JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-promijeni-me-access-secret-32-bajta}
+  JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-promijeni-me-refresh-secret-32-bajta}
+  RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
+  ESIR_MODE: ${ESIR_MODE:-mock}
+  SMS_PROVIDER: ${SMS_PROVIDER:-log}
+  MAIL_PROVIDER: ${MAIL_PROVIDER:-log}
+  SENTRY_DSN: ${SENTRY_DSN:-}
+  SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-staging}
+  APP_RELEASE: ${APP_RELEASE:-local}
+  R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+  R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+  R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+  R2_BUCKET: ${R2_BUCKET:-}
+  SMS_HTTP_URL: ${SMS_HTTP_URL:-}
+  SMS_HTTP_TOKEN: ${SMS_HTTP_TOKEN:-}
+  SMS_SENDER_ID: ${SMS_SENDER_ID:-}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: da-prod-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-digitalni}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-digitalni}
+      POSTGRES_DB: ${POSTGRES_DB:-digitalni_asistent}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-digitalni} -d ${POSTGRES_DB:-digitalni_asistent}']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: da-prod-redis
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  migrate:
+    image: digitalni-asistent-api:${TAG:-local}
+    command: ['pnpm', '--filter', 'api', 'exec', 'prisma', 'migrate', 'deploy']
+    environment: *api-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  api:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    image: digitalni-asistent-api:${TAG:-local}
+    restart: unless-stopped
+    environment: *api-env
+    ports:
+      - '${API_HOST_PORT:-3001}:3001'
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 6
+
+  worker:
+    image: digitalni-asistent-api:${TAG:-local}
+    restart: unless-stopped
+    command: ['node', 'apps/api/dist/worker.js']
+    environment: *api-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
