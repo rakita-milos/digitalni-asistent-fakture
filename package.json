@@ -14,6 +14,8 @@
     "typecheck": "turbo run typecheck",
     "test": "pnpm -r --workspace-concurrency=1 run test",
     "test:integrations": "node tools/local-integration/run-all.mjs",
+    "smoke:staging": "node tools/staging-smoke.mjs",
+    "check:play": "node tools/check-play-assets.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:up": "docker compose -f infra/docker-compose.yml up -d",
