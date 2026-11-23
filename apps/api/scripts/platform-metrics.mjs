@@ -8,8 +8,11 @@
  *   cd apps/api && pnpm metrics:platform
  *
  * Izlaz je JSON (jedan objekat) — bez imena, e-mailova i telefona.
- * "Setup završen" je aproksimiran: firma ima EFD ID i bar jednu poresku stopu
- * (mobile setup se čuva lokalno u SQLite, pa server nema poseban flag).
+ *
+ * Napomena (S12B/G14): `users` tabela **nema `created_at`** (vidi `schema.prisma`), pa se
+ * „registracije“ mjere po `companies.created_at` — registracija uvijek kreira firmu.
+ * Prije toga je skript padao na `Unknown argument createdAt` i metrike pilota nisu radile.
+ * „Setup završen“ je aproksimiran: firma ima EFD ID i bar jednu poresku stopu.
  */
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
@@ -44,20 +47,29 @@ function byMonth(rows, dateField) {
 async function main() {
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-  const [users, recentUsers, companies, setupCompanies, invoices, payments, reminders] =
-    await Promise.all([
-      prisma.user.count(),
-      prisma.user.count({ where: { createdAt: { gte: since } } }),
-      prisma.company.count(),
-      prisma.company.count({
-        where: { efdId: { not: null }, taxRates: { some: {} } },
-      }),
-      prisma.invoice.findMany({
-        select: { status: true, issueDate: true, createdAt: true },
-      }),
-      prisma.payment.findMany({ select: { amountFening: true, paidAt: true } }),
-      prisma.reminder.findMany({ select: { status: true, sentAt: true } }),
-    ]);
+  const [
+    users,
+    companies,
+    recentCompanies,
+    companyRows,
+    setupCompanies,
+    invoices,
+    payments,
+    reminders,
+  ] = await Promise.all([
+    prisma.user.count(),
+    prisma.company.count(),
+    prisma.company.count({ where: { createdAt: { gte: since } } }),
+    prisma.company.findMany({ select: { createdAt: true } }),
+    prisma.company.count({
+      where: { efdId: { not: null }, taxRates: { some: {} } },
+    }),
+    prisma.invoice.findMany({
+      select: { status: true, issueDate: true, createdAt: true },
+    }),
+    prisma.payment.findMany({ select: { amountFening: true, paidAt: true } }),
+    prisma.reminder.findMany({ select: { status: true, sentAt: true } }),
+  ]);
 
   const issuedInvoices = invoices.filter((invoice) => invoice.status !== 'DRAFT');
   const paidSum = payments.reduce((sum, payment) => sum + payment.amountFening, 0n);
@@ -66,8 +78,10 @@ async function main() {
     generatedAt: new Date().toISOString(),
     registrations: {
       usersTotal: users,
-      usersLast30Days: recentUsers,
-      byMonth: byMonth(await prisma.user.findMany({ select: { createdAt: true } }), 'createdAt'),
+      companiesTotal: companies,
+      // `users.created_at` ne postoji — registracija = nova firma (vidi zaglavlje).
+      companiesLast30Days: recentCompanies,
+      byMonth: byMonth(companyRows, 'createdAt'),
     },
     setup: {
       companiesTotal: companies,

@@ -53,9 +53,14 @@ cd apps/api
 pnpm metrics:platform        # JSON na stdout
 ```
 
-Vraća: registracije (ukupno, 30 dana, po mjesecu), setup proxy, fakture po statusu i
-mjesecu izdavanja, naplate (broj + suma u feningu), podsjetnike (poslani/neuspjeli/zakazani).
+Vraća: **korisnike** (ukupno), **firme** (ukupno, posljednjih 30 dana, po mjesecu — registracija =
+nova firma jer `users` nema `created_at`), setup proxy, fakture po statusu i mjesecu izdavanja,
+naplate (broj + suma u feningu), podsjetnike (poslani/neuspjeli/zakazani).
 Skripta ne vraća PII i može se pokretati na stagingu/produkciji (read-only upiti).
+
+> Popravljeno 23. 11. 2026. (G14): skripta je padala na `Unknown argument createdAt` jer je
+> brojala korisnike po nepostojećem `users.created_at`; sada „registracije“ mjeri po
+> `companies.created_at`. Bez toga sedmični izvještaj pilota nije mogao raditi.
 
 ## 5. Ograničenja i sljedeći koraci
 
