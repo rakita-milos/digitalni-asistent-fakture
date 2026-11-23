@@ -248,6 +248,8 @@ jobs:
           mkdir -p node_modules
           ln -sfn ../../../node_modules/react-native node_modules/react-native
           ln -sfn ../../../node_modules/@react-native node_modules/@react-native
+          # Gradle Hermes task traži hermes-compiler relativno od apps/mobile, ne iz root-a.
+          ln -sfn ../../../node_modules/hermes-compiler node_modules/hermes-compiler
 
       # Release build pakuje JS kroz Metro, a Metro traži `packages/shared/dist`.
       # Debug APK to ne dira (dev server), pa je ovo moralo biti eksplicitno.
