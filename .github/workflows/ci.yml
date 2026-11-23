@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main, master, develop]
+    tags: ['v*']
   pull_request:
   workflow_dispatch:
     inputs:
@@ -245,14 +246,21 @@ jobs:
 
       # Bez keystore-a Gradle potpiše release debug ključem (vidi app/build.gradle).
       # Takav AAB služi samo kao dokaz da pipeline radi — ne smije na Play.
+      # Pravilo: na tag push se debug potpis dozvoljava samo za `-rc` tagove; pravi release
+      # tag (npr. v1.0.0) bez keystore-a pada, da se ne pošalje pogrešan AAB.
       - name: Provjera release keystore-a
         env:
           DA_KEYSTORE_PATH: ${{ secrets.DA_KEYSTORE_PATH }}
+          ALLOW_DEBUG_INPUT: ${{ inputs.allow_debug_signing }}
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           if [ -z "${DA_KEYSTORE_PATH:-}" ]; then
-            if [ "${{ inputs.allow_debug_signing }}" != "true" ]; then
-              echo "::error::DA_KEYSTORE_PATH nije postavljen, a allow_debug_signing=false."
+            if [ "$EVENT_NAME" = "push" ] && [[ "$REF_NAME" == *-rc* ]]; then
+              echo "::warning::RC tag bez keystore-a — AAB će biti potpisan DEBUG ključem (nije za Play)."
+            elif [ "$ALLOW_DEBUG_INPUT" != "true" ]; then
+              echo "::error::DA_KEYSTORE_PATH nije postavljen, a debug potpis nije dozvoljen."
               exit 1
             fi
             echo "::warning::DA_KEYSTORE_PATH nije postavljen — AAB će biti potpisan DEBUG ključem i nije za Play."
