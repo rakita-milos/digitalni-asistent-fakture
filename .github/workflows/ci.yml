@@ -5,6 +5,11 @@ on:
     branches: [main, master, develop]
   pull_request:
   workflow_dispatch:
+    inputs:
+      allow_debug_signing:
+        description: 'Dozvoli AAB potpisan debug ključem (samo provjera pipeline-a, ne za Play)'
+        type: boolean
+        default: true
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -92,6 +97,9 @@ jobs:
       - name: Build (web + api + shared)
         run: pnpm build
 
+      - name: Play grafički materijal (dimenzije, odnos, providnost)
+        run: node tools/check-play-assets.mjs
+
       - name: Prisma status
         run: pnpm --filter api exec prisma migrate status
 
@@ -173,6 +181,96 @@ jobs:
         with:
           name: digitalni-asistent-debug-apk
           path: apps/mobile/android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+  android-release:
+    name: android release AAB
+    runs-on: ubuntu-latest
+    # AAB za Play se pravi ručno (workflow_dispatch) ili na tag `v*`; ne na svaki push.
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # Isti pristup kao u `android` jobu: SDK je preinstaliran na runneru.
+      - name: Android SDK (preinstalled na runneru)
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          if [ ! -d "$SDK" ]; then echo "Android SDK nije na $SDK"; exit 1; fi
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          echo "SDK=$SDK"
+          ls "$SDK"
+
+      - name: Instalacija zavisnosti
+        run: pnpm install --frozen-lockfile
+
+      - name: Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-release-${{ runner.os }}-${{ hashFiles('apps/mobile/android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-release-${{ runner.os }}-
+
+      - name: Link React Native packages (pnpm hoisted)
+        working-directory: apps/mobile
+        run: |
+          mkdir -p node_modules
+          ln -sfn ../../../node_modules/react-native node_modules/react-native
+          ln -sfn ../../../node_modules/@react-native node_modules/@react-native
+
+      # Bez keystore-a Gradle potpiše release debug ključem (vidi app/build.gradle).
+      # Takav AAB služi samo kao dokaz da pipeline radi — ne smije na Play.
+      - name: Provjera release keystore-a
+        env:
+          DA_KEYSTORE_PATH: ${{ secrets.DA_KEYSTORE_PATH }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DA_KEYSTORE_PATH:-}" ]; then
+            if [ "${{ inputs.allow_debug_signing }}" != "true" ]; then
+              echo "::error::DA_KEYSTORE_PATH nije postavljen, a allow_debug_signing=false."
+              exit 1
+            fi
+            echo "::warning::DA_KEYSTORE_PATH nije postavljen — AAB će biti potpisan DEBUG ključem i nije za Play."
+          else
+            echo "Release keystore je postavljen."
+          fi
+
+      - name: Release AAB (bundleRelease)
+        working-directory: apps/mobile/android
+        env:
+          DA_KEYSTORE_PATH: ${{ secrets.DA_KEYSTORE_PATH }}
+          DA_KEYSTORE_PASSWORD: ${{ secrets.DA_KEYSTORE_PASSWORD }}
+          DA_KEY_ALIAS: ${{ secrets.DA_KEY_ALIAS }}
+          DA_KEY_PASSWORD: ${{ secrets.DA_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew bundleRelease --no-daemon
+
+      - name: Sačuvaj AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: digitalni-asistent-aab
+          path: apps/mobile/android/app/build/outputs/bundle/release/*.aab
           if-no-files-found: error
 
   integrations:
