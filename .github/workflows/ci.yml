@@ -100,6 +100,11 @@ jobs:
       - name: Play grafički materijal (dimenzije, odnos, providnost)
         run: node tools/check-play-assets.mjs
 
+      - name: Pilot alati (šablon + samoprovjera)
+        run: |
+          node tools/pilot/selftest.mjs
+          node tools/pilot/status.mjs --example --today=2026-11-23
+
       - name: Prisma status
         run: pnpm --filter api exec prisma migrate status
 

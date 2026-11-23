@@ -44,3 +44,7 @@ Thumbs.db
 # ostalo
 *.log
 .tools/
+
+# pilot — tabela učesnika sadrži PII (imena, telefoni, firme) i ostaje lokalno;
+# u git idu samo šablon (tracking.example.csv), alati i agregatni izvještaji.
+docs/pilot/tracking.csv
