@@ -479,6 +479,7 @@ pnpm --filter web test:e2e
 Operativni plan: [`docs/PILOT_PLAN.md`](docs/PILOT_PLAN.md) — kohorta 12–15 firmi, onboarding,
 NPS, trijaža, exit report i stop uslovi. Prateći dokumenti:
 [`docs/pilot/ONBOARDING.md`](docs/pilot/ONBOARDING.md),
+[`docs/pilot/RECRUITMENT.md`](docs/pilot/RECRUITMENT.md),
 [`docs/pilot/NPS.md`](docs/pilot/NPS.md),
 [`docs/pilot/TRIAGE.md`](docs/pilot/TRIAGE.md),
 [`docs/pilot/EXIT_REPORT_TEMPLATE.md`](docs/pilot/EXIT_REPORT_TEMPLATE.md).

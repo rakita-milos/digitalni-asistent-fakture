@@ -7,6 +7,7 @@
 
 Ostali dokumenti pilota:
 
+- [`pilot/RECRUITMENT.md`](pilot/RECRUITMENT.md) — pozivnice, kvalifikacija, pipeline 15 → 12
 - [`pilot/ONBOARDING.md`](pilot/ONBOARDING.md) — skripta poziva (20 min) i mjerenje „bez pomoći“
 - [`pilot/NPS.md`](pilot/NPS.md) — NPS upit, računanje i follow-up
 - [`pilot/TRIAGE.md`](pilot/TRIAGE.md) — severiteti i petak ritual

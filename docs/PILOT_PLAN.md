@@ -28,7 +28,8 @@ trijaža i šablon exit reporta (vidi §12). **Pilot još ne može početi** jer
 - **Profil:** mikro-firma ili majstor koji **redovno izdaje fakture** (5–50 mjesečno), koristi
   telefon za posao, Android 10+, spreman 4 sedmice + dva kratka upitnika.
 - **Izvori:** lična mreža, preporuke, grupe majstora/izvođača. Bez plaćenih oglasa — pilot
-  traži ljude koji će dati iskren feedback, ne publiku.
+  traži ljude koji će dati iskren feedback, ne publiku. Pozivnice, kvalifikacija i pipeline
+  (`invited → confirmed → onboarded → active`) su u [`docs/pilot/RECRUITMENT.md`](pilot/RECRUITMENT.md).
 - **Ne uključivati:** konkurenciju, firme koje ne izdaju fakture, iOS-only korisnike, ljude
   koji očekuju pravi fiskalni račun (G0 nije zatvoren).
 - **Evidencija:** `docs/pilot/tracking.csv` (kopija šablona `tracking.example.csv`). Fajl sadrži
@@ -141,6 +142,7 @@ Pilot se pauzira ako se dogodi bilo šta od ovoga:
 | Stavka | Gdje | Dokaz |
 |---|---|---|
 | Praćenje kohorte + kriteriji G14 | `tools/pilot/status.mjs` | `pnpm pilot:selftest` 5/5; primjer 12 učesnika |
+| Regrutacija i pipeline | `docs/pilot/RECRUITMENT.md` | pozivnice, kvalifikacija, 15 → 12 |
 | Sedmični izvještaj | `tools/pilot/weekly.mjs` | primjer `docs/pilot/reports/2026-W48.example.md` |
 | Onboarding skripta | `docs/pilot/ONBOARDING.md` | 20 min, mjerenje „bez pomoći“ |
 | NPS upit | `docs/pilot/NPS.md` | 9 pitanja + NPS, rok 7/21 dan |

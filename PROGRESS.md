@@ -140,6 +140,9 @@ Cilj: pripremiti sve što ne traži korisnike. **Start pilota je blokiran** dok 
       `users.created_at` (`Unknown argument createdAt`); sada registracije mjeri po
       `companies.created_at`. Provjereno na lokalnoj bazi: 2 korisnika, 2 firme, 50 faktura,
       23 naplate, 0 podsjetnika. Bez ovoga sedmični izvještaj pilota nije mogao raditi.
+- [x] **T14-1 (dio) Regrutacija** — `docs/pilot/RECRUITMENT.md`: kriteriji, pipeline
+      `invited → confirmed → onboarded → active` (15 → 12), WhatsApp/e-mail pozivnica, follow-up
+      i potvrda termina, šta se ne obećava, etika i privatnost.
 - [x] **T14-1 (dio) Onboarding i NPS** — `docs/pilot/ONBOARDING.md` (20 min, skripta poziva,
       mjerenje „bez pomoći“ štopericom, e-mail poslije poziva) i `docs/pilot/NPS.md`
       (pitanja, 7./21. dan, računanje, follow-up za kritičare).
