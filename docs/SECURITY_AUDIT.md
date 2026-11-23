@@ -1,17 +1,23 @@
-# Security audit — zavisnosti (T13-5)
+﻿# Security audit — zavisnosti (T13-5)
 
-> Datum: 21. 11. 2026. · Alat: `pnpm audit` (pnpm 10.34.9) · Scope: sve workspace pakete
+> Datum: **23. 11. 2026.** (prvi prolaz 21. 11.) · Alat: `pnpm audit` · Scope: sve workspace pakete
 > (`shared`, `config`, `api`, `web`, `mobile`) + root.
 > Ovaj dokument je dokaz za T13-5 („0 P1, P2 planiran“); nije zamjena za pentest.
+> Napomena: brojevi su veći od prvog prolaza jer je advisory baza narasla (webpack, minimatch);
+> **nema novih high/critical u produkciji.**
 
 ## 1. Rezultat
 
-| Skup | Prije | Poslije (override-i) |
-|---|---|---|
-| **Produkcija** (`--prod`) | 34 (16 high, 14 moderate, 4 low) | **6 (0 high, 0 critical, 4 moderate, 2 low)** |
-| **Sve** (uključujući dev) | 46 (2 critical, 19 high, 20 moderate, 5 low) | **13 (2 critical, 0 high, 9 moderate, 2 low)** |
+| Skup | Prije override-a | 21. 11. | **23. 11.** |
+|---|---|---|---|
+| **Produkcija** (`--prod`) | 34 (16 high, 14 moderate, 4 low) | 6 (0 high, 0 critical, 4 moderate, 2 low) | **8 (0 high, 0 critical, 4 moderate, 4 low)** |
+| **Sve** (uključujući dev) | 46 (2 critical, 19 high, 20 moderate, 5 low) | 13 (2 critical, 0 high, 9 moderate, 2 low) | **16 (2 critical, 0 high, 10 moderate, 4 low)** |
 
 **P1 (kritično/visoko u produkciji): 0.** Preostala 2 critical su isključivo dev (`vitest>tinypool`).
+
+Nove stavke u drugom prolazu (advisory baza, ne novi kod): 2× `webpack` **low** (build-time, kroz
+`@sentry/bundler-plugins`) i `minimatch` **moderate** (kroz `typescript-eslint` u `packages/config`).
+Nijedna nije u runtime putanji zahtjeva.
 
 ## 2. Override-i (root `package.json` → `pnpm.overrides`)
 
@@ -33,12 +39,15 @@ Ciljano samo ranjivi rasponi, bez major skokova gdje nije bilo sigurno:
 
 Poslije override-a provjereno: `prisma validate` ✅, `prisma migrate status` ✅ (7 migracija, up to date).
 
-## 3. Verifikacija poslije override-a (21. 11. 2026)
+## 3. Verifikacija poslije override-a (23. 11. 2026)
 
 - `pnpm lint` 5/5, `pnpm typecheck` 5/5, `pnpm build` 3/3
-- Testovi: **333** — api **168/168**, web **17/17**, shared 51, mobile **97/97**
-- Playwright e2e **9/9** (49,4 s)
-- `pnpm audit --prod` → 0 high/critical
+- Testovi: **343** — api **168/168**, web **25/25**, shared 51, mobile **99/99**
+- Playwright e2e **12/12** (14,6 s; dodati legal testovi)
+- `pnpm audit --prod` → **0 high/critical** (8 nalaza: 4 moderate, 4 low)
+- `pnpm check:play` → Play materijal OK (5 screenshotova + ikona/feature graphic)
+
+Prvi prolaz (21. 11.): 333 testa, e2e 9/9, audit 6 nalaza — vidi istoriju u `PROGRESS.md`.
 
 ## 4. Prihvaćeni rizici (P2, planirano)
 

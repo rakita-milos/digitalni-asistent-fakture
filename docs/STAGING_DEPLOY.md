@@ -1,6 +1,6 @@
 # Staging, deploy i backup — operativni runbook
 
-> Verzija 1.0 · 13. 11. 2026. · Prati: `PLAN_DALJEG_RADA.md` (Sprint 10), `MASTER_PROMPT` §13/§21,
+> Verzija 1.1 · 23. 11. 2026. · Prati: `PLAN_DALJEG_RADA_v3.md` (T12-7/T12-8), `MASTER_PROMPT` §13/§21,
 > `Pre-Deployment_Checklist`. Cilj: ponovljiv deploy bez improvizacije i dokaziv rollback.
 
 ## 1. Principi
@@ -62,7 +62,7 @@ Tajne u GitHub Secrets (ili provider secret store): `DATABASE_URL`, `REDIS_URL`,
 
 ## 5. Rutina za svaki release
 
-1. CI zelen na `main` (lint, typecheck, test, build, e2e, android).
+1. CI zelen na `main` (**5/5**: verify, compose, android, integracije, e2e).
 2. **Backup** baze prije migracija (§6.1).
 3. `pnpm db:deploy` — migracije **prije** aplikacije.
 4. Deploy API → worker → web (isti commit; `APP_RELEASE` = SHA).
@@ -131,6 +131,25 @@ bez odobrenja i prethodnog backup-a.
 
 ## 8. Smoke checklist (5 min, staging i produkcija)
 
+### 8.1 Automatski smoke (obavezno poslije svakog deploya)
+
+```bash
+STAGING_API_URL=https://api-staging.<domen> \
+SMOKE_EMAIL=smoke@<domen> \
+SMOKE_PASSWORD='<lozinka>' \
+pnpm smoke:staging          # ili: node tools/staging-smoke.mjs --json
+```
+
+Skripta provjerava **8 stvari**: `/health` (baza + Redis), prijava, kupci, lista faktura, detalj,
+PDF (302 na R2 signed URL sa `X-Amz-Expires ≤ 900`, ili stream `%PDF`), kreiranje drafta i izdavanje
+(mock) sa PFR-om. Exit kod je 1 na prvi pad, `--json` daje mašinski čitljiv izlaz za CI.
+
+Napomena: skripta kreira jednu DRAFT→ISSUED fakturu sa napomenom „SMOKE TEST“ na demo firmi —
+to je namjerno i vidljivo u staging podacima. `--no-create` preskače kreiranje (samo čitanje + PDF).
+Ne ispisuje e-mail, lozinku ni tokene.
+
+### 8.2 Ručna checklista
+
 - [ ] `GET /health` → `{ status: "ok" }`
 - [ ] Prijava demo/vlasnik nalogom; cookie postavljen
 - [ ] Kreiranje kupca i fakture; izdavanje (mock) → PFR/QR
@@ -144,7 +163,7 @@ bez odobrenja i prethodnog backup-a.
 
 ## 9. Šta treba prije prvog staging deploya
 
-- [x] GitHub repo + CI zelen (Sprint 10, S10-1; run 44935671851, 4/4)
+- [x] GitHub repo + CI zelen (**5/5**, run 44959718369; Sprint 12B dodao provjeru Play materijala)
 - [ ] Neon/Upstash/Vercel (ili VPS) nalozi i pristupi
 - [ ] Domen/subdomeni: `app-staging.<domen>`, `api-staging.<domen>`
 - [ ] Sentry projekat + DSN (API i web)

@@ -1,4 +1,4 @@
-# PROGRESS — Digitalni Asistent
+﻿# PROGRESS — Digitalni Asistent
 
 > Ovaj fajl je „memorija“ projekta između chatova. Ažurira se na kraju svake sesije.
 > Na početku svakog novog chata se prilaže uz MASTER PROMPT.
@@ -6,10 +6,11 @@
 
 ## Trenutni sprint
 
-**Sprint 12 — release engineering** (od 2026-11-16, u toku). Repo je na GitHubu, **CI zelen (4/4)** i
-**APK artifact postoji**; web Sentry instrumentacija (T12-4) i generički SMS HTTP adapter (T12-6) su
-urađeni i testirani bez kredencijala. Sledeće: test matrica na 3 uređaja i integracije (DSN, R2, SMS
-ugovor, staging). Plan: `PLAN_DALJEG_RADA_v2.md`.
+**Sprint 12 — release engineering** (od 2026-11-16, u toku). CI je zelen **5/5** i APK artifact
+postoji; web Sentry instrumentacija (T12-4) i generički SMS HTTP adapter (T12-6) su urađeni.
+**Sprint 12B (23. 11.) je završen:** javne pravne stranice, CI job za AAB, staging smoke skripta,
+Play screenshotovi i osvježen audit. Sledeće: **G12** — Sentry DSN, R2, SMS, staging, restore i
+matrica na 3 uređaja. Plan: `PLAN_DALJEG_RADA_v3.md`.
 
 ### Sprint 12 — release engineering (2026-11-16, u toku)
 
@@ -80,6 +81,35 @@ ugovor, staging). Plan: `PLAN_DALJEG_RADA_v2.md`.
 - [ ] **Plan v3.0 (23. 11.)** — G12 pomjeren na **30.11.** (2/8 uslova: CI i APK); četiri kod-rupe
       (pravne stranice, AAB job, staging smoke, Play screenshotovi) idu u **Sprint 12B** i ne čekaju
       naloge. Detalji: `PLAN_DALJEG_RADA_v3.md`.
+
+### Sprint 12B — kod do kapije (2026-11-23, završen)
+
+Cilj: zatvoriti kod-rupe koje ne čekaju naloge. **Sve provjere lokalno zelene.**
+
+- [x] **S12B-1 Javne pravne stranice** — `/privacy` i `/terms` (`apps/web/app/(legal)/`,
+      `components/legal-document.tsx`, tekst u `lib/legal.ts`, verzija 1.0 · 23.11.2026.);
+      linkovi na prijavi, u `(app)` podnožju i na mobilnom ekranu **Nalog**; `config.ts` dobio
+      `PRIVACY_URL`/`TERMS_URL`. Testovi: `lib/legal.test.ts` (8) + `e2e/legal.spec.ts` (3) +
+      `config.test.ts` (2). Placeholderi `<...>` ostaju vidljivi do pravnika.
+- [x] **S12B-2 CI job za AAB** — `.github/workflows/ci.yml` job **`android-release`**
+      (`bundleRelease`, artifact `digitalni-asistent-aab`, `workflow_dispatch` + tag `v*`,
+      guard `allow_debug_signing`); `versionName "1.0.0"` (code 1); uputstvo u `docs/PLAY_RELEASE.md`
+      §2. Bez `DA_*` secrets AAB je debug-potpisan (samo dokaz pipeline-a).
+- [x] **S12B-3 Staging smoke** — `tools/staging-smoke.mjs` + `pnpm smoke:staging`: 8 provjera
+      (health, prijava, kupci, fakture, detalj, PDF 302/stream, draft, izdavanje + PFR), `--json`,
+      `--no-create`, bez PII u logu; uputstvo u `docs/STAGING_DEPLOY.md` §8.1.
+      **Lokalno: 8/8 za 1,0 s** (Postgres 16 + Redis 7 + API + demo seed).
+- [x] **S12B-4 Play screenshotovi** — 5 snimaka u `apps/mobile/assets/screenshots/`
+      (1080×2160, 2:1; prijava, fakture, detalj, naplata, nalog) + `tools/check-play-assets.mjs`
+      (`pnpm check:play`, u CI `verify`); feature graphic pretvoren u 24-bit PNG.
+- [x] **S12B-5 Osvježen audit** — `docs/PRE_DEPLOYMENT_AUDIT.md` v1.2: **24 ✅ / 7 ⚠️ / 0 ❌**
+      (31 stavka); `docs/SECURITY_AUDIT.md` v2: produkcija **8 nalaza (4 moderate, 4 low), 0
+      high/critical** (advisory baza narasla: webpack ×2 low, minimatch moderate).
+- [x] **Verifikacija (23. 11., lokalno)** — `pnpm lint` 5/5, `pnpm typecheck` 5/5, `pnpm build` 3/3,
+      **343 testa** (shared 51, api 168, web 25, mobile 99), Playwright **e2e 12/12** (14,6 s),
+      `pnpm check:play` OK, `pnpm audit --prod` 0 high/critical, `prisma migrate deploy` (7 migracija).
+- [ ] **Push + CI run** — commit je lokalni; `git push` u ovoj sesiji nije prošao jer nema GitHub
+      kredencijala (`gh` nije prijavljen). Pokrenuti push i provjeriti CI 5/5 + `android-release`.
 
 ### Sprint 13 — store i pravni paket (u pripremi, 2026-11-21)
 
@@ -516,7 +546,8 @@ ugovor, staging). Plan: `PLAN_DALJEG_RADA_v2.md`.
 Plan daljeg rada: **`PLAN_DALJEG_RADA_v3.md`** (v3.0, 2026-11-23) i `Plan_Daljeg_Rada_v3.docx`;
 v2 (`PLAN_DALJEG_RADA_v2.md`, 16.11.) i v1 (12.11.) su arhiva. Sprintske kapije: **G12 30.11.**
 (CI/APK/integracije/uređaji), **G13 7.12.** (AAB + pravni paket), **G14 11.1.2027.** (pilot).
-Sprint 12B (24–26.11.) je kod koji ne čeka naloge: pravne stranice, AAB job, staging smoke, screenshotovi.
+Sprint 12B je **završen 23. 11.** (prije roka): pravne stranice, AAB job, staging smoke, screenshotovi
+i osvježen audit — detalji u sekciji „Sprint 12B“. Sledeće: push + CI, pa **G12** (integracije i uređaji).
 - **Sprint 11 (stanje 2026-11-13)** — urađeno: opt-out podsjetnika (`d995cb2`), incident runbook
   (`c711c96`), Play/legal drafti (`ae56bbb`), **S11-1 audit** (`docs/PRE_DEPLOYMENT_AUDIT.md`),
   **S11-5 pilot kit** (`docs/PILOT_KIT.md`), **S11-7 analitika** (`docs/ANALYTICS.md`,

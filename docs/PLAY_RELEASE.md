@@ -1,6 +1,6 @@
 # Play objava — priprema i checklist
 
-> Verzija 1.0 · 13. 11. 2026. · Prati: `PLAN_DALJEG_RADA.md` (Sprint 11), `MASTER_PROMPT` §13,
+> Verzija 1.1 · 23. 11. 2026. · Prati: `PLAN_DALJEG_RADA_v3.md` (Sprint 12B/13A), `MASTER_PROMPT` §13,
 > `Pre-Deployment_Checklist`. Cilj: objava bez odbijanja i bez mijenjanja package name-a poslije prve objave.
 
 ## 1. Odluke prije prve objave (nepovratno)
@@ -18,8 +18,11 @@ closed testinga prije produkcije. Za organizacioni account to nije obavezno, ali
 
 ## 2. Potpisivanje i AAB
 
-**Stanje 2026-11-13:** signing config je implementiran u `apps/mobile/android/app/build.gradle`
-(`signingConfigs.release`), ali **AAB još nije napravljen** — lokalno nema JDK 17.
+**Stanje 2026-11-23:** signing config je u `apps/mobile/android/app/build.gradle`
+(`signingConfigs.release`), **CI job `android-release`** pravi AAB (`bundleRelease`) i uploaduje
+artifact `digitalni-asistent-aab`. Verzija je **1.0.0 (1)**. Bez `DA_*` secrets AAB se potpisuje
+**debug** ključem — to je samo dokaz da pipeline radi i **ne šalje se na Play**; sa secrets ide
+potpisan release AAB.
 
 ```bash
 # 1) jednom, lokalno (JDK 17); keystore NIKAD u repo
@@ -29,21 +32,25 @@ keytool -genkeypair -v -keystore digitalni-asistent-release.keystore \
 # 2) kopirati keystore.properties.example u keystore.properties i upisati putanju/lozinke
 #    (ili postaviti DA_KEYSTORE_PATH, DA_KEYSTORE_PASSWORD, DA_KEY_ALIAS, DA_KEY_PASSWORD u CI)
 
-# 3) build release AAB
+# 3) build release AAB (lokalno ili kroz CI, vidi dolje)
 cd apps/mobile/android
 ./gradlew bundleRelease
 # izlaz: app/build/outputs/bundle/release/app-release.aab
 ```
+
+**CI (preporučeno):** Actions → *CI* → *Run workflow* (`android-release` job). Input
+`allow_debug_signing` ostaviti `true` samo za prvi probni run; za Play ga postaviti na `false`
+i dodati secrets `DA_KEYSTORE_PATH` (base64 dekodiran na runneru ili putanja), `DA_KEYSTORE_PASSWORD`,
+`DA_KEY_ALIAS`, `DA_KEY_PASSWORD`. Job se pokreće i na tag `v*`.
 
 - Signing config čita `android/keystore.properties` (lokalno) ili env varijable
   `DA_KEYSTORE_PATH`/`DA_KEYSTORE_PASSWORD`/`DA_KEY_ALIAS`/`DA_KEY_PASSWORD` (CI).
   Bez keystore-a release build ostaje na debug potpisu — **AAB za Play se tako ne šalje**.
 - `keystore.properties` i `*.keystore` su u `.gitignore` (osim RN `debug.keystore`).
 - `versionCode`/`versionName` u `android/app/build.gradle` — povećavati za svaku objavu
-  (trenutno 1 / "1.0"; prvi Play build može ostati 1).
+  (trenutno **1 / "1.0.0"**; prvi Play build ostaje `1`).
 - Debug APK (`assembleDebug`) ostaje za interni test; release AAB ide u Play.
-- CI trenutno pravi **samo debug APK**; release job dodati kad budu GitHub Secrets
-  (keystore base64 + 3 lozinke) i JDK 17 u runneru (već je u `android` jobu).
+- CI: `android` job pravi debug APK na svaki push; `android-release` pravi AAB ručno/tag.
 
 ## 3. Store listing (tekst draft)
 
@@ -77,13 +84,28 @@ cd apps/mobile/android
 
 ### Grafički materijal
 
-| Element | Zahtjev | Stanje 2026-11-13 |
+| Element | Zahtjev | Stanje 2026-11-23 |
 |---|---|---|
-| Ikona | 512×512 PNG, bez providnosti | ✅ placeholder: `apps/mobile/assets/branding/play-icon-512.png` |
-| Feature graphic | 1024×500 PNG/JPEG | ✅ placeholder: `apps/mobile/assets/branding/play-feature-graphic-1024x500.png` |
-| Screenshotovi | 2–8 telefonskih (1080×1920 ili 9:16), bez lažnih podataka | ❌ treba snimiti na uređaju (JDK 17/APK) |
+| Ikona | 512×512 PNG (32-bit, providnost dozvoljena) | ✅ placeholder: `apps/mobile/assets/branding/play-icon-512.png` |
+| Feature graphic | 1024×500 JPEG ili 24-bit PNG (bez providnosti) | ✅ placeholder: `apps/mobile/assets/branding/play-feature-graphic-1024x500.png` |
+| Screenshotovi | 4–8 telefonskih, 320–3840 px, odnos ≤ 2:1, bez providnosti | ✅ **5 snimaka** u `apps/mobile/assets/screenshots/` (1080×2160) |
 | Tabela/tablet | opciono | — |
 | Launcher ikone | `mipmap-*` sve gustine | ✅ placeholder generisan u svim gustinama |
+
+Snimci (redom kojim idu u listing): `01-prijava.png`, `02-fakture.png`, `03-faktura-detalj.png`,
+`04-faktura-naplata.png`, `05-nalog.png`. Snimljeni su na emulatoru (Android 17 / API 37) sa demo
+podacima; originali su 1080×2400 pa su odsječeni na 2:1 (Play dozvoljava do 2:1, preporuka je 9:16).
+
+**Regenerisanje u 9:16 (poslije finalnog brenda):**
+
+```bash
+adb shell wm size 1080x1920        # 9:16, Play preporuka
+# proći kroz ekrane i sačuvati: adb exec-out screencap -p > 01-prijava.png
+pnpm check:play                    # provjera dimenzija/odnosa/providnosti
+```
+
+Provjera materijala je u CI-ju (`node tools/check-play-assets.mjs`) i pada ako nedostaje snimak,
+ako je odnos > 2:1 ili ako PNG ima providnost.
 
 Placeholder materijal se regeneriše skriptom (bez native zavisnosti):
 
@@ -128,11 +150,15 @@ Popunjava se tačno prema stvarnom ponašanju aplikacije. Sažetak:
 - [ ] Finalni package name i ime brenda
 - [ ] Release keystore generisan i sačuvan (2 kopije, sigurno)
 - [x] Signing config za release u `build.gradle` (keystore.properties / env)
-- [ ] `versionCode`/`versionName` postavljeni; AAB se potpisuje release ključem
-- [x] Placeholder ikona/feature graphic i launcher ikone generisane
-- [ ] Privacy policy i ToS objavljeni na stabilnim URL-ovima
+- [x] CI job `android-release` pravi AAB (`bundleRelease`, artifact `digitalni-asistent-aab`)
+- [x] `versionCode`/`versionName` postavljeni (**1 / "1.0.0"**)
+- [ ] AAB potpisan **release** ključem (čeka keystore; bez njega CI potpisuje debug ključem)
+- [x] Placeholder ikona/feature graphic i launcher ikone generisane (feature graphic 24-bit)
+- [x] Screenshotovi (5 snimaka, 1080×2160) i provjera `pnpm check:play` u CI-ju
+- [ ] Finalna ikona/feature graphic od dizajnera (zamijeniti placeholdere)
+- [x] Stranice `/privacy` i `/terms` implementirane u webu (javne, bez prijave)
+- [ ] Privacy policy i ToS **objavljeni na stabilnim URL-ovima** (čeka domen + pravnika)
 - [ ] Data Safety popunjen tačno (gore)
-- [ ] Screenshotovi (iz aplikacije, 2–8); finalna ikona/feature graphic od dizajnera
 - [ ] Content rating upitnik
 - [ ] Interni test na 3 uređaja (jeftin/srednji/nov) — APK/AAB
 - [ ] Nema `debuggable`/test naloga u release build-u; API URL je produkcijski

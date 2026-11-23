@@ -1,4 +1,4 @@
-# Digitalni Asistent — Sprint 0–11 (u pripremi)
+# Digitalni Asistent — Sprint 0–12B
 
 [![CI](https://github.com/rakita-milos/digitalni-asistent-fakture/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/rakita-milos/digitalni-asistent-fakture/actions/workflows/ci.yml)
 
@@ -8,12 +8,13 @@ SaaS za fakturisanje i naplatu za mikro-poduzeća u Republici Srpskoj.
 Jedini izvor istine za proizvod, model, API i pravila je
 [`MASTER_PROMPT_IZgradnja_Aplikacije.md`](../MASTER_PROMPT_IZgradnja_Aplikacije.md) (izvan repoa).
 
-**Stanje:** Sprint 0–11 + S11-8 završeni, Sprint 12 (release engineering) u toku; **333 testa + 9 Playwright e2e zeleno**; repo je na GitHubu,
+**Stanje:** Sprint 0–12B završeni (12B: pravne stranice, AAB job, staging smoke, Play materijal);
+**343 testa + 12 Playwright e2e zeleno**; repo je na GitHubu,
 **CI zelen (5/5)** i **APK artifact (~49 MB)** se pravi na svaki push. Aplikacija ima mobilni
 (`apps/mobile`), web (`apps/web`) i API (`apps/api`), mock fiskalizaciju do G0 i demo seed. Preostalo
 prije produkcije: test APK-a na 3 uređaja, integracije sa kredencijalima (SMS, Sentry, R2, staging), Play
 objava, pilot i prava ESIR fiskalizacija poslije odgovora operatera — vidi
-[`PLAN_DALJEG_RADA_v2.md`](PLAN_DALJEG_RADA_v2.md) (v1 je arhiva) i [`PROGRESS.md`](PROGRESS.md)
+[`PLAN_DALJEG_RADA_v3.md`](PLAN_DALJEG_RADA_v3.md) (v2 i v1 su arhiva) i [`PROGRESS.md`](PROGRESS.md)
 (stanje projekta između chatova, sa dokazima).
 
 Operativni dokumenti: [`docs/STAGING_DEPLOY.md`](docs/STAGING_DEPLOY.md) (staging, deploy, rollback,
@@ -416,12 +417,13 @@ pnpm --filter web test:e2e                 # Playwright e2e (web)
   **profil i promjena lozinke (M-12)** i **rate limiter na stvarnom Redis-u**; unit obračun/PDF
   token/alarm/R2/monitoring, health readiness (uključujući retry), request-id middleware, analitika i
   **SMS adapter (`log` i generički `http`)**.
-- `apps/web` — **17** testova (Vitest): format, obračun pregleda, parsiranje forme, pravila masovnih akcija
-  i **Sentry instrumentacija** (`instrumentation.test.ts`).
-- `apps/mobile` — **97** testova (Jest): API klijenti (uključujući slanje fakture i **auto-refresh na 401**),
+- `apps/web` — **25** testova (Vitest): format, obračun pregleda, parsiranje forme, pravila masovnih akcija,
+  **Sentry instrumentacija** (`instrumentation.test.ts`) i **pravni tekstovi** (`lib/legal.test.ts`:
+  sekcije, podprocesori, placeholderi, GDPR teme, PRAČUN).
+- `apps/mobile` — **99** testova (Jest): API klijenti (uključujući slanje fakture i **auto-refresh na 401**),
   auth store (biometrijsko otključavanje, odjava offline), sync engine + retry/backoff, offline
-  draft/detalj, setup helperi, obračun, biometrijska prijava.
-- **Ukupno 333 unit/API testa + 9 Playwright e2e** — zadnji puni prolaz lokalno 21. 11. 2026. i zeleni.
+  draft/detalj, setup helperi, obračun, biometrijska prijava i **URL-ovi pravnih stranica**.
+- **Ukupno 343 unit/API testa + 12 Playwright e2e** — zadnji puni prolaz lokalno 23. 11. 2026. i zeleni.
 
 API e2e koristi pravu bazu i Redis; testovi `TRUNCATE`-uju bazu, pa poslije njih pokreni `pnpm db:seed`.
 
@@ -439,7 +441,8 @@ pnpm --filter web test:e2e
   preskoči sa `E2E_SKIP_DB_SETUP=1` ako je baza već pripremljena.
 - Scenariji: prijava, pogrešna lozinka, zaboravljena lozinka, nevažeći reset token, odjava,
   kreiranje drafta → izdavanje → PDF, lista faktura, masovno izdavanje, **artikli u podešavanjima
-  (dodavanje → izmjena cijene → arhiviranje)**.
+  (dodavanje → izmjena cijene → arhiviranje)** i **javne pravne stranice** (`/privacy`, `/terms`,
+  link sa prijave).
 - Artefakti (`test-results/`, `playwright-report/`) su u `.gitignore`.
 
 ## Skripte
@@ -453,18 +456,36 @@ pnpm --filter web test:e2e
 | `pnpm build` | shared → api → web (mobile Gradle build nije u CI-ju) |
 | `pnpm format` / `format:check` | Prettier |
 | `pnpm db:*` | Docker baza, migracije, seed, Prisma Studio |
+| `pnpm smoke:staging` | Staging smoke (8 provjera: health → prijava → fakture → PDF → draft → izdavanje); `--json`, `--no-create` |
+| `pnpm check:play` | Play materijal: dimenzije, odnos ≤ 2:1, bez providnosti (isto kao CI) |
 | `pnpm --filter api metrics:platform` | JSON platform-metrike za pilot (bez PII) |
 | `pnpm --filter api db:explain` | EXPLAIN provjera lista faktura/aging (pravi i čisti 40×500 dijagnostičkih faktura) |
 
+## Pravne stranice (javno)
+
+- `/privacy` — politika privatnosti; `/terms` — uslovi korištenja. Obje su javne (bez prijave),
+  server-rendered, sa verzijom i datumom (`lib/legal.ts`), i linkovane sa prijave, iz aplikacije
+  i sa mobilnog ekrana **Nalog**.
+- Tekst je **radna verzija** iz `docs/LEGAL_DRAFT.md`; mjesta `<...>` (naziv firme, adresa, JIB,
+  e-mail, rokovi, SLA, mjesto) popunjava firma, a tekst potvrđuje pravnik prije objave.
+- Mobilni URL-ovi su u `apps/mobile/src/config.ts` (`WEB_URL`, `PRIVACY_URL`, `TERMS_URL`);
+  `WEB_URL` je placeholder do finalnog domena i **mora se zamijeniti prije Play objave**.
+
 ## CI (`.github/workflows/ci.yml`)
 
-GitHub Actions, Node 22, pnpm 10.34.9, **Postgres 16 + Redis 7** service:
-`pnpm install --frozen-lockfile` → `prisma generate` → `prisma validate` → `prisma migrate deploy` →
-`lint` → `typecheck` → `test` → `build` → `prisma migrate status`, plus `docker compose config`.
+GitHub Actions, Node 22, pnpm 10.34.9, **Postgres 16 + Redis 7** service. **5 jobova na svaki
+push/PR + jedan ručni:**
 
-Android debug build je u CI-ju (`android` job: JDK 17 + Android SDK, `assembleDebug`, APK kao artifact).
-Web e2e je u CI-ju (`e2e` job: build + Chromium + `pnpm --filter web test:e2e`, izvještaj kao artifact).
-**Napomena:** repo još nije povezan na GitHub, pa CI jobovi nisu pokrenuti — vidi Sprint 10 u planu.
+| Job | Šta radi |
+|---|---|
+| `verify` | `prisma generate/validate/migrate deploy` → `lint` → `typecheck` → `test` → `build` → **`check:play`** → `prisma migrate status` |
+| `e2e` | build + Chromium + `pnpm --filter web test:e2e` (izvještaj kao artifact) |
+| `android` | JDK 17 + preinstalirani SDK, `assembleDebug`, APK kao artifact |
+| `android-release` | **ručno/tag `v*`**: `bundleRelease` → AAB artifact (`digitalni-asistent-aab`); bez `DA_*` secrets potpisuje debug ključem |
+| `compose` | `docker compose config` |
+| `integracije` | fake S3/SMS/Sentry + API: `pnpm test:integrations` |
+
+Zadnji zeleni run prije Sprinta 12B: [44959718369](https://github.com/rakita-milos/digitalni-asistent-fakture/actions/runs/44959718369) (5/5).
 
 ## Konvencije i odluke
 

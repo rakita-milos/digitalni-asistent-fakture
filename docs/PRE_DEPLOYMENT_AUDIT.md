@@ -1,50 +1,42 @@
-# Audit po Pre-Deployment Checklist — Sprint 11 (S11-1)
+﻿# Audit po Pre-Deployment Checklist — Sprint 11 (S11-1) + osvježenje Sprint 12B
 
-> Verzija 1.0 · 13. 11. 2026. · Osnova: `Pre-Deployment_Checklist.docx` (32 stavke),
-> `PROGRESS.md`, `PLAN_DALJEG_RADA.md`. Pravilo: **bez dokaza nema čekiranja** —
+> Verzija **1.2** · **23. 11. 2026.** · Osnova: `Pre-Deployment_Checklist.docx` (**31 stavka**),
+> `PROGRESS.md`, `PLAN_DALJEG_RADA_v3.md`. Pravilo: **bez dokaza nema čekiranja** —
 > svaka stavka ima fajl/test/komandu ili je izričito označena kao blokirana spolja.
 > Zavisnosti: rezultati `pnpm audit` i P2 plan su u [`SECURITY_AUDIT.md`](SECURITY_AUDIT.md)
-> (T13-5, 21. 11. 2026: produkcija 0 high/critical).
+> (T13-5, 23. 11. 2026: produkcija **0 high/critical**, 8 nalaza).
 
 ## 0. Kako je rađeno
 
-- Pregledan je kod, testovi i dokumentacija; pokrenute su provjere koje ne traže bazu
-  (lint, typecheck, `prisma validate`, `docker compose config`).
-- E2E testovi traže Postgres + Redis; u ovoj sesiji lokalni Docker/WSL nije bio dostupan
-  (sandbox: `permission denied` na Docker pipe). Zato se pozivaju **postojeći testovi**
-  kao dokaz ponašanja, a **runtime ponovna verifikacija je u CI-ju** (isti nalozi kao `ci.yml`).
+- Pregledan je kod, testovi i dokumentacija; pokrenute su sve lokalne provjere: `lint` 5/5,
+  `typecheck` 5/5, `build` 3/3, **343 testa**, Playwright **e2e 12/12**, `pnpm audit`.
+- U prvom prolazu (13. 11.) lokalni Docker nije bio dostupan; u ovom prolazu je bio, pa su
+  baza/Redis, API i web podignuti lokalno i sve provjere su ponovljene uživo.
 - Nalazi su podijeljeni na: ✅ dokazano, ⚠️ djelimično/blokirano spolja, ❌ rupa.
 
 ## 1. Rezime
 
 | Status | Broj |
 |---|---|
-| ✅ dokazano | 21 |
-| ⚠️ djelimično / čeka nalog ili okruženje | 10 |
+| ✅ dokazano | 24 |
+| ⚠️ djelimično / čeka nalog ili okruženje | 7 |
 | ❌ rupa u kodu | 0 |
 
-**Popravljeno u ovom prolazu** (commit uz ovaj dokument):
+**Novo u Sprintu 12B (23. 11.):**
 
-1. **B4 — `GET /health` sada provjerava bazu i Redis** (readiness, 503 kada zavisnost padne);
-   ranije je vraćao 200 čim proces radi.
-2. **B3 — `x-request-id` na svakom odgovoru** (middleware), ne samo na greškama; filter i Sentry
-   koriste isti ID.
-3. **A6 — rate limit za izdavanje fakture** (30/min) i **slanje fakture** (10/min);
-   do sada su limiti postojali samo na auth rutama i javnom PDF-u.
-4. **E3 — TTL cap 15 min** u validaciji env varijabli (`PDF_LINK_TTL_SECONDS`,
-   `R2_SIGNED_URL_TTL_SECONDS`); ranije je šema dozvoljavala do 60 min.
-5. Uz to (S11-4): release signing config + placeholder brend materijal; (S11-7): analitika.
-6. **E6 — offline queue retry** (drugi prolaz): `sync_queue` dobija `attempts` i `nextAttemptAt`
-   (SQLite mini-migracija), backoff 1m/5m/15m/1h/6h, poslije 5 pokušaja `FAILED`; UI prikazuje
-   upozorenje (alarm poslije 3 dana) i dugme „Pokušaj ponovo“; 9 Jest testova.
-7. **C2 — EXPLAIN stvarno izvršen**: dodat indeks `invoices_company_id_created_at_idx`
-   (migracija `20261113180000`), skripta `pnpm --filter api db:explain` pravi 40 firmi × 500
-   faktura; sva tri upita sada koriste indeks (nema `Seq Scan` na `invoices`).
-8. **A6 — rate limiter pokriven unit testovima** (6 testova: isključen, bez metapodatka, ispod
-   limita, 429, fail-closed u produkciji, fail-open u razvoju).
-9. **S11-7 — server-side `setup_completed`**: `POST /company/setup-complete` (owner, idempotentno),
-   `companies.setup_completed_at` (migracija `20261113170000`), 3 e2e testa; mobilni wizard ga zove
-   best-effort pri završetku.
+1. **E7 (dio) — javne pravne stranice:** `/privacy` i `/terms` implementirane u webu
+   (`apps/web/app/(legal)/`, tekst u `lib/legal.ts`), linkovi na prijavi, u aplikaciji i na
+   mobilnom ekranu Nalog; 8 unit + 3 e2e testa. **Objava na domenu** i dalje čeka pravnika.
+2. **Play AAB pipeline:** novi CI job `android-release` (`bundleRelease`, artifact
+   `digitalni-asistent-aab`), verzija **1.0.0 (1)**; bez keystore-a potpisuje debug ključem.
+3. **Smoke:** `tools/staging-smoke.mjs` (`pnpm smoke:staging`) — 8 provjera, lokalno 8/8 za 1,0 s.
+4. **Play materijal:** 5 screenshotova + provjera `tools/check-play-assets.mjs` (`pnpm check:play`)
+   u CI-ju; feature graphic pretvoren u 24-bit PNG.
+5. **CI:** 5/5 zelen (verify, compose, android, integracije, e2e); Play provjera dodata u `verify`.
+
+**Popravljeno u prvom prolazu (S11-1, 13. 11.):** B4 health readiness, B3 `x-request-id`,
+A6 rate limit za izdavanje/slanje, E3 TTL cap 15 min, E6 offline retry, C2 EXPLAIN + indeks,
+A6 unit testovi limitera, S11-7 `setup_completed`, release signing config + placeholder brend.
 
 ## 2. Checklist po sekcijama
 
@@ -98,28 +90,32 @@
 | E4 | SMS: opt-out poštovan, sender ID registrovan, šablon sadrži broj i iznos | Opt-out: migracija + `reminders.service.ts:77`, `reminder.worker.ts:89`, `test/reminders-optout.e2e-spec.ts` (3 testa); šablon: `reminder-template.ts`; **sender ID čeka provajdera** | ⚠️ |
 | E5 | Idempotency-Key na POST (fakture, naplata) | `common/interceptors/idempotency.interceptor.ts`; `test/idempotency.e2e-spec.ts` | ✅ |
 | E6 | Offline queue: max retry, backoff, alarm na 3 dana | Server: `worker/fiscal-alarm.ts` (3 dana, dnevni dedupe) + `fiscal-alarm.spec.ts`, retry backoff `fiscal-backoff.ts`. **Mobilni (novo)**: `sync/retry.ts` — backoff 1m/5m/15m/1h/6h, max 5 pokušaja, alarm poslije 3 dana; `syncEngine.ts` čuva `attempts`/`nextAttemptAt` u `sync_queue` (SQLite mini-migracija u `db/localDb.ts`), `InvoicesScreen` prikazuje upozorenje i dugme „Pokušaj ponovo“; `retry.test.ts` (9 testova) | ✅ |
-| E7 | GDPR: izvoz i brisanje rade; politika privatnosti i ToS objavljeni | Kod: `account.service.ts`, `test/account-gdpr.e2e-spec.ts` (5 testova); tekst: `docs/LEGAL_DRAFT.md`; **objava čeka pravnika** | ⚠️ |
+| E7 | GDPR: izvoz i brisanje rade; politika privatnosti i ToS objavljeni | Kod: `account.service.ts`, `test/account-gdpr.e2e-spec.ts` (5 testova). **Novo (S12B):** javne stranice `/privacy` i `/terms` (`apps/web/app/(legal)/`, `lib/legal.ts`), linkovi na prijavi i u aplikaciji; `lib/legal.test.ts` (8) + `e2e/legal.spec.ts` (3). **Objava na domenu čeka pravnika** | ⚠️ |
 | E8 | Play Data Safety form popunjen tačno | Odgovori pripremljeni: `docs/PLAY_RELEASE.md` §4; **forma se popunjava u Play Console** (nema naloga) | ⚠️ |
 
 ### F. Završna provjera
 
 | # | Stavka | Dokaz | Status |
 |---|---|---|---|
-| F1 | Smoke test na produkciji | Procedura u `docs/STAGING_DEPLOY.md`; produkcija još ne postoji | ⚠️ |
+| F1 | Smoke test na produkciji | **Novo (S12B):** `tools/staging-smoke.mjs` (`pnpm smoke:staging`) — 8 provjera (health, prijava, kupci, fakture, detalj, PDF, draft, izdavanje + PFR), lokalno **8/8 za 1,0 s**; procedura u `docs/STAGING_DEPLOY.md` §8. Produkcija još ne postoji | ⚠️ |
 | F2 | Monitoring i alarmi aktivni | `common/monitoring/monitoring.service.ts` (Sentry no-op bez DSN-a), 5xx hook u filteru, `FISCAL_ALARM` u workeru; **alarmi čekaju Sentry DSN** | ⚠️ |
 | F3 | Podrška spremna: kontakt, FAQ, odgovor na „ne radi fiskalizacija“ | `docs/INCIDENT_RUNBOOK.md` (scenariji i komunikacija) + `docs/PILOT_KIT.md` (support kanal, onboarding) | ✅ (dokument) |
 
 ## 3. Nalazi i preporuke
 
-1. **Sve lokalne provjere su izvršene:** 278 unit/API testova, Playwright e2e 8/8 (39,6 s),
-   EXPLAIN 3/3 bez `Seq Scan`. Ponavljanje ide kroz CI (`verify`, `e2e`, `android` jobovi) kad se
-   GitHub remote poveže.
-2. **Rate limiter** je sada pokriven unit testovima; e2e sa realnim Redis brojačima i IP-jevima
-   ostaje za CI/staging (u test okruženju je limiter isključen).
+1. **Sve lokalne provjere su izvršene 23. 11.:** `lint` 5/5, `typecheck` 5/5, `build` 3/3,
+   **343 testa** (shared 51, api 168, web 25, mobile 99), Playwright **e2e 12/12** (14,6 s),
+   smoke **8/8**, `pnpm audit --prod` 0 high/critical. CI je zelen **5/5**.
+2. **Rate limiter** je pokriven unit testovima i e2e testom na stvarnom Redis-u; ostaje provjera
+   na stagingu sa stvarnim IP-jevima i `RATE_LIMIT_ENABLED=true` (T13-5).
 3. **SMS sender ID i provajder (E4)** — čim se izabere provajder, upisati sender ID i potvrditi
-   da šablon prolazi pravila provajdera.
+   da šablon prolazi pravila provajdera (T12-6).
 4. **Offline retry (E6)** je zatvoren; ako pilot pokaže česte `FAILED` stavke, dodati lokalnu
    notifikaciju (native) umjesto samo in-app upozorenja.
+5. **Play AAB (T13-2):** pipeline postoji (`android-release`), ali AAB za Play mora biti potpisan
+   **release** ključem — do keystore-a job potpisuje debug ključem i služi samo kao dokaz pipeline-a.
+6. **Pravne stranice (E7):** kod i testovi su gotovi; prije G13 treba popuniti `<...>` podatke firme,
+   potvrditi tekst kod pravnika i objaviti na stabilnom domenu (isti URL ide u Play listing).
 
 ## 4. Kako ponoviti provjere (dokazi)
 
@@ -135,6 +131,12 @@ pnpm db:up
 pnpm db:deploy
 pnpm test
 pnpm --filter web test:e2e
+
+# smoke protiv staginga (ili lokalno: STAGING_API_URL=http://127.0.0.1:3001)
+STAGING_API_URL=https://api-staging.<domen> SMOKE_EMAIL=… SMOKE_PASSWORD=… pnpm smoke:staging
+
+# Play materijal (dimenzije, odnos, providnost) — isto što radi CI
+pnpm check:play
 
 # EXPLAIN provjera (pravi 40×500 dijagnostičkih faktura, čisti ih na kraju)
 pnpm --filter api db:explain
@@ -172,3 +174,4 @@ dodati indeks kroz novu migraciju.
 | Verzija | Datum | Ko je provjerio | Napomena |
 |---|---|---|---|
 | 1.1 | 2026-11-13 | agent (S11-1, drugi prolaz) | 21 ✅ / 10 ⚠️ / 0 ❌; 278 testova + e2e 8/8 + EXPLAIN izvršeni lokalno |
+| 1.2 | 2026-11-23 | agent (Sprint 12B) | **24 ✅ / 7 ⚠️ / 0 ❌** (31 stavka); 343 testa, e2e 12/12, smoke 8/8, audit 0 high/critical; pravne stranice, AAB job, Play screenshotovi |
