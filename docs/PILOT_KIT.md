@@ -1,20 +1,29 @@
 # Pilot kit — prvi korisnici (S11-5)
 
-> Verzija 1.0 · 13. 11. 2026. · Prati: `PLAN_DALJEG_RADA.md` (S11-5), `PROGRESS.md`.
-> Cilj pilota: **5–15 majstora/mikro-firmi** izda bar jedan račun i pošalje bar jedan
+> Verzija 1.1 · 23. 11. 2026. · Prati: `PLAN_DALJEG_RADA_v3.md` (G14), `PROGRESS.md`.
+> **Operativni plan pilota je [`PILOT_PLAN.md`](PILOT_PLAN.md)** — ovaj dokument je brzi pregled.
+> Cilj pilota: **12–15 majstora/mikro-firmi** izda bar jedan račun i pošalje bar jedan
 > podsjetnik bez pomoći, u roku od 7 dana, i vrati prvi feedback.
+
+Ostali dokumenti pilota:
+
+- [`pilot/ONBOARDING.md`](pilot/ONBOARDING.md) — skripta poziva (20 min) i mjerenje „bez pomoći“
+- [`pilot/NPS.md`](pilot/NPS.md) — NPS upit, računanje i follow-up
+- [`pilot/TRIAGE.md`](pilot/TRIAGE.md) — severiteti i petak ritual
+- [`pilot/EXIT_REPORT_TEMPLATE.md`](pilot/EXIT_REPORT_TEMPLATE.md) — izlazni izvještaj
 
 ## 1. Šta je spremno prije poziva
 
 | Stavka | Kako | Dokaz |
 |---|---|---|
 | Demo nalog | `pnpm db:seed` (SEED_RESET=1 za čistu bazu) | `apps/api/prisma/seed.js`; demo: `demo@digitalni-asistent.ba` / `DemoLozinka123` |
-| Web | `pnpm --filter web build` + `start` | 16 ruta + middleware |
+| Web | `pnpm --filter web build` + `start` | 16 ruta + middleware + javne `/privacy` i `/terms` |
 | API + worker | `pnpm --filter api build`; worker `node dist/worker.js` | worker smoke u PROGRESS |
-| Mobilni APK | CI `android` job (ili lokalno JDK 17) | `assembleDebug` → APK artifact |
+| Mobilni APK/AAB | CI `android` / `android-release` job | APK artifact; AAB uz keystore |
 | Fiskalizacija | **samo PRAČUNI i mock** — ne obećavati fiskalne račune | `ESIR_MODE=mock` |
 | SMS | `SMS_PROVIDER=log` dok nema provajdera — podsjetnici se vide u logu | `SmsService` |
 | Support | e-mail + WhatsApp/Viber grupa (popuniti prije poziva) | ovaj dokument §6 |
+| Praćenje | `docs/pilot/tracking.csv` (kopija šablona) + `pnpm pilot:status` | `tools/pilot/` |
 
 > **Pravilo za pilot:** svaki korisnik dobija **svježu firmu** (ne demo) i 20 minuta
 > onboardinga. Demo nalog služi samo za demonstraciju, ne za pilot podatke.
@@ -68,11 +77,12 @@ Ciljevi iz plana:
 
 | Metrika | Cilj | Kako se mjeri |
 |---|---|---|
-| Izdaje račun bez pomoći | ≥ 70 % korisnika | onboarding: korak 4 samostalno |
-| Pošalje bar jedan podsjetnik | ≥ 50 % korisnika | `reminder.sent` događaj / `reminders` tabela |
-| Prvi feedback | 100 % u 7 dana | upitnik §4 |
-| Vrijeme do prvog računa | < 30 s (poslije setupa) | ručno mjerenje na onboarding-u |
-| Greške u radu | 0 blokirajućih | incident runbook |
+| Izdaje račun bez pomoći | ≥ 70 % korisnika | onboarding: korak 4 samostalno + `unaided_invoice` |
+| Pošalje bar jedan podsjetnik | ≥ 50 % korisnika | `reminder.sent` događaj / `reminders` tabela / `reminder_sent` |
+| NPS | ≥ 30 | upitnik `pilot/NPS.md` (7. i 21. dan) |
+| Prvi feedback | 100 % u 7 dana | `feedback_at` u tabeli |
+| Vrijeme do prvog računa | < 30 s (poslije setupa) | `first_invoice_seconds` |
+| Greške u radu | 0 blokirajućih | `blocker_open` + trijaža |
 
 Dva izvora brojeva:
 
@@ -92,19 +102,26 @@ Dva izvora brojeva:
 
 ## 7. Izlazni kriteriji pilota
 
-- [ ] 5–15 korisnika prošlo onboarding i izdalo bar jedan dokument
+- [ ] 12–15 korisnika prošlo onboarding i izdalo bar jedan dokument
 - [ ] ≥ 70 % izdalo račun bez pomoći; ≥ 50 % poslalo podsjetnik
+- [ ] NPS ≥ 30 (uz naveden broj odgovora)
 - [ ] 0 blokirajućih bugova duže od 24 h
 - [ ] Prvi feedback sakupljen za sve korisnike (7 dana)
-- [ ] Odluka: nastaviti pilot / popravke / stop (sa razlogom u PROGRESS-u)
+- [ ] Odluka: produkcija / produžiti pilot / stop (obrazloženje u `docs/pilot/EXIT_REPORT.md`)
 
-## 8. Tabela za praćenje (kopirati u spreadsheet)
+## 8. Tabela za praćenje
 
-| Korisnik | Firma | Datum poziva | Onboarding (5/5) | Prvi račun samostalno (da/ne) | Prvi podsjetnik (da/ne) | NPS | Otvoreno | Napomene |
-|---|---|---|---|---|---|---|---|---|
-|  |  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |  |
-|  |  |  |  |  |  |  |  |  |
+Kopirati šablon i popunjavati lokalno:
+
+```bash
+cp docs/pilot/tracking.example.csv docs/pilot/tracking.csv   # PII fajl je u .gitignore
+pnpm pilot:status        # kriteriji G14 + % bez PII
+pnpm pilot:weekly        # sedmični izvještaj (uz platform-metrike)
+```
+
+Kolone: `id, company, contact, phone, device, invited_at, onboarded_at, unaided_invoice,
+first_invoice_seconds, reminder_sent, feedback_at, nps, blocker_open, notes`. U git nikad ne ide
+`tracking.csv` — samo `tracking.example.csv` (bez PII) i agregatni izvještaji.
 
 ## 9. Rizici specifični za pilot
 

@@ -458,6 +458,9 @@ pnpm --filter web test:e2e
 | `pnpm db:*` | Docker baza, migracije, seed, Prisma Studio |
 | `pnpm smoke:staging` | Staging smoke (8 provjera: health → prijava → fakture → PDF → draft → izdavanje); `--json`, `--no-create` |
 | `pnpm check:play` | Play materijal: dimenzije, odnos ≤ 2:1, bez providnosti (isto kao CI) |
+| `pnpm pilot:status` | Status kohorte i kriteriji G14 iz `docs/pilot/tracking.csv`; `--example` bez PII, `--json`, `--strict` |
+| `pnpm pilot:weekly` | Sedmični izvještaj (platform-metrike + kohorta) u `docs/pilot/reports/`; `--run`, `--example` |
+| `pnpm pilot:selftest` | Samoprovjera pilotskih alata (CSV, G14 kriteriji, NPS, bez PII) — ista provjera je u CI-ju |
 | `pnpm --filter api metrics:platform` | JSON platform-metrike za pilot (bez PII) |
 | `pnpm --filter api db:explain` | EXPLAIN provjera lista faktura/aging (pravi i čisti 40×500 dijagnostičkih faktura) |
 
@@ -471,6 +474,28 @@ pnpm --filter web test:e2e
 - Mobilni URL-ovi su u `apps/mobile/src/config.ts` (`WEB_URL`, `PRIVACY_URL`, `TERMS_URL`);
   `WEB_URL` je placeholder do finalnog domena i **mora se zamijeniti prije Play objave**.
 
+## Pilot (G14)
+
+Operativni plan: [`docs/PILOT_PLAN.md`](docs/PILOT_PLAN.md) — kohorta 12–15 firmi, onboarding,
+NPS, trijaža, exit report i stop uslovi. Prateći dokumenti:
+[`docs/pilot/ONBOARDING.md`](docs/pilot/ONBOARDING.md),
+[`docs/pilot/NPS.md`](docs/pilot/NPS.md),
+[`docs/pilot/TRIAGE.md`](docs/pilot/TRIAGE.md),
+[`docs/pilot/EXIT_REPORT_TEMPLATE.md`](docs/pilot/EXIT_REPORT_TEMPLATE.md).
+
+```bash
+cp docs/pilot/tracking.example.csv docs/pilot/tracking.csv   # PII fajl, u .gitignore
+pnpm pilot:status                 # kriteriji G14 (bez PII)
+pnpm pilot:weekly -- --run        # sedmični izvještaj (traži bazu)
+pnpm pilot:selftest               # provjera alata, bez baze
+```
+
+- `tracking.csv` sadrži imena/telefone i **nikad ne ide u git**; izvještaji sadrže samo agregate.
+- Pragovi: 12–15 korisnika, ≥14 dana, ≥70 % izda račun bez pomoći, ≥50 % pošalje podsjetnik,
+  NPS ≥ 30, 0 blokatora (`pnpm pilot:status` prikazuje svaki kriterij).
+- Primjer izvještaja: [`docs/pilot/reports/2026-W48.example.md`](docs/pilot/reports/2026-W48.example.md)
+  (sintetički podaci, bez PII).
+
 ## CI (`.github/workflows/ci.yml`)
 
 GitHub Actions, Node 22, pnpm 10.34.9, **Postgres 16 + Redis 7** service. **5 jobova na svaki
@@ -478,7 +503,7 @@ push/PR + jedan ručni:**
 
 | Job | Šta radi |
 |---|---|
-| `verify` | `prisma generate/validate/migrate deploy` → `lint` → `typecheck` → `test` → `build` → **`check:play`** → `prisma migrate status` |
+| `verify` | `prisma generate/validate/migrate deploy` → `lint` → `typecheck` → `test` → `build` → **`check:play`** → **`pilot:selftest` + primjer statusa** → `prisma migrate status` |
 | `e2e` | build + Chromium + `pnpm --filter web test:e2e` (izvještaj kao artifact) |
 | `android` | JDK 17 + preinstalirani SDK, `assembleDebug`, APK kao artifact |
 | `android-release` | **ručno/tag `v*`**: `bundleRelease` → AAB artifact (`digitalni-asistent-aab`); bez `DA_*` secrets potpisuje debug ključem |

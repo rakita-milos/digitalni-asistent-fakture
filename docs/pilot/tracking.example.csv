@@ -1,0 +1,13 @@
+id,company,contact,phone,device,invited_at,onboarded_at,unaided_invoice,first_invoice_seconds,reminder_sent,feedback_at,nps,blocker_open,notes
+P01,Pilot 01,—,—,Android 14,2026-10-28,2026-11-03,da,28,da,2026-11-10,10,ne,
+P02,Pilot 02,—,—,Android 12,2026-10-28,2026-11-04,da,35,da,2026-11-11,9,ne,
+P03,Pilot 03,—,—,Android 15,2026-10-29,2026-11-05,da,42,da,2026-11-12,10,ne,
+P04,Pilot 04,—,—,Android 11,2026-10-29,2026-11-06,da,55,da,2026-11-13,8,ne,
+P05,Pilot 05,—,—,Android 16,2026-10-30,2026-11-07,da,61,da,2026-11-14,7,ne,
+P06,Pilot 06,—,—,Android 13,2026-10-30,2026-11-08,da,38,da,2026-11-15,9,ne,
+P07,Pilot 07,—,—,Android 14,2026-10-31,2026-11-09,da,44,ne,2026-11-16,6,ne,
+P08,Pilot 08,—,—,Android 12,2026-10-31,2026-11-11,ne,,da,2026-11-17,4,ne,
+P09,Pilot 09,—,—,Android 15,2026-11-01,2026-11-13,da,30,ne,2026-11-19,3,ne,
+P10,Pilot 10,—,—,Android 10,2026-11-02,2026-11-15,ne,,ne,,,da,Blokada: PDF se ne otvara na Android 10
+P11,Pilot 11,—,—,Android 16,2026-11-17,,,,,,,,još nije onboardovan
+P12,Pilot 12,—,—,Android 14,2026-11-19,,,,,,,,još nije onboardovan

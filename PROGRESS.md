@@ -1,4 +1,4 @@
-﻿# PROGRESS — Digitalni Asistent
+# PROGRESS — Digitalni Asistent
 
 > Ovaj fajl je „memorija“ projekta između chatova. Ažurira se na kraju svake sesije.
 > Na početku svakog novog chata se prilaže uz MASTER PROMPT.
@@ -9,7 +9,9 @@
 **Sprint 12 — release engineering** (od 2026-11-16, u toku). CI je zelen **5/5** i APK artifact
 postoji; web Sentry instrumentacija (T12-4) i generički SMS HTTP adapter (T12-6) su urađeni.
 **Sprint 12B (23. 11.) je završen:** javne pravne stranice, CI job za AAB, staging smoke skripta,
-Play screenshotovi i osvježen audit. Sledeće: **G12** — Sentry DSN, R2, SMS, staging, restore i
+Play screenshotovi i osvježen audit. **G14 priprema je završena 23. 11.** (alati za status i sedmični
+izvještaj, onboarding/NPS/trijaža/exit dokumenti; popravljena `metrics:platform` skripta), ali
+**pilot nije počeo** — čeka G12/G13. Sledeće: **G12** — Sentry DSN, R2, SMS, staging, restore i
 matrica na 3 uređaja. Plan: `PLAN_DALJEG_RADA_v3.md`.
 
 ### Sprint 12 — release engineering (2026-11-16, u toku)
@@ -123,6 +125,37 @@ Cilj: zatvoriti kod-rupe koje ne čekaju naloge. **Sve provjere lokalno zelene.*
       [CI run 44955731509](https://github.com/rakita-milos/digitalni-asistent-fakture/actions/runs/44955731509)
       ✅ 4/4 (frozen lockfile prošao).
 - [ ] **T13-1…T13-4, T13-6** — čekaju brend/package, keystore, pravnika i Play Console.
+
+### Sprint 14 — pilot (priprema, 2026-11-23)
+
+Cilj: pripremiti sve što ne traži korisnike. **Start pilota je blokiran** dok G12/G13 nisu zatvoreni
+(staging, Play, SMS, keystore).
+
+- [x] **T14-2 (dio) Alati za metrike** — `tools/pilot/status.mjs` (`pnpm pilot:status`: kohorta,
+      onboarding, „bez pomoći“, podsjetnik, NPS, blokatori, svih 6 kriterija G14, `--json`, `--strict`);
+      `tools/pilot/weekly.mjs` (`pnpm pilot:weekly`: platform-metrike + kohorta → Markdown/JSON u
+      `docs/pilot/reports/`, Δ u odnosu na prethodnu sedmicu, `--run`, `--example`, `--dry-run`);
+      `tools/pilot/selftest.mjs` (`pnpm pilot:selftest`, 5/5) + CI korak u `verify`.
+- [x] **Bugfix — `metrics:platform` nije radio** — skripta je brojala korisnike po nepostojećem
+      `users.created_at` (`Unknown argument createdAt`); sada registracije mjeri po
+      `companies.created_at`. Provjereno na lokalnoj bazi: 2 korisnika, 2 firme, 50 faktura,
+      23 naplate, 0 podsjetnika. Bez ovoga sedmični izvještaj pilota nije mogao raditi.
+- [x] **T14-1 (dio) Onboarding i NPS** — `docs/pilot/ONBOARDING.md` (20 min, skripta poziva,
+      mjerenje „bez pomoći“ štopericom, e-mail poslije poziva) i `docs/pilot/NPS.md`
+      (pitanja, 7./21. dan, računanje, follow-up za kritičare).
+- [x] **T14-3 (dio) Trijaža** — `docs/pilot/TRIAGE.md`: P1/P2/P3 definicije, petak ritual,
+      šablon issue-a bez PII, komunikacija i eskalacija.
+- [x] **T14-4 (dio) Exit report** — `docs/pilot/EXIT_REPORT_TEMPLATE.md` (G14 kriteriji, platforma,
+      kvalitativni nalazi, odluka i uslovi) + `docs/PILOT_PLAN.md` (operativni plan, zavisnosti,
+      stop uslovi, privatnost).
+- [x] **Praćenje kohorte** — `docs/pilot/tracking.example.csv` (12 učesnika, bez PII) i
+      `docs/pilot/tracking.csv` u `.gitignore`; primjer izvještaja
+      `docs/pilot/reports/2026-W48.example.md` (sintetički, jasno označen).
+- [x] **Verifikacija (23. 11.)** — selftest **5/5**; status na primjeru: kohorta 12, 3/6 kriterija
+      (očekivano — primjer je „usred pilota“); `pilot:weekly --run` protiv lokalne baze **exit 0**;
+      primjer izvještaja regenerisan.
+- [ ] **T14-1 start (12–15 firmi)** — blokirano: nema staginga, Play naloga, keystore-a ni SMS
+      provajdera; nema realnih korisnika. G14 **nije ispunjen** — ovo je priprema, ne pilot.
 
 ### Sprint 10 — integracije i okruženja (u pripremi, 2026-11-12)
 
@@ -547,7 +580,9 @@ Plan daljeg rada: **`PLAN_DALJEG_RADA_v3.md`** (v3.0, 2026-11-23) i `Plan_Daljeg
 v2 (`PLAN_DALJEG_RADA_v2.md`, 16.11.) i v1 (12.11.) su arhiva. Sprintske kapije: **G12 30.11.**
 (CI/APK/integracije/uređaji), **G13 7.12.** (AAB + pravni paket), **G14 11.1.2027.** (pilot).
 Sprint 12B je **završen 23. 11.** (prije roka): pravne stranice, AAB job, staging smoke, screenshotovi
-i osvježen audit — detalji u sekciji „Sprint 12B“. Sledeće: push + CI, pa **G12** (integracije i uređaji).
+i osvježen audit — detalji u sekciji „Sprint 12B“. **G14 priprema je takođe završena 23. 11.** —
+detalji u sekciji „Sprint 14 — pilot (priprema)“; start pilota čeka G12/G13, pa G14 ostaje otvoren.
+Sledeće: push + CI, pa **G12** (integracije i uređaji).
 - **Sprint 11 (stanje 2026-11-13)** — urađeno: opt-out podsjetnika (`d995cb2`), incident runbook
   (`c711c96`), Play/legal drafti (`ae56bbb`), **S11-1 audit** (`docs/PRE_DEPLOYMENT_AUDIT.md`),
   **S11-5 pilot kit** (`docs/PILOT_KIT.md`), **S11-7 analitika** (`docs/ANALYTICS.md`,

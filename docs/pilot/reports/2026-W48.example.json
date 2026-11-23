@@ -1,0 +1,137 @@
+{
+  "week": "2026-W48",
+  "generatedAt": "2026-11-23T12:00:00.000Z",
+  "example": true,
+  "source": "metrics-example.json",
+  "metrics": {
+    "generatedAt": "2026-11-23T11:45:00.000Z",
+    "registrations": {
+      "usersTotal": 14,
+      "companiesTotal": 13,
+      "companiesLast30Days": 12,
+      "byMonth": {
+        "2026-06": 0,
+        "2026-07": 0,
+        "2026-08": 1,
+        "2026-09": 3,
+        "2026-10": 5,
+        "2026-11": 5
+      }
+    },
+    "setup": {
+      "companiesTotal": 13,
+      "companiesWithEfdAndTaxRates": 10
+    },
+    "invoices": {
+      "total": 87,
+      "issued": 71,
+      "byStatus": {
+        "DRAFT": 16,
+        "ISSUED": 40,
+        "PARTIALLY_PAID": 9,
+        "PAID": 15,
+        "OVERDUE": 7
+      },
+      "issuedByMonth": {
+        "2026-06": 0,
+        "2026-07": 0,
+        "2026-08": 2,
+        "2026-09": 9,
+        "2026-10": 27,
+        "2026-11": 33
+      }
+    },
+    "payments": {
+      "count": 38,
+      "totalFening": "1284500",
+      "byMonth": {
+        "2026-06": 0,
+        "2026-07": 0,
+        "2026-08": 1,
+        "2026-09": 4,
+        "2026-10": 15,
+        "2026-11": 18
+      }
+    },
+    "reminders": {
+      "sent": 22,
+      "failed": 2,
+      "scheduled": 9,
+      "sentByMonth": {
+        "2026-06": 0,
+        "2026-07": 0,
+        "2026-08": 0,
+        "2026-09": 3,
+        "2026-10": 8,
+        "2026-11": 11
+      }
+    }
+  },
+  "status": {
+    "generatedAt": "2026-11-23T12:00:00.000Z",
+    "cohort": 12,
+    "onboarded": 10,
+    "onboardingPct": 83.3,
+    "unaided": 8,
+    "unaidedPct": 66.7,
+    "reminders": 7,
+    "reminderPct": 58.3,
+    "feedback": 9,
+    "feedbackPct": 75,
+    "nps": {
+      "score": 11,
+      "responses": 9,
+      "promoters": 4,
+      "passives": 2,
+      "detractors": 3
+    },
+    "blockers": 1,
+    "daysSinceFirstOnboarding": 20,
+    "criteria": [
+      {
+        "key": "cohort",
+        "label": "Kohorta 12–15",
+        "actual": 12,
+        "target": "12–15",
+        "met": true
+      },
+      {
+        "key": "days",
+        "label": "Bar 14 dana pilota",
+        "actual": 20,
+        "target": "≥ 14",
+        "met": true
+      },
+      {
+        "key": "unaided",
+        "label": "Izdaje račun bez pomoći ≥ 70 %",
+        "actual": 66.7,
+        "target": "≥ 70 %",
+        "met": false
+      },
+      {
+        "key": "reminder",
+        "label": "Pošalje podsjetnik ≥ 50 %",
+        "actual": 58.3,
+        "target": "≥ 50 %",
+        "met": true
+      },
+      {
+        "key": "nps",
+        "label": "NPS ≥ 30",
+        "actual": 11,
+        "target": "≥ 30",
+        "met": false
+      },
+      {
+        "key": "blockers",
+        "label": "Otvoreni blokatori = 0",
+        "actual": 1,
+        "target": "0",
+        "met": false
+      }
+    ],
+    "passed": false
+  },
+  "previousWeek": null
+}

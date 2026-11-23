@@ -186,8 +186,14 @@ testinga — zato pilot ide kao closed test sa **12–15** korisnika, ne 5 (vidi
 | T14-1 | 12–15 firmi: pozivi, demo nalozi, checklist iz `docs/PILOT_KIT.md`, support kanal | 12 aktivnih firmi, svaka izda bar 1 račun |
 | T14-2 | Sedmično `pnpm --filter api metrics:platform` + tabela + NPS poslije 7 dana | 4 sedmična izvještaja |
 | T14-3 | Trijaža petkom; P1 fix u 24 h; P2 sljedeća sedmica | 0 otvorenih P1 na kraju |
-| T14-4 | Exit report + odluka (produžiti pilot / produkcija / čekati G0) | `docs/PILOT_REPORT.md` |
+| T14-4 | Exit report + odluka (produžiti pilot / produkcija / čekati G0) | `docs/pilot/EXIT_REPORT.md` (šablon: `docs/pilot/EXIT_REPORT_TEMPLATE.md`) |
 | **G14** | **11.1.2027.** | ≥ 70 % izda račun bez pomoći, ≥ 50 % pošalje podsjetnik, NPS ≥ 30, 0 blokatora |
+
+**Status 23.11.2026:** priprema je završena — alati (`pilot:status`, `pilot:weekly`, `pilot:selftest`),
+šablon tabele, onboarding/NPS/trijaža/exit dokumenti i primjer izvještaja; usput popravljena
+`metrics:platform` skripta (padala je na `users.created_at`, sada mjeri firme). **T14-1 nije počeo**
+jer čeka G12/G13 (staging, Play, 12–15 korisnika); G14 se ne može proglasiti ispunjenim bez stvarnih
+korisnika.
 
 ## 8. Poslije G0 — prava fiskalizacija (3–6 nedjelja)
 
