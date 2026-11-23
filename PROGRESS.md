@@ -131,9 +131,10 @@ Cilj: zatvoriti kod-rupe koje ne čekaju naloge. **Sve provjere lokalno zelene.*
 Sve bez korisnikovih naloga: AAB pipeline, keystore tajne, backup/restore i produkcijski image.
 
 - [x] **AAB kroz CI (tag)** — `push.tags: ['v*']` pokreće `android-release`; `-rc` tag bez keystore-a
-      smije debug potpis, pravi release tag pada. **Prvi pokušaj `v1.0.0-rc1` pao** jer Metro u
-      release buildu traži `packages/shared/dist`, a job ga nije gradio; dodat korak
-      `pnpm --filter @digitalni-asistent/shared build`. Ponovljeni tag: `v1.0.0-rc2`.
+      smije debug potpis, pravi release tag pada. Prvi `v1.0.0-rc1` pao (Metro tražio
+      `packages/shared/dist`), drugi `v1.0.0-rc2` pao (Gradle tražio `hermes-compiler` relativno od
+      `apps/mobile`), treći **`v1.0.0-rc3` zelen** — artifact **`digitalni-asistent-aab` 52.544.217 B**
+      (~50 MB, debug potpis dok nema keystore-a).
 - [x] **Keystore u CI** — podrška za `DA_KEYSTORE_BASE64` (dekodira se u `$RUNNER_TEMP`), guard
       za `-rc` vs release tag; `docs/KEYSTORE.md` (generisanje, 2 kopije, base64, rotacija, Play
       App Signing) i `pnpm release:check-signing` (provjera bez tajni, u CI-ju).
