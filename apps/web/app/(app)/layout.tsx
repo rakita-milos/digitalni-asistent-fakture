@@ -43,6 +43,15 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         </div>
       </header>
       <main className="mx-auto max-w-5xl p-6">{children}</main>
+      <footer className="mx-auto max-w-5xl px-6 pb-8 text-center text-xs text-foreground/50">
+        <Link href="/privacy" className="hover:underline">
+          Politika privatnosti
+        </Link>{' '}
+        ·{' '}
+        <Link href="/terms" className="hover:underline">
+          Uslovi korištenja
+        </Link>
+      </footer>
     </div>
   );
 }

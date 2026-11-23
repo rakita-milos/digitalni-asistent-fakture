@@ -3,6 +3,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,6 +14,7 @@ import {
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { ApiError } from '../api/client';
 import { getSubscription, type SubscriptionDto } from '../api/subscriptions';
+import { PRIVACY_URL, TERMS_URL } from '../config';
 import { useAuthStore } from '../state/authStore';
 import { formatDate } from '../utils/invoiceFormat';
 
@@ -210,7 +212,35 @@ export function SettingsScreen({ navigation }: Props) {
         </Pressable>
       </View>
 
-      <Text style={styles.version}>Digitalni Asistent · MVP 0.1.0</Text>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Pravno</Text>
+
+        <Pressable
+          style={styles.row}
+          onPress={() => void Linking.openURL(PRIVACY_URL)}
+          testID="settings-privacy"
+        >
+          <View style={styles.rowMain}>
+            <Text style={styles.rowTitle}>Politika privatnosti</Text>
+            <Text style={styles.rowHint}>Koje podatke obrađujemo i zašto</Text>
+          </View>
+          <Text style={styles.chevron}>›</Text>
+        </Pressable>
+
+        <Pressable
+          style={styles.row}
+          onPress={() => void Linking.openURL(TERMS_URL)}
+          testID="settings-terms"
+        >
+          <View style={styles.rowMain}>
+            <Text style={styles.rowTitle}>Uslovi korištenja</Text>
+            <Text style={styles.rowHint}>Nalog, pretplata, fiskalizacija i odgovornost</Text>
+          </View>
+          <Text style={styles.chevron}>›</Text>
+        </Pressable>
+      </View>
+
+      <Text style={styles.version}>Digitalni Asistent · MVP 1.0.0</Text>
     </ScrollView>
   );
 }

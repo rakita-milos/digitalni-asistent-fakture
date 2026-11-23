@@ -36,6 +36,16 @@ export default async function LoginPage({
             Zaboravili ste lozinku?
           </Link>
         </p>
+
+        <p className="mt-4 text-center text-xs text-foreground/50">
+          <Link href="/privacy" className="hover:underline">
+            Politika privatnosti
+          </Link>{' '}
+          ·{' '}
+          <Link href="/terms" className="hover:underline">
+            Uslovi korištenja
+          </Link>
+        </p>
       </section>
     </main>
   );
