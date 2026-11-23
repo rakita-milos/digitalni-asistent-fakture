@@ -461,8 +461,28 @@ pnpm --filter web test:e2e
 | `pnpm pilot:status` | Status kohorte i kriteriji G14 iz `docs/pilot/tracking.csv`; `--example` bez PII, `--json`, `--strict` |
 | `pnpm pilot:weekly` | Sedmični izvještaj (platform-metrike + kohorta) u `docs/pilot/reports/`; `--run`, `--example` |
 | `pnpm pilot:selftest` | Samoprovjera pilotskih alata (CSV, G14 kriteriji, NPS, bez PII) — ista provjera je u CI-ju |
+| `pnpm release:check-signing` | Provjera keystore/CI potpisivanja bez ispisivanja tajni (`docs/KEYSTORE.md`) |
+| `pnpm backup:db` | `pg_dump -Fc` + provjera dumpa + opcioni R2 upload (`--docker`, `--url`, `--upload`) |
+| `pnpm backup:restore-drill` | Restore u privremenu bazu, poređenje 11 tabela i RTO provjera |
 | `pnpm --filter api metrics:platform` | JSON platform-metrike za pilot (bez PII) |
 | `pnpm --filter api db:explain` | EXPLAIN provjera lista faktura/aging (pravi i čisti 40×500 dijagnostičkih faktura) |
+
+## Docker (API + worker)
+
+Produkcijski/staging image i compose (API + worker + migracije, uz Postgres/Redis za self-hosted):
+
+```bash
+cp infra/.env.production.example .env       # JWT_* i lozinke
+docker compose -f infra/docker-compose.prod.yml build
+docker compose -f infra/docker-compose.prod.yml up -d
+curl -fsS http://localhost:3001/health
+```
+
+- `apps/api/Dockerfile` gradi API i worker (`node apps/api/dist/worker.js`); migracije idu kroz
+  `migrate` servis prije `api`/`worker`.
+- Za managed bazu/Redis (Neon/Upstash) obriši `postgres`/`redis` iz compose i postavi
+  `DATABASE_URL`/`REDIS_URL`.
+- Detalji: [`docs/STAGING_DEPLOY.md`](docs/STAGING_DEPLOY.md) §4.1.
 
 ## Pravne stranice (javno)
 

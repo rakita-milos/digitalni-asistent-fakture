@@ -1,4 +1,4 @@
-﻿# Audit po Pre-Deployment Checklist — Sprint 11 (S11-1) + osvježenje Sprint 12B
+# Audit po Pre-Deployment Checklist — Sprint 11 (S11-1) + osvježenje Sprint 12B
 
 > Verzija **1.2** · **23. 11. 2026.** · Osnova: `Pre-Deployment_Checklist.docx` (**31 stavka**),
 > `PROGRESS.md`, `PLAN_DALJEG_RADA_v3.md`. Pravilo: **bez dokaza nema čekiranja** —
@@ -69,13 +69,13 @@ A6 unit testovi limitera, S11-7 `setup_completed`, release signing config + plac
 | C1 | Indeksi na toplim upitima | `prisma/schema.prisma`: `@@unique([companyId, type, number])` (258), `@@index([companyId, status])` (259), `@@index([companyId, dueDate])` (260), `@@index([customerId])` (261), `@@index([invoiceId])` na zavisnim tabelama | ✅ |
 | C2 | EXPLAIN za listu faktura i aging — nema seq scan | **Izvršeno 2026-11-13** nad lokalnom Postgres 16: `pnpm --filter api db:explain` (40 firmi × 500 faktura). Prije indeksa: `Seq Scan on invoices` (20 ms) za listu i aging. Dodat indeks `invoices_company_id_created_at_idx` (migracija `20261113180000`); poslije: `Index Scan Backward` (0,07 ms), `Bitmap Index Scan` na `(company_id,status)` (0,7 ms), `Index Scan` na `(company_id,due_date)` (0,1 ms) — **0 Seq Scan**. Skripta pada sa exit 1 ako se seq scan vrati | ✅ |
 | C3 | Migracije backward-compatible (expand/contract), testirane na kopiji | **7 migracija** (stanje 2026-11-13), sve aditivne: `ADD COLUMN ... DEFAULT` (`customers.reminder_opt_out`, `companies.setup_completed_at`) i novi indeksi (`invoices_company_id_created_at_idx`); `prisma validate` prolazi, `migrate deploy` primijenjen lokalno na Postgres 16; rollback procedura u `docs/STAGING_DEPLOY.md` | ✅ (kod) |
-| C4 | Backup radi + **testiran restore** | Procedura: `docs/STAGING_DEPLOY.md` (dnevni dump u R2, restore drill sa SQL provjerama); stvarni restore čeka staging naloge | ⚠️ |
+| C4 | Backup radi + **testiran restore** | **Novo (23. 11.):** `pnpm backup:db` (`pg_dump -Fc`, provjera dumpa, R2 upload/retencija) i `pnpm backup:restore-drill` (privremena baza, 11 tabela, RTO limit). Lokalno: dev baza **2,7 s**, compose stack **3,2 s**, svi brojevi identični. Staging restore (Neon PITR) čeka nalog | ⚠️ |
 
 ### D. Deploy i rollback
 
 | # | Stavka | Dokaz | Status |
 |---|---|---|---|
-| D1 | Staging identičan produkciji | `docs/STAGING_DEPLOY.md` (arhitektura, env po servisu); staging još nije podignut | ⚠️ |
+| D1 | Staging identičan produkciji | `docs/STAGING_DEPLOY.md` §4.1 — Docker image + `infra/docker-compose.prod.yml` (postgres → migrate → api/worker), `.env.production.example`; lokalna proba prošla (migracije, seed, smoke, worker). Staging još nije podignut | ⚠️ |
 | D2 | Rollback plan (web instant, prethodni API, testiran flip) | `docs/STAGING_DEPLOY.md` — tabela rollback po komponenti | ✅ (dokument) |
 | D3 | Feature flag za fiskalizaciju i SMS | `src/config/env.ts:66-68`; `invoices.service.ts` 503 kada je flag isključen; `test/fiscal.e2e-spec.ts`; web/mobilni prikazuju poruku | ✅ |
 | D4 | Migracije prije aplikacije, uz backup | `docs/STAGING_DEPLOY.md` (redoslijed deploya) i `ci.yml` (`migrate deploy` prije testova) | ✅ |

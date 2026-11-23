@@ -20,17 +20,18 @@ closed testinga prije produkcije. Za organizacioni account to nije obavezno, ali
 
 **Stanje 2026-11-23:** signing config je u `apps/mobile/android/app/build.gradle`
 (`signingConfigs.release`), **CI job `android-release`** pravi AAB (`bundleRelease`) i uploaduje
-artifact `digitalni-asistent-aab`. Verzija je **1.0.0 (1)**. Bez `DA_*` secrets AAB se potpisuje
-**debug** ključem — to je samo dokaz da pipeline radi i **ne šalje se na Play**; sa secrets ide
-potpisan release AAB.
+artifact `digitalni-asistent-aab`. Verzija je **1.0.0 (1)**. Bez keystore-a AAB se potpisuje
+**debug** ključem — to je samo dokaz da pipeline radi i **ne šalje se na Play**; sa keystore-om ide
+potpisan release AAB. **Kompletno uputstvo (generisanje, base64, backup, rotacija):**
+[`KEYSTORE.md`](KEYSTORE.md).
 
 ```bash
 # 1) jednom, lokalno (JDK 17); keystore NIKAD u repo
 keytool -genkeypair -v -keystore digitalni-asistent-release.keystore \
-  -alias digitalni -keyalg RSA -keysize 2048 -validity 10000
+  -alias digitalni -keyalg RSA -keysize 4096 -validity 10000
 
 # 2) kopirati keystore.properties.example u keystore.properties i upisati putanju/lozinke
-#    (ili postaviti DA_KEYSTORE_PATH, DA_KEYSTORE_PASSWORD, DA_KEY_ALIAS, DA_KEY_PASSWORD u CI)
+#    (ili postaviti DA_KEYSTORE_BASE64 + 3 tajne u GitHub Secrets)
 
 # 3) build release AAB (lokalno ili kroz CI, vidi dolje)
 cd apps/mobile/android
@@ -38,14 +39,15 @@ cd apps/mobile/android
 # izlaz: app/build/outputs/bundle/release/app-release.aab
 ```
 
-**CI (preporučeno):** Actions → *CI* → *Run workflow* (`android-release` job). Input
-`allow_debug_signing` ostaviti `true` samo za prvi probni run; za Play ga postaviti na `false`
-i dodati secrets `DA_KEYSTORE_PATH` (base64 dekodiran na runneru ili putanja), `DA_KEYSTORE_PASSWORD`,
-`DA_KEY_ALIAS`, `DA_KEY_PASSWORD`. Job se pokreće i na tag `v*`.
+**CI (preporučeno):** dodaj secrets `DA_KEYSTORE_BASE64`, `DA_KEYSTORE_PASSWORD`, `DA_KEY_ALIAS`,
+`DA_KEY_PASSWORD`; `android-release` dekodira keystore u `$RUNNER_TEMP` i potpisuje AAB.
+Job se pokreće ručno (Actions → *Run workflow*, `allow_debug_signing=false`) ili na tag `v*`.
+`-rc` tag bez keystore-a je dozvoljen uz debug potpis (za provjeru pipeline-a), pravi release tag nije.
 
-- Signing config čita `android/keystore.properties` (lokalno) ili env varijable
-  `DA_KEYSTORE_PATH`/`DA_KEYSTORE_PASSWORD`/`DA_KEY_ALIAS`/`DA_KEY_PASSWORD` (CI).
-  Bez keystore-a release build ostaje na debug potpisu — **AAB za Play se tako ne šalje**.
+- Signing config čita `android/keystore.properties` (lokalno) ili env `DA_KEYSTORE_PATH` +
+  `DA_KEYSTORE_PASSWORD`/`DA_KEY_ALIAS`/`DA_KEY_PASSWORD` (CI; `DA_KEYSTORE_PATH` postavlja
+  workflow iz `DA_KEYSTORE_BASE64`). Bez keystore-a release build ostaje na debug potpisu —
+  **AAB za Play se tako ne šalje**.
 - `keystore.properties` i `*.keystore` su u `.gitignore` (osim RN `debug.keystore`).
 - `versionCode`/`versionName` u `android/app/build.gradle` — povećavati za svaku objavu
   (trenutno **1 / "1.0.0"**; prvi Play build ostaje `1`).

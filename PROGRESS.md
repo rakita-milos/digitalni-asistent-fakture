@@ -126,6 +126,32 @@ Cilj: zatvoriti kod-rupe koje ne čekaju naloge. **Sve provjere lokalno zelene.*
       ✅ 4/4 (frozen lockfile prošao).
 - [ ] **T13-1…T13-4, T13-6** — čekaju brend/package, keystore, pravnika i Play Console.
 
+### Release automatizacija i Docker proba (2026-11-23)
+
+Sve bez korisnikovih naloga: AAB pipeline, keystore tajne, backup/restore i produkcijski image.
+
+- [x] **AAB kroz CI (tag)** — `push.tags: ['v*']` pokreće `android-release`; `-rc` tag bez keystore-a
+      smije debug potpis, pravi release tag pada. **Prvi pokušaj `v1.0.0-rc1` pao** jer Metro u
+      release buildu traži `packages/shared/dist`, a job ga nije gradio; dodat korak
+      `pnpm --filter @digitalni-asistent/shared build`. Ponovljeni tag: `v1.0.0-rc2`.
+- [x] **Keystore u CI** — podrška za `DA_KEYSTORE_BASE64` (dekodira se u `$RUNNER_TEMP`), guard
+      za `-rc` vs release tag; `docs/KEYSTORE.md` (generisanje, 2 kopije, base64, rotacija, Play
+      App Signing) i `pnpm release:check-signing` (provjera bez tajni, u CI-ju).
+- [x] **Backup automatizacija** — `pnpm backup:db` (`pg_dump -Fc`, `pg_restore -l` provjera,
+      opcioni R2 upload sa SSE, retencija); `pnpm backup:restore-drill` (privremena baza, 11 tabela,
+      RTO limit, sigurnosna imena baza). Lokalno: dump 49,7 KB / 91 objekat; restore **2,7 s**,
+      svi brojevi isti.
+- [x] **Docker image + prod compose** — `apps/api/Dockerfile` (API + worker, Prisma CLI, healthcheck),
+      `infra/docker-compose.prod.yml` (postgres → migrate → api/worker), `.dockerignore`,
+      `.env.production.example`; CI validira oba compose fajla.
+- [x] **Lokalna produkcijska proba** — image build, compose up, migracije (7/7), seed (50 faktura),
+      smoke **8/8 za 0,8 s**, backup + restore drill **3,2 s** (11/11 tabela), worker log
+      „Worker pokrenut“. **Nađen i popravljen bug:** `WorkerModule` nije importovao `StorageModule`
+      (globalni modul), pa je worker padao na `R2StorageService` — u produkciji bi pao odmah pri startu.
+- [x] **Verifikacija** — `api typecheck` 0, `api lint` 0, `compose config` 0, image build 0,
+      smoke 8/8, restore drill 11/11; stack i image obrisani poslije probe.
+- [ ] **Stvarni staging i AAB za Play** — i dalje čeka naloge (Neon/Vercel/Railway) i keystore.
+
 ### Sprint 14 — pilot (priprema, 2026-11-23)
 
 Cilj: pripremiti sve što ne traži korisnike. **Start pilota je blokiran** dok G12/G13 nisu zatvoreni

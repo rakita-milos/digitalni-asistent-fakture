@@ -161,6 +161,11 @@ finalni brend/ime · veličina pilota (12 vs 5). Nijedna ne blokira Sprint 12B.
 | 4–5 | Matrica 3 uređaja: instalacija, prijava, faktura (2 stavke + PDV), izdavanje, PDF/QR, naplata, **offline + sync**, **biometrija** (uključi, restart, otkaži, promijeni otisak), **slanje** e-mail/SMS | tabela uređaj/verzija/rezultat, 0 crash-eva |
 | 5 (30.11.) | **G12 pregled**: tabela dokaza, 0 P1, odluka da li G13 kreće | ispunjena kapija |
 
+**Status 23.11.2026:** kod za staging je spreman bez naloga — `apps/api/Dockerfile` (API + worker),
+`infra/docker-compose.prod.yml` (postgres → migrate → api/worker), backup/restore skripte i smoke.
+Lokalna proba: migracije 7/7, seed 50 faktura, smoke 8/8, restore drill **3,2 s** (11/11 tabela),
+worker start ispravljen (nedostajao `StorageModule`). Staging i dalje čeka Neon/Vercel/Railway naloge.
+
 Ako neki nalog ne stigne do 27.11., taj red se **izbacuje iz sprinta** i kapija se pomjera za nedjelju —
 ne produžava se rok i ne ulazi se u G13 sa rupom.
 
@@ -175,6 +180,11 @@ ne produžava se rok i ne ulazi se u G13 sa rupom.
 | T13-5 | Ostatak security pass-a: `pnpm audit` na stagingu, rotacija ključeva, provjera `FEATURE_*` flagova | ja | nalazi u `SECURITY_AUDIT.md` |
 | T13-6 | Checklist ≥ 28/32, rollback vježba na stagingu | ja | checklista + zapis vježbe |
 | **G13** | **7.12.** | | AAB na internal tracku, pravni paket objavljen, 0 P1 |
+
+**Status 23.11.2026:** AAB pipeline je kompletan — tag `v*` pokreće `android-release`, keystore ide
+kroz `DA_KEYSTORE_BASE64`, `-rc` tag smije debug potpis a pravi release tag ne. Prvi RC run je nađen
+kao neispravan (Metro nije imao `packages/shared/dist`), popravljeno. Ostaje keystore (tvoja 2 primjerka)
+i Play nalog za upload.
 
 Napomena: ako je Play developer account **lični**, produkcija traži **12 testera / 14 dana** closed
 testinga — zato pilot ide kao closed test sa **12–15** korisnika, ne 5 (vidi §12).
