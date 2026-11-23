@@ -77,6 +77,9 @@ ugovor, staging). Plan: `PLAN_DALJEG_RADA_v2.md`.
       naloge; T12-3 (fizički uređaji) i T12-8 (staging) čekaju opremu/naloge
 - [x] **Go-live runbook integracija** — `docs/INTEGRATIONS_GO_LIVE.md`: tačne komande i provjere za
       Sentry DSN, R2, SMS, staging i restore, sa rollback-om i tabelom dokaza (pokriva T12-4/5/6/7/8).
+- [ ] **Plan v3.0 (23. 11.)** — G12 pomjeren na **30.11.** (2/8 uslova: CI i APK); četiri kod-rupe
+      (pravne stranice, AAB job, staging smoke, Play screenshotovi) idu u **Sprint 12B** i ne čekaju
+      naloge. Detalji: `PLAN_DALJEG_RADA_v3.md`.
 
 ### Sprint 13 — store i pravni paket (u pripremi, 2026-11-21)
 
@@ -510,9 +513,10 @@ ugovor, staging). Plan: `PLAN_DALJEG_RADA_v2.md`.
 
 ## Sljedeći korak
 
-Plan daljeg rada: **`PLAN_DALJEG_RADA_v2.md`** (v2.0, 2026-11-16) i `Plan_Daljeg_Rada_v2.docx`;
-v1 (`PLAN_DALJEG_RADA.md`, 12.11.) je arhiva. Sprintske kapije: G12 23.11. (CI/APK/integracije),
-G13 30.11. (AAB + pravni paket), G14 22.12. (pilot).
+Plan daljeg rada: **`PLAN_DALJEG_RADA_v3.md`** (v3.0, 2026-11-23) i `Plan_Daljeg_Rada_v3.docx`;
+v2 (`PLAN_DALJEG_RADA_v2.md`, 16.11.) i v1 (12.11.) su arhiva. Sprintske kapije: **G12 30.11.**
+(CI/APK/integracije/uređaji), **G13 7.12.** (AAB + pravni paket), **G14 11.1.2027.** (pilot).
+Sprint 12B (24–26.11.) je kod koji ne čeka naloge: pravne stranice, AAB job, staging smoke, screenshotovi.
 - **Sprint 11 (stanje 2026-11-13)** — urađeno: opt-out podsjetnika (`d995cb2`), incident runbook
   (`c711c96`), Play/legal drafti (`ae56bbb`), **S11-1 audit** (`docs/PRE_DEPLOYMENT_AUDIT.md`),
   **S11-5 pilot kit** (`docs/PILOT_KIT.md`), **S11-7 analitika** (`docs/ANALYTICS.md`,
