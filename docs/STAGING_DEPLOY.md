@@ -109,6 +109,11 @@ pnpm backup:db -- --docker=digitalni-postgres --user=digitalni --db=digitalni_as
 Skripta: `pg_dump -Fc` → provjera `pg_restore -l` (mora imati objekte) → opcioni R2 upload
 (`backups/db/backup-<timestamp>.dump`, SSE AES256) → lokalna retencija. Nikad ne ispisuje URL ni lozinke.
 
+**Provjereno 25. 11.:** upload grana protiv lokalnog S3 servera (`R2_ENDPOINT=http://127.0.0.1:9010`,
+`R2_FORCE_PATH_STYLE=true`): dump **54,8 KB** uploadovan, `GET` vraća **200** iste veličine.
+Za MinIO/lokalni S3 koristi `R2_ENDPOINT` + `R2_FORCE_PATH_STYLE=true`; pravi Cloudflare R2 ostaje
+za G12 (kredencijali).
+
 Ručni fallback ako skripta nije dostupna:
 
 ```bash

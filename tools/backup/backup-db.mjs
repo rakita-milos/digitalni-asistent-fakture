@@ -14,7 +14,8 @@
  *   --user/--db            kredencijali za docker režim (default iz URL-a ili digitalni)
  *   --out=<dir>            izlazni direktorij (default .tools/backups)
  *   --keep=<dana>          briše lokalne dumpove starije od N dana (default 30, 0 = ne briši)
- *   --upload               upload na R2 (R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET)
+ *   --upload               upload na R2 (R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET;
+ *                          opciono R2_ENDPOINT za lokalni S3/MinIO i R2_FORCE_PATH_STYLE=true)
  *   --json                 mašinski čitljiv izlaz
  *
  * Nikad ne ispisuje lozinke ni puni DATABASE_URL.
@@ -88,9 +89,14 @@ async function uploadToR2(file, key) {
     throw new Error('R2 upload traži R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY i R2_BUCKET.');
   }
 
+  const endpoint =
+    process.env.R2_ENDPOINT ?? `https://${accountId}.r2.cloudflarestorage.com`;
+
   const client = new S3Client({
     region: 'auto',
-    endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+    endpoint,
+    // MinIO i slični lokalni S3 serveri traže path-style; R2 radi sa virtual-hosted.
+    forcePathStyle: process.env.R2_FORCE_PATH_STYLE === 'true',
     credentials: { accessKeyId, secretAccessKey },
   });
 

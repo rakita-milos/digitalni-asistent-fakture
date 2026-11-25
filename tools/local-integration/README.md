@@ -58,6 +58,23 @@ Isti runner koristi CI job **`integracije (R2 / SMS / Sentry)`** (`.github/workf
 Logovi za dokaz: `fake-s3.log`, `fake-sms.log`, `fake-sentry.log`, `fake-sentry-raw.log`
 (u ovom folderu, nisu u gitu).
 
+## 5. Backup upload (T12-8) — lokalna provjera
+
+Isti fake S3 može primiti i `pg_dump` upload (bez Cloudflare naloga):
+
+```powershell
+$env:R2_ENDPOINT='http://127.0.0.1:9010'
+$env:R2_FORCE_PATH_STYLE='true'
+$env:R2_ACCOUNT_ID='test'
+$env:R2_ACCESS_KEY_ID='fake-access'
+$env:R2_SECRET_ACCESS_KEY='fake-secret'
+$env:R2_BUCKET='da-backups'
+node tools/backup/backup-db.mjs --docker=digitalni-postgres --user=digitalni --db=digitalni_asistent --out=.tools/backups --upload --json
+```
+
+Provjereno 25. 11.: dump **54,8 KB** uploadovan na `da-backups/backups/db/…`, `GET` vraća 200 iste
+veličine. Ovo dokazuje da upload kod radi; stvarni R2 (SSE, lifecycle, TTL potpisa) čeka ključeve.
+
 ## Šta se ne može ovako provjeriti
 
 - **R2 TTL** — istek potpisa provjerava samo Cloudflare R2 (local S3 ne validira potpis).

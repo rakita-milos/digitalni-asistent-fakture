@@ -173,6 +173,9 @@ Nastavak po planu bez novih korisnikovih naloga; sve provjere su ponovljive.
       **22/22 koraka**, oba naloga očišćena (**2/2**), vrijeme do prve fakture **0,6 s / 0,4 s**
       (API, bez UI). Izvještaj: `docs/pilot/reports/DRYRUN-2026-11-25.md`. **Nalaz:** podsjetnik
       traži telefon kupca — dodato u onboarding skriptu.
+- [x] **Backup upload grana provjerena** — `pnpm backup:db --upload` protiv lokalnog S3 servera
+      (`R2_ENDPOINT`, `R2_FORCE_PATH_STYLE=true`): dump **54,8 KB** uploadovan u `backups/db/…`,
+      `GET` vraća **200** iste veličine. Pravi Cloudflare R2 čeka ključeve (G12).
 - [ ] **Blokada** — nema Sentry/R2/SMS kredencijala, staging naloga, keystore-a ni 3 telefona.
       Ako ne stignu do **27.11.**, po pravilu klizanja: **G12 7.12., G13 14.12., pilot 15.12.–12.1.,
       G14 18.1.2027.**
