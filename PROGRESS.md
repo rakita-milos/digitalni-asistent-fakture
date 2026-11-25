@@ -164,6 +164,10 @@ Nastavak po planu bez novih korisnikovih naloga; sve provjere su ponovljive.
       izvršava samo `docker` job (build image → migracije → seed → `/health` → worker), ostali se
       preskaču. Time se hvata drift baznog image-a i zavisnosti bez trošenja minuta na svaki push.
       `preflight` je dodat u `verify` (informativno, ne pada bez naloga).
+- [x] **Rollback vježba (lokalno)** — compose stack `TAG=drill-good` na portu 3101; simuliran loš
+      deploy (pogrešan `DATABASE_URL` na istom portu): detekcija **1,3 s**, rollback na prethodni
+      image **7,0 s** do `200 /health`, smoke poslije rollbacka **8/8 (615 ms)**. Mehanizam dokazan;
+      prava vježba na stagingu ostaje za T13-6.
 - [ ] **Blokada** — nema Sentry/R2/SMS kredencijala, staging naloga, keystore-a ni 3 telefona.
       Ako ne stignu do **27.11.**, po pravilu klizanja: **G12 7.12., G13 14.12., pilot 15.12.–12.1.,
       G14 18.1.2027.**

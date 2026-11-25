@@ -81,7 +81,7 @@ A6 unit testovi limitera, S11-7 `setup_completed`, release signing config + plac
 | # | Stavka | Dokaz | Status |
 |---|---|---|---|
 | D1 | Staging identičan produkciji | `docs/STAGING_DEPLOY.md` §4.1 — Docker image + `infra/docker-compose.prod.yml` (postgres → migrate → api/worker), `.env.production.example`; lokalna proba prošla (migracije, seed, smoke, worker). Staging još nije podignut | ⚠️ |
-| D2 | Rollback plan (web instant, prethodni API, testiran flip) | `docs/STAGING_DEPLOY.md` — tabela rollback po komponenti | ✅ (dokument) |
+| D2 | Rollback plan (web instant, prethodni API, testiran flip) | `docs/STAGING_DEPLOY.md` §6.3 — tabela rollback po komponenti + **lokalna vježba 25. 11.** (detekcija 1,3 s, rollback image-a 7,0 s, smoke 8/8); staging vježba ostaje | ✅ (dokument + lokalna vježba) |
 | D3 | Feature flag za fiskalizaciju i SMS | `src/config/env.ts:66-68`; `invoices.service.ts` 503 kada je flag isključen; `test/fiscal.e2e-spec.ts`; web/mobilni prikazuju poruku | ✅ |
 | D4 | Migracije prije aplikacije, uz backup | `docs/STAGING_DEPLOY.md` (redoslijed deploya) i `ci.yml` (`migrate deploy` prije testova) | ✅ |
 

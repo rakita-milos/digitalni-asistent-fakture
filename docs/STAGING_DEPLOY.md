@@ -179,6 +179,13 @@ direktno na produkciju bez odobrenja i prethodnog backup-a.
 | Fiskalizacija/SMS problem | isključi `FEATURE_FISCAL_ENABLED`/`FEATURE_SMS_ENABLED` (503 + jasna poruka) |
 | Baza nedostupna | Neon failover/restore; API vraća 5xx — uključi status stranicu |
 
+**Lokalna vježba mehanizma (25. 11. 2026.):** na compose stacku (`TAG=drill-good`, port 3101)
+simuliran je loš deploy (API sa pogrešnim `DATABASE_URL` na istom portu):
+detekcija nezdravog stanja **1,3 s** (connection refused), rollback na prethodni image
+(`docker compose up -d api`) **7,0 s** do `200 /health`, poslije toga smoke **8/8 (615 ms)**.
+Ovim je dokazan mehanizam zamjene image-a; **prava vježba na stagingu** (uz pravi prethodni
+release i praćenje 5xx/p95) ostaje za T13-6.
+
 ## 7. Bezbjednost deploya
 
 - `NODE_ENV=production`; cookie `secure`; CORS samo tačan domen.

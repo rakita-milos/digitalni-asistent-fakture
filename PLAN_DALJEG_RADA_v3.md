@@ -186,6 +186,10 @@ kroz `DA_KEYSTORE_BASE64`, `-rc` tag smije debug potpis a pravi release tag ne. 
 kao neispravan (Metro nije imao `packages/shared/dist`), popravljeno. Ostaje keystore (tvoja 2 primjerka)
 i Play nalog za upload.
 
+**Rollback (25.11.2026.):** mehanizam provjeren lokalno na compose stacku — detekcija lošeg deploya
+**1,3 s**, rollback na prethodni image **7,0 s**, smoke poslije rollbacka **8/8**. Prava vježba na
+stagingu (T13-6) ostaje dok ne postoje nalozi.
+
 Napomena: ako je Play developer account **lični**, produkcija traži **12 testera / 14 dana** closed
 testinga — zato pilot ide kao closed test sa **12–15** korisnika, ne 5 (vidi §12).
 
