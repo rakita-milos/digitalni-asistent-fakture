@@ -144,6 +144,14 @@ Nastavak po planu bez novih korisnikovih naloga; sve provjere su ponovljive.
       content rating na engleskom, checklist) + link u `PLAY_RELEASE.md`.
 - [x] **Provjere** — `preflight` 5/13 (očekivano — nema naloga), `check-signing` OK (nema keystore
       → debug potpis), YAML oba workflowa validan.
+- [x] **CI validacija novih jobova** — ručni `ci.yml` dispatch
+      ([run 23](https://github.com/rakita-milos/digitalni-asistent-fakture/actions/runs/45582414195),
+      commit `481a70a`): **svih 7 jobova zeleno**, uključujući novi
+      **`docker image (API + worker)`** (build → migracije → seed → `/health` → worker start) i
+      `android release AAB`. `backup.yml` ručno pokrenut
+      ([run 1](https://github.com/rakita-milos/digitalni-asistent-fakture/actions/runs/45582417420)):
+      zelen, preskočio backup uz upozorenje jer secrets nisu postavljeni (očekivano ponašanje).
+      Push run #22 je otkazan jer ga je dispatch (isti ref) preuzeo kroz concurrency — nije pad.
 - [ ] **Blokada** — nema Sentry/R2/SMS kredencijala, staging naloga, keystore-a ni 3 telefona.
       Ako ne stignu do **27.11.**, po pravilu klizanja: **G12 7.12., G13 14.12., pilot 15.12.–12.1.,
       G14 18.1.2027.**

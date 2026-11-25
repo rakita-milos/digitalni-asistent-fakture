@@ -536,7 +536,7 @@ push/PR + jedan ručni:**
 **Backup:** `.github/workflows/backup.yml` — dnevni `pg_dump` → R2 + artifact, samo ako su postavljeni
 secrets (bez njih preskače uz upozorenje). Uputstvo: `docs/STAGING_DEPLOY.md` §6.1.
 
-Zadnji zeleni run: [#21](https://github.com/rakita-milos/digitalni-asistent-fakture/actions/runs/45219106572) (5/5); tag `v1.0.0-rc3` — AAB artifact 52,5 MB.
+Zadnji zeleni run: [#23](https://github.com/rakita-milos/digitalni-asistent-fakture/actions/runs/45582414195) (7/7, uključujući `docker` job); tag `v1.0.0-rc3` — AAB artifact 52,5 MB.
 
 ## Konvencije i odluke
 
