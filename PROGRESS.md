@@ -160,6 +160,10 @@ Nastavak po planu bez novih korisnikovih naloga; sve provjere su ponovljive.
 - [x] **Audit refresh (25. 11.)** — `pnpm audit`: produkcija **8 nalaza (4 moderate, 4 low), 0
       high/critical**; sve **16 (2 critical dev-only, 10 moderate, 4 low)** — nepromijenjeno u odnosu
       na 23. 11. (`SECURITY_AUDIT.md` ažuriran datumom).
+- [x] **Sedmični Docker build** — `ci.yml` dobio `schedule` (ponedjeljak 03:00 UTC): tada se
+      izvršava samo `docker` job (build image → migracije → seed → `/health` → worker), ostali se
+      preskaču. Time se hvata drift baznog image-a i zavisnosti bez trošenja minuta na svaki push.
+      `preflight` je dodat u `verify` (informativno, ne pada bez naloga).
 - [ ] **Blokada** — nema Sentry/R2/SMS kredencijala, staging naloga, keystore-a ni 3 telefona.
       Ako ne stignu do **27.11.**, po pravilu klizanja: **G12 7.12., G13 14.12., pilot 15.12.–12.1.,
       G14 18.1.2027.**

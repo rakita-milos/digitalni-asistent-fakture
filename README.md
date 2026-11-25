@@ -521,15 +521,16 @@ pnpm pilot:selftest               # provjera alata, bez baze
 ## CI (`.github/workflows/ci.yml`)
 
 GitHub Actions, Node 22, pnpm 10.34.9, **Postgres 16 + Redis 7** service. **5 jobova na svaki
-push/PR + jedan ručni:**
+push/PR**; `android-release` i `docker` idu ručno ili na tag `v*`, a `docker` se vrti i
+**ponedjeljkom 03:00 UTC** (tada se ostali jobovi preskaču):
 
 | Job | Šta radi |
 |---|---|
-| `verify` | `prisma generate/validate/migrate deploy` → `lint` → `typecheck` → `test` → `build` → **`check:play`** → **`pilot:selftest` + primjer statusa** → `prisma migrate status` |
+| `verify` | `prisma generate/validate/migrate deploy` → `lint` → `typecheck` → `test` → `build` → **`check:play`** → **`pilot:selftest` + primjer statusa** → `release:check-signing` + preflight → `prisma migrate status` |
 | `e2e` | build + Chromium + `pnpm --filter web test:e2e` (izvještaj kao artifact) |
 | `android` | JDK 17 + preinstalirani SDK, `assembleDebug`, APK kao artifact |
 | `android-release` | **ručno/tag `v*`**: `bundleRelease` → AAB artifact (`digitalni-asistent-aab`); bez `DA_*` secrets potpisuje debug ključem |
-| `docker` | **ručno/tag `v*`**: build API/worker image → migracije → seed → `/health` → worker start |
+| `docker` | **ručno/tag `v*`/ponedjeljkom**: build API/worker image → migracije → seed → `/health` → worker start |
 | `compose` | `docker compose config` (dev + prod) |
 | `integracije` | fake S3/SMS/Sentry + API: `pnpm test:integrations` |
 

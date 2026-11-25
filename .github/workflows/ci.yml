@@ -5,6 +5,9 @@ on:
     branches: [main, master, develop]
     tags: ['v*']
   pull_request:
+  # Sedmična provjera Docker image-a (samo `docker` job se izvršava na schedule).
+  schedule:
+    - cron: '0 3 * * 1'
   workflow_dispatch:
     inputs:
       allow_debug_signing:
@@ -24,6 +27,7 @@ env:
 jobs:
   verify:
     name: lint / typecheck / test / build
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
@@ -109,11 +113,15 @@ jobs:
       - name: Release potpisivanje (konfiguracija, bez tajni)
         run: node tools/release/check-signing.mjs
 
+      - name: Release preflight (informativno, bez tajni)
+        run: node tools/release/preflight.mjs --json > /dev/null
+
       - name: Prisma status
         run: pnpm --filter api exec prisma migrate status
 
   compose:
     name: docker compose config
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -124,6 +132,7 @@ jobs:
 
   android:
     name: android debug build (APK)
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     # Hladan run skida NDK 27.1, CMake, platform 37 i Gradle 9.4.1; 40 min je tijesno.
     timeout-minutes: 60
@@ -198,7 +207,7 @@ jobs:
     name: android release AAB
     runs-on: ubuntu-latest
     # AAB za Play se pravi ručno (workflow_dispatch) ili na tag `v*`; ne na svaki push.
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name != 'schedule' && (github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v'))
     timeout-minutes: 60
 
     steps:
@@ -311,7 +320,7 @@ jobs:
 
   docker:
     name: docker image (API + worker)
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -402,6 +411,7 @@ jobs:
 
   integrations:
     name: integracije (R2 / SMS / Sentry)
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
@@ -469,6 +479,7 @@ jobs:
 
   e2e:
     name: web e2e (Playwright)
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
