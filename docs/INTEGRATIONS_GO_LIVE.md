@@ -131,7 +131,7 @@ psql "$RESTORE_URL" -c "select (select count(*) from invoices) invoices, (select
    aplikacija radi na restore bazi.
 4. Dokaz: vrijeme restore-a + brojevi u `PROGRESS.md`.
 
-## 6. Evidencija (upisati u PROGRESS.md)
+## 6. Evidencija (upisati u PROGRESS.md i `docs/G12_EVIDENCE_PACK.md`)
 
 | Stavka | Provajder/nalog | Datum | Dokaz | Status |
 |---|---|---|---|---|

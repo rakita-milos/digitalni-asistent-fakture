@@ -163,7 +163,7 @@ Popunjava se tačno prema stvarnom ponašanju aplikacije. Sažetak:
 - [ ] Privacy policy i ToS **objavljeni na stabilnim URL-ovima** (čeka domen + pravnika)
 - [ ] Data Safety popunjen tačno (gore)
 - [ ] Content rating upitnik
-- [ ] Interni test na 3 uređaja (jeftin/srednji/nov) — APK/AAB
+- [ ] Interni test na 3 uređaja (jeftin/srednji/nov) — APK/AAB (matrica: `docs/G12_EVIDENCE_PACK.md` §4)
 - [ ] Nema `debuggable`/test naloga u release build-u; API URL je produkcijski
 - [ ] Pilot plan ako je account lični (12 testera / 14 dana)
 - [ ] Podrška: e-mail i FAQ spremni

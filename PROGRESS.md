@@ -12,7 +12,7 @@ postoji; web Sentry instrumentacija (T12-4) i generički SMS HTTP adapter (T12-6
 Play screenshotovi i osvježen audit. **G14 priprema je završena 23. 11.** (alati za status i sedmični
 izvještaj, onboarding/NPS/trijaža/exit dokumenti; popravljena `metrics:platform` skripta), ali
 **pilot nije počeo** — čeka G12/G13. Sledeće: **G12** — Sentry DSN, R2, SMS, staging, restore i
-matrica na 3 uređaja. Plan: `PLAN_DALJEG_RADA_v3.md`.
+matrica na 3 uređaja; dokazni paket: `docs/G12_EVIDENCE_PACK.md`. Plan: `PLAN_DALJEG_RADA_v3.md`.
 
 ### Sprint 12 — release engineering (2026-11-16, u toku)
 
@@ -179,6 +179,21 @@ Nastavak po planu bez novih korisnikovih naloga; sve provjere su ponovljive.
 - [ ] **Blokada** — nema Sentry/R2/SMS kredencijala, staging naloga, keystore-a ni 3 telefona.
       Ako ne stignu do **27.11.**, po pravilu klizanja: **G12 7.12., G13 14.12., pilot 15.12.–12.1.,
       G14 18.1.2027.**
+
+### G12 dokazni paket (2026-11-25)
+
+Cilj: kapija se izvršava bez improvizacije kad nalozi i telefoni stignu.
+
+- [x] **CI #30 zelen na HEAD `9d9e72a`** — 5/5 izvršenih jobova (`verify`, `e2e`, `integracije`,
+      `android debug`, `compose`); `android-release` i `docker` preskočeni po dizajnu (samo
+      `workflow_dispatch`/tag). [run 45605101499](https://github.com/rakita-milos/digitalni-asistent-fakture/actions/runs/45605101499).
+- [x] **Lokalna provjera 25. 11.** — `lint` 5/5, `typecheck` 5/5, `build` 3/3. Testovi lokalno nisu
+      izvršeni: sandbox blokira `spawn` (esbuild/Prisma `EPERM`), pa se brojevi testova uzimaju iz
+      CI-ja (posljednje **343**, 23. 11.).
+- [x] **`docs/G12_EVIDENCE_PACK.md`** — 8 uslova kapije sa tačnim komandama i dokazima, matrica
+      **3 uređaja / 15 scenarija** i sign-off tabela; jedini izvor za G12 pregled.
+- [ ] **G12 izvršenje** — čeka Sentry, R2, SMS, staging, keystore i 3 telefona; `preflight` **5/12**
+      (5/13 sa `--devices`).
 
 ### Release automatizacija i Docker proba (2026-11-23)
 
@@ -666,7 +681,8 @@ v2 (`PLAN_DALJEG_RADA_v2.md`, 16.11.) i v1 (12.11.) su arhiva. Sprintske kapije:
 Sprint 12B je **završen 23. 11.** (prije roka): pravne stranice, AAB job, staging smoke, screenshotovi
 i osvježen audit — detalji u sekciji „Sprint 12B“. **G14 priprema je takođe završena 23. 11.** —
 detalji u sekciji „Sprint 14 — pilot (priprema)“; start pilota čeka G12/G13, pa G14 ostaje otvoren.
-Sledeće: push + CI, pa **G12** (integracije i uređaji).
+Sledeće: **G12** po `docs/G12_EVIDENCE_PACK.md` — čim stignu Sentry/R2/SMS/staging/keystore
+i 3 telefona; kod-zadataka koji ne čekaju nalog nema.
 - **Sprint 11 (stanje 2026-11-13)** — urađeno: opt-out podsjetnika (`d995cb2`), incident runbook
   (`c711c96`), Play/legal drafti (`ae56bbb`), **S11-1 audit** (`docs/PRE_DEPLOYMENT_AUDIT.md`),
   **S11-5 pilot kit** (`docs/PILOT_KIT.md`), **S11-7 analitika** (`docs/ANALYTICS.md`,
