@@ -1,0 +1,70 @@
+name: Staging smoke
+
+# Sedmična (i ručna) provjera staginga — isti tok kao `pnpm smoke:staging`.
+# Bez secrets job preskače uz upozorenje; ne pada dok staging još ne postoji.
+#
+# Potrebni secrets:
+#   STAGING_API_URL   npr. https://api-staging.digitalni-asistent.ba
+#   SMOKE_EMAIL       nalog demo firme na stagingu
+#   SMOKE_PASSWORD    lozinka tog naloga
+
+on:
+  schedule:
+    - cron: '0 6 * * 1' # ponedjeljak 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    name: staging smoke (8 provjera)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Provjeri secrets
+        env:
+          STAGING_API_URL: ${{ secrets.STAGING_API_URL }}
+          SMOKE_EMAIL: ${{ secrets.SMOKE_EMAIL }}
+          SMOKE_PASSWORD: ${{ secrets.SMOKE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for name in STAGING_API_URL SMOKE_EMAIL SMOKE_PASSWORD; do
+            if [ -z "${!name:-}" ]; then missing+=("$name"); fi
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::warning::Staging smoke preskočen — nedostaju secrets: ${missing[*]}"
+            echo "SKIP=1" >> "$GITHUB_ENV"
+          fi
+
+      - uses: actions/setup-node@v4
+        if: env.SKIP != '1'
+        with:
+          node-version: '22'
+
+      - name: Smoke
+        if: env.SKIP != '1'
+        env:
+          STAGING_API_URL: ${{ secrets.STAGING_API_URL }}
+          SMOKE_EMAIL: ${{ secrets.SMOKE_EMAIL }}
+          SMOKE_PASSWORD: ${{ secrets.SMOKE_PASSWORD }}
+          SMOKE_TIMEOUT_MS: '15000'
+        run: |
+          node tools/staging-smoke.mjs --json | tee staging-smoke.json
+          node -e "const r=require('./staging-smoke.json'); if(!r.ok) process.exit(1)"
+
+      - name: Sačuvaj rezultat
+        if: env.SKIP != '1'
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-smoke
+          path: staging-smoke.json
+          retention-days: 30

@@ -198,6 +198,10 @@ SMOKE_PASSWORD='<lozinka>' \
 pnpm smoke:staging          # ili: node tools/staging-smoke.mjs --json
 ```
 
+Workflow [`.github/workflows/staging-smoke.yml`](../.github/workflows/staging-smoke.yml) pokreće isti
+tok svakog ponedjeljka (06:00 UTC) i ručno; traži secrets `STAGING_API_URL`, `SMOKE_EMAIL`,
+`SMOKE_PASSWORD`, a bez njih preskoči uz upozorenje. Rezultat se čuva kao artifact `staging-smoke`.
+
 Skripta provjerava **8 stvari**: `/health` (baza + Redis), prijava, kupci, lista faktura, detalj,
 PDF (302 na R2 signed URL sa `X-Amz-Expires ≤ 900`, ili stream `%PDF`), kreiranje drafta i izdavanje
 (mock) sa PFR-om. Exit kod je 1 na prvi pad, `--json` daje mašinski čitljiv izlaz za CI.

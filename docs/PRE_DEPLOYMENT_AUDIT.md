@@ -34,6 +34,11 @@
    u CI-ju; feature graphic pretvoren u 24-bit PNG.
 5. **CI:** 5/5 zelen (verify, compose, android, integracije, e2e); Play provjera dodata u `verify`.
 
+**Dodatno 25. 11. 2026.:** Docker image smoke u CI-ju (`docker` job: build → migracije → seed →
+`/health` → worker), dnevni backup workflow (`pg_dump` → R2 + artifact), staging smoke workflow
+(ponedjeljkom/ručno), `pnpm release:preflight` i engleski Play listing. `pnpm audit` nepromijenjen:
+produkcija 8 nalaza (0 high/critical), sve 16.
+
 **Popravljeno u prvom prolazu (S11-1, 13. 11.):** B4 health readiness, B3 `x-request-id`,
 A6 rate limit za izdavanje/slanje, E3 TTL cap 15 min, E6 offline retry, C2 EXPLAIN + indeks,
 A6 unit testovi limitera, S11-7 `setup_completed`, release signing config + placeholder brend.

@@ -1,10 +1,10 @@
-﻿# Security audit — zavisnosti (T13-5)
+# Security audit — zavisnosti (T13-5)
 
-> Datum: **23. 11. 2026.** (prvi prolaz 21. 11.) · Alat: `pnpm audit` · Scope: sve workspace pakete
-> (`shared`, `config`, `api`, `web`, `mobile`) + root.
+> Datum: **25. 11. 2026.** (prvi prolaz 21. 11., drugi 23. 11.) · Alat: `pnpm audit` · Scope: sve
+> workspace pakete (`shared`, `config`, `api`, `web`, `mobile`) + root.
 > Ovaj dokument je dokaz za T13-5 („0 P1, P2 planiran“); nije zamjena za pentest.
 > Napomena: brojevi su veći od prvog prolaza jer je advisory baza narasla (webpack, minimatch);
-> **nema novih high/critical u produkciji.**
+> **nema novih high/critical u produkciji**. Provjera 25. 11.: **nepromijenjeno** (8 / 16).
 
 ## 1. Rezultat
 
