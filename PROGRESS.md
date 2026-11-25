@@ -152,6 +152,14 @@ Nastavak po planu bez novih korisnikovih naloga; sve provjere su ponovljive.
       ([run 1](https://github.com/rakita-milos/digitalni-asistent-fakture/actions/runs/45582417420)):
       zelen, preskočio backup uz upozorenje jer secrets nisu postavljeni (očekivano ponašanje).
       Push run #22 je otkazan jer ga je dispatch (isti ref) preuzeo kroz concurrency — nije pad.
+- [x] **Staging smoke workflow** — `.github/workflows/staging-smoke.yml`: ponedjeljkom 06:00 UTC i
+      ručno; iste 8 provjera kao `pnpm smoke:staging`, artifact `staging-smoke`. Bez secrets
+      preskače uz upozorenje — ručno pokrenut
+      ([run 1](https://github.com/rakita-milos/digitalni-asistent-fakture/actions/runs/45591926987))
+      **zelen**.
+- [x] **Audit refresh (25. 11.)** — `pnpm audit`: produkcija **8 nalaza (4 moderate, 4 low), 0
+      high/critical**; sve **16 (2 critical dev-only, 10 moderate, 4 low)** — nepromijenjeno u odnosu
+      na 23. 11. (`SECURITY_AUDIT.md` ažuriran datumom).
 - [ ] **Blokada** — nema Sentry/R2/SMS kredencijala, staging naloga, keystore-a ni 3 telefona.
       Ako ne stignu do **27.11.**, po pravilu klizanja: **G12 7.12., G13 14.12., pilot 15.12.–12.1.,
       G14 18.1.2027.**
