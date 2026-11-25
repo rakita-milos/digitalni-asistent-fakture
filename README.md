@@ -460,6 +460,7 @@ pnpm --filter web test:e2e
 | `pnpm check:play` | Play materijal: dimenzije, odnos ≤ 2:1, bez providnosti (isto kao CI) |
 | `pnpm pilot:status` | Status kohorte i kriteriji G14 iz `docs/pilot/tracking.csv`; `--example` bez PII, `--json`, `--strict` |
 | `pnpm pilot:weekly` | Sedmični izvještaj (platform-metrike + kohorta) u `docs/pilot/reports/`; `--run`, `--example` |
+| `pnpm pilot:dryrun` | Sintetički onboarding kroz API (2 firme: registracija → faktura → naplata → podsjetnik), mjerenja + `docs/pilot/reports/DRYRUN-*.md` |
 | `pnpm pilot:selftest` | Samoprovjera pilotskih alata (CSV, G14 kriteriji, NPS, bez PII) — ista provjera je u CI-ju |
 | `pnpm release:check-signing` | Provjera keystore/CI potpisivanja bez ispisivanja tajni (`docs/KEYSTORE.md`) |
 | `pnpm release:preflight` | Šta još blokira G12/G13: Sentry, R2, SMS, staging, keystore, uređaji, Play materijal (`--devices`, `--json`, `--strict`) |

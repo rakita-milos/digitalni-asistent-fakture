@@ -27,7 +27,9 @@ Korisnik radi, ti gledaš (ne klikćeš umjesto njega):
 1. **Nalog i firma** — naziv, JIB, adresa, telefon; potvrda e-maila.
 2. **EFD i numeracija** — EFD ID (mock), prefix, godina; objasni da se broj dodjeljuje pri izdavanju.
 3. **Porezi i katalog** — dodaj 17 % (ili njegovu stopu) i 2–3 usluge/artikla koje stvarno koristi.
-4. **Prvi kupac** — unesi stvarnog ili testnog kupca (ime, JIB ako ima, adresa).
+4. **Prvi kupac** — unesi stvarnog ili testnog kupca (ime, JIB ako ima, adresa, **telefon**).
+   Telefon je obavezan za podsjetnik: API odbija `POST /invoices/:id/remind` ako kupac nema telefon
+   (nađeno u dry-runu 25. 11.).
 
 Zabilježi svako zapinjanje: ekran + akcija + šta je očekivao.
 

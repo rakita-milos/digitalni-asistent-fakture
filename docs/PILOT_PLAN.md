@@ -143,6 +143,7 @@ Pilot se pauzira ako se dogodi bilo šta od ovoga:
 |---|---|---|
 | Praćenje kohorte + kriteriji G14 | `tools/pilot/status.mjs` | `pnpm pilot:selftest` 5/5; primjer 12 učesnika |
 | Regrutacija i pipeline | `docs/pilot/RECRUITMENT.md` | pozivnice, kvalifikacija, 15 → 12 |
+| Dry-run toka (2 firme) | `tools/pilot/dryrun.mjs` | 22/22 koraka, 2/2 naloga očišćena; `docs/pilot/reports/DRYRUN-2026-11-25.md` |
 | Sedmični izvještaj | `tools/pilot/weekly.mjs` | primjer `docs/pilot/reports/2026-W48.example.md` |
 | Onboarding skripta | `docs/pilot/ONBOARDING.md` | 20 min, mjerenje „bez pomoći“ |
 | NPS upit | `docs/pilot/NPS.md` | 9 pitanja + NPS, rok 7/21 dan |

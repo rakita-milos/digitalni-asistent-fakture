@@ -34,7 +34,8 @@ Ostali dokumenti pilota:
 1. **Nalog i firma** — registracija (JIB, adresa, telefon), potvrda e-maila.
 2. **EFD podešavanja** — EFD ID i numeracija (prefix/godina); *mock* fiskalizacija.
 3. **Porezi i katalog** — bar jedna poreska stopa (17 %), 2–3 usluge/artikla.
-4. **Prvi kupac + PRAČUN** — unijeti kupca, izdati PRAČUN, pokazati PDF i QR.
+4. **Prvi kupac + PRAČUN** — unijeti kupca (ime, adresa, **telefon** — bez telefona podsjetnik ne
+   radi), izdati PRAČUN, pokazati PDF i QR.
 5. **Podsjetnici** — uključiti plan (npr. 3 dana prije i na dan roka), poslati ručni
    podsjetnik na testni broj; objasniti opt-out kupca.
 

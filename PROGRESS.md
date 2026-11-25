@@ -168,6 +168,11 @@ Nastavak po planu bez novih korisnikovih naloga; sve provjere su ponovljive.
       deploy (pogrešan `DATABASE_URL` na istom portu): detekcija **1,3 s**, rollback na prethodni
       image **7,0 s** do `200 /health`, smoke poslije rollbacka **8/8 (615 ms)**. Mehanizam dokazan;
       prava vježba na stagingu ostaje za T13-6.
+- [x] **Pilot dry-run (2 sintetičke firme)** — `pnpm pilot:dryrun` prošao kroz registraciju, EFD,
+      porez, artikal, kupca, fakturu sa 2 stavke, izdavanje, PDF, naplatu, podsjetnik i setup-complete:
+      **22/22 koraka**, oba naloga očišćena (**2/2**), vrijeme do prve fakture **0,6 s / 0,4 s**
+      (API, bez UI). Izvještaj: `docs/pilot/reports/DRYRUN-2026-11-25.md`. **Nalaz:** podsjetnik
+      traži telefon kupca — dodato u onboarding skriptu.
 - [ ] **Blokada** — nema Sentry/R2/SMS kredencijala, staging naloga, keystore-a ni 3 telefona.
       Ako ne stignu do **27.11.**, po pravilu klizanja: **G12 7.12., G13 14.12., pilot 15.12.–12.1.,
       G14 18.1.2027.**
