@@ -17,6 +17,7 @@
     "smoke:staging": "node tools/staging-smoke.mjs",
     "check:play": "node tools/check-play-assets.mjs",
     "release:check-signing": "node tools/release/check-signing.mjs",
+    "release:preflight": "node tools/release/preflight.mjs",
     "pilot:status": "node tools/pilot/status.mjs",
     "pilot:weekly": "node tools/pilot/weekly.mjs",
     "pilot:selftest": "node tools/pilot/selftest.mjs",
