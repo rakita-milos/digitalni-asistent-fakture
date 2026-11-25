@@ -119,6 +119,10 @@ aws s3 cp "backup-$(date +%F).dump" \
 ```
 
 - Retencija: 30 dnevnih + 12 mjesečnih; dumpovi šifrovani (R2 SSE) i bez javnog pristupa.
+- **Automatizacija:** `.github/workflows/backup.yml` — svaki dan u 02:00 UTC (i ručno) radi
+  `pg_dump` → R2 + artifact `db-backup` (14 dana). Traži secrets `BACKUP_DATABASE_URL` (direktna,
+  ne-pooled veza), `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`;
+  bez njih job preskoči uz upozorenje.
 - **Backup koji nije testiran nije backup** — restore drill obavezan prije pilota i poslije svake promjene šeme.
 
 ### 6.2 Restore drill (u staging)

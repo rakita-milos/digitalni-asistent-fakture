@@ -225,6 +225,11 @@ formata računa. Paralelno računovođa: PDV refundacije, numeracija, paušal. N
 nedjelju**; Sprint 12B se ne pomjera (ne zavisi ni od čega). Ako nalozi stignu poslije 4.12., pilot se
 pomjera na januar i G14 na februar — bolje nego pilot u praznicima.
 
+**Status 25.11.2026:** nalozi i uređaji još nisu dostavljeni; `pnpm release:preflight` pokazuje
+**5/13 spremno** (blokiraju Sentry, R2, SMS, staging, uređaji, keystore). Ako ne stignu do **27.11.**,
+primjenjuje se pravilo: **G12 7.12., G13 14.12., pilot 15.12.–12.1., G14 18.1.2027.** Kod je spreman:
+Docker image i compose, backup/restore, AAB pipeline, preflight i dnevni backup workflow.
+
 ## 10. Tvoje akcije — po rokovima
 
 | # | Akcija | Zašto | Rok |

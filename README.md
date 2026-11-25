@@ -462,6 +462,7 @@ pnpm --filter web test:e2e
 | `pnpm pilot:weekly` | Sedmični izvještaj (platform-metrike + kohorta) u `docs/pilot/reports/`; `--run`, `--example` |
 | `pnpm pilot:selftest` | Samoprovjera pilotskih alata (CSV, G14 kriteriji, NPS, bez PII) — ista provjera je u CI-ju |
 | `pnpm release:check-signing` | Provjera keystore/CI potpisivanja bez ispisivanja tajni (`docs/KEYSTORE.md`) |
+| `pnpm release:preflight` | Šta još blokira G12/G13: Sentry, R2, SMS, staging, keystore, uređaji, Play materijal (`--devices`, `--json`, `--strict`) |
 | `pnpm backup:db` | `pg_dump -Fc` + provjera dumpa + opcioni R2 upload (`--docker`, `--url`, `--upload`) |
 | `pnpm backup:restore-drill` | Restore u privremenu bazu, poređenje 11 tabela i RTO provjera |
 | `pnpm --filter api metrics:platform` | JSON platform-metrike za pilot (bez PII) |
@@ -528,10 +529,14 @@ push/PR + jedan ručni:**
 | `e2e` | build + Chromium + `pnpm --filter web test:e2e` (izvještaj kao artifact) |
 | `android` | JDK 17 + preinstalirani SDK, `assembleDebug`, APK kao artifact |
 | `android-release` | **ručno/tag `v*`**: `bundleRelease` → AAB artifact (`digitalni-asistent-aab`); bez `DA_*` secrets potpisuje debug ključem |
-| `compose` | `docker compose config` |
+| `docker` | **ručno/tag `v*`**: build API/worker image → migracije → seed → `/health` → worker start |
+| `compose` | `docker compose config` (dev + prod) |
 | `integracije` | fake S3/SMS/Sentry + API: `pnpm test:integrations` |
 
-Zadnji zeleni run prije Sprinta 12B: [44959718369](https://github.com/rakita-milos/digitalni-asistent-fakture/actions/runs/44959718369) (5/5).
+**Backup:** `.github/workflows/backup.yml` — dnevni `pg_dump` → R2 + artifact, samo ako su postavljeni
+secrets (bez njih preskače uz upozorenje). Uputstvo: `docs/STAGING_DEPLOY.md` §6.1.
+
+Zadnji zeleni run: [#21](https://github.com/rakita-milos/digitalni-asistent-fakture/actions/runs/45219106572) (5/5); tag `v1.0.0-rc3` — AAB artifact 52,5 MB.
 
 ## Konvencije i odluke
 

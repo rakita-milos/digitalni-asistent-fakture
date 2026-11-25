@@ -126,6 +126,28 @@ Cilj: zatvoriti kod-rupe koje ne čekaju naloge. **Sve provjere lokalno zelene.*
       ✅ 4/4 (frozen lockfile prošao).
 - [ ] **T13-1…T13-4, T13-6** — čekaju brend/package, keystore, pravnika i Play Console.
 
+### Release priprema 2 (2026-11-25)
+
+Nastavak po planu bez novih korisnikovih naloga; sve provjere su ponovljive.
+
+- [x] **Preflight spremnosti** — `pnpm release:preflight` (`tools/release/preflight.mjs`):
+      provjerava Sentry DSN, R2 ključeve, SMS provajder, staging URL/bazu, keystore, verziju,
+      pravne stranice, Play materijal i (opciono `--devices`) povezane telefone. Ne ispisuje tajne;
+      `--json`, `--strict`. **Stanje 25. 11.: 5/13 spremno**; blokiraju Sentry, R2, SMS, staging,
+      uređaji i keystore.
+- [x] **CI Docker job** — `docker` job (workflow_dispatch i tag `v*`): build API/worker image →
+      `prisma migrate deploy` iz image-a → demo seed → `/health` → worker start. Time se Dockerfile
+      provjerava u CI-ju, ne samo lokalno.
+- [x] **Dnevni backup workflow** — `.github/workflows/backup.yml`: cron 02:00 UTC + ručno;
+      `pg_dump` → R2 + artifact `db-backup` (14 dana); bez secrets preskače uz upozorenje.
+- [x] **Engleski listing** — `docs/PLAY_LISTING.en.md` (naziv, kratki/puni opis, Data Safety i
+      content rating na engleskom, checklist) + link u `PLAY_RELEASE.md`.
+- [x] **Provjere** — `preflight` 5/13 (očekivano — nema naloga), `check-signing` OK (nema keystore
+      → debug potpis), YAML oba workflowa validan.
+- [ ] **Blokada** — nema Sentry/R2/SMS kredencijala, staging naloga, keystore-a ni 3 telefona.
+      Ako ne stignu do **27.11.**, po pravilu klizanja: **G12 7.12., G13 14.12., pilot 15.12.–12.1.,
+      G14 18.1.2027.**
+
 ### Release automatizacija i Docker proba (2026-11-23)
 
 Sve bez korisnikovih naloga: AAB pipeline, keystore tajne, backup/restore i produkcijski image.

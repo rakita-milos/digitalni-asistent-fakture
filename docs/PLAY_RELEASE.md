@@ -61,6 +61,7 @@ Job se pokreće ručno (Actions → *Run workflow*, `allow_debug_signing=false`)
 - **Puni opis (≤ 4000):** vidi dolje.
 - **Kategorija:** Business
 - **Kontakt e-mail:** podrška@<domen>
+- **Engleska varijanta listinga:** [`PLAY_LISTING.en.md`](PLAY_LISTING.en.md) (opciona, druga jezička verzija)
 
 ### Puni opis (draft)
 
