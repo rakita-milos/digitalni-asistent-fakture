@@ -1,0 +1,94 @@
+name: Backup baze
+
+# Dnevni logički backup (T12-8): pg_dump → R2 + artifact kao sekundarna kopija.
+# Radi samo ako su postavljeni secrets; bez njih se job završi sa upozorenjem (ne pada).
+#
+# Potrebni secrets:
+#   BACKUP_DATABASE_URL    direktna (ne-pooled) veza na staging/produkciju
+#   R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET
+#
+# Ručno pokretanje: Actions → Backup baze → Run workflow.
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # 02:00 UTC svaki dan
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup-db
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: pg_dump → R2
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Provjeri secrets
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for name in BACKUP_DATABASE_URL R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET; do
+            if [ -z "${!name:-}" ]; then missing+=("$name"); fi
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::warning::Backup preskočen — nedostaju secrets: ${missing[*]}"
+            echo "SKIP=1" >> "$GITHUB_ENV"
+          fi
+
+      - uses: pnpm/action-setup@v4
+        if: env.SKIP != '1'
+        with:
+          version: '10.34.9'
+
+      - uses: actions/setup-node@v4
+        if: env.SKIP != '1'
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - name: Instalacija zavisnosti (za S3 klijent)
+        if: env.SKIP != '1'
+        run: pnpm install --frozen-lockfile
+
+      - name: PostgreSQL klijent
+        if: env.SKIP != '1'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends postgresql-client
+
+      - name: Backup + upload na R2
+        if: env.SKIP != '1'
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          node tools/backup/backup-db.mjs \
+            --url="$BACKUP_DATABASE_URL" \
+            --out=.tools/backups \
+            --upload \
+            --keep=0
+
+      - name: Sačuvaj dump kao artifact (14 dana)
+        if: env.SKIP != '1'
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup
+          path: .tools/backups/*.dump
+          if-no-files-found: ignore
+          retention-days: 14

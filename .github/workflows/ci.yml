@@ -309,6 +309,97 @@ jobs:
           path: apps/mobile/android/app/build/outputs/bundle/release/*.aab
           if-no-files-found: error
 
+  docker:
+    name: docker image (API + worker)
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: digitalni
+          POSTGRES_PASSWORD: digitalni
+          POSTGRES_DB: digitalni_asistent
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U digitalni -d digitalni_asistent"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://digitalni:digitalni@localhost:5432/digitalni_asistent?schema=public
+      REDIS_URL: redis://localhost:6379
+      JWT_ACCESS_SECRET: ci-access-secret-0123456789
+      JWT_REFRESH_SECRET: ci-refresh-secret-0123456789
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build API/worker image
+        run: docker build -f apps/api/Dockerfile -t digitalni-asistent-api:ci .
+
+      - name: Migracije iz image-a
+        run: |
+          docker run --rm --network host \
+            -e DATABASE_URL="$DATABASE_URL" \
+            digitalni-asistent-api:ci \
+            pnpm --filter api exec prisma migrate deploy
+
+      - name: Demo seed
+        run: |
+          docker run --rm --network host \
+            -e DATABASE_URL="$DATABASE_URL" \
+            -e SEED_RESET=1 \
+            digitalni-asistent-api:ci \
+            pnpm --filter api exec prisma db seed
+
+      - name: API health iz image-a
+        run: |
+          docker run -d --name api-ci --network host \
+            -e NODE_ENV=production \
+            -e DATABASE_URL="$DATABASE_URL" \
+            -e REDIS_URL="$REDIS_URL" \
+            -e JWT_ACCESS_SECRET="$JWT_ACCESS_SECRET" \
+            -e JWT_REFRESH_SECRET="$JWT_REFRESH_SECRET" \
+            -e SMS_PROVIDER=log -e MAIL_PROVIDER=log -e RATE_LIMIT_ENABLED=false \
+            digitalni-asistent-api:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3001/health; then echo; exit 0; fi
+            sleep 2
+          done
+          docker logs api-ci
+          exit 1
+
+      - name: Worker start iz image-a
+        run: |
+          docker run -d --name worker-ci --network host \
+            -e NODE_ENV=production \
+            -e DATABASE_URL="$DATABASE_URL" \
+            -e REDIS_URL="$REDIS_URL" \
+            -e JWT_ACCESS_SECRET="$JWT_ACCESS_SECRET" \
+            -e JWT_REFRESH_SECRET="$JWT_REFRESH_SECRET" \
+            -e SMS_PROVIDER=log -e MAIL_PROVIDER=log \
+            digitalni-asistent-api:ci node apps/api/dist/worker.js
+          sleep 8
+          docker logs worker-ci | grep -q "Worker pokrenut"
+
+      - name: Cleanup
+        if: always()
+        run: docker rm -f api-ci worker-ci || true
+
   integrations:
     name: integracije (R2 / SMS / Sentry)
     runs-on: ubuntu-latest
