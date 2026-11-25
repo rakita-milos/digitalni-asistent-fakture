@@ -21,6 +21,7 @@
     "pilot:status": "node tools/pilot/status.mjs",
     "pilot:weekly": "node tools/pilot/weekly.mjs",
     "pilot:selftest": "node tools/pilot/selftest.mjs",
+    "pilot:dryrun": "node tools/pilot/dryrun.mjs",
     "backup:db": "node tools/backup/backup-db.mjs",
     "backup:restore-drill": "node tools/backup/restore-drill.mjs",
     "format": "prettier --write .",
