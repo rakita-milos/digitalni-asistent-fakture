@@ -14,7 +14,7 @@ APK); ostalih šest čeka naloge i uređaje.
 | #   | Uslov G12                                       | Stanje | Dokaz koji se prilaže                                                                                                             | Ko                 |
 | --- | ----------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
 | 1   | CI `verify` + `e2e` + `android` zeleni          | ✅     | [run #33](https://github.com/rakita-milos/digitalni-asistent-fakture/actions/runs/45852302932) na `v1.0.0-rc4`; **7/7** jobova | —                  |
-| 2   | APK artifact se preuzima                        | ✅     | debug APK ~51,5 MB + `digitalni-asistent-release-apk` ~32,3 MB (standalone, rc4)                                                   | —                  |
+| 2   | APK artifact se preuzima                        | ✅     | debug APK ~51,5 MB + `digitalni-asistent-release-apk` ~32,3 MB (rc4; proof, bez `DA_API_URL`)                                       | —                  |
 | 3   | APK na **3 fizička uređaja** + matrica          | ⏳     | §4 ovog fajla, popunjena tabela                                                                                                   | ti + ja            |
 | 4   | Sentry prima testnu grešku + alarmi             | ⏳     | link na event sa `request_id` + screenshot alarma                                                                                 | ti (DSN) + ja      |
 | 5   | PDF preko **pravog** R2 + istek TTL-a           | ⏳     | `302` sa `X-Amz-Expires=900`, download `%PDF`, `403` poslije TTL-a                                                                | ti (ključevi) + ja |
@@ -107,7 +107,8 @@ DA_API_URL=https://api-staging.<domen> node apps/mobile/scripts/set-api-url.mjs
 
 Isti URL se postavlja kao repository variable `DA_API_URL` da ga CI ubaci u APK/AAB. Release
 build odbija `http://10.0.2.2`/`localhost` (baca grešku pri startu) — namjerna zaštita od AAB-a
-koji na telefonu ne vidi API.
+koji na telefonu ne vidi API. Zato je RC4 release APK (bez `DA_API_URL`) **samo dokaz pipeline-a**;
+za telefone se pokreće novi dispatch sa staging URL-om.
 
 ## 4. Matrica uređaja
 
