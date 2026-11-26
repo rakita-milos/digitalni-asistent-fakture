@@ -211,6 +211,9 @@ Cilj: kapija se izvršava bez improvizacije kad nalozi i telefoni stignu.
       `android-release` sada prije uploada provjerava da release APK sadrži
       `assets/index.android.bundle`. Provjera ✅, APK **32.256.666 B**, AAB **52.544.618 B**.
       Time je artifact za matricu dokazano standalone (ne zavisi od Metro-a).
+- [x] **Produkcijska upozorenja pri startu (26. 11.)** — API i worker loguju: `ESIR_MODE=mock`,
+      `SMS_PROVIDER=log`, localhost `PUBLIC_API_URL`/`WEB_APP_URL` i Sentry bez DSN-a
+      (`collectProductionWarnings`, 4 testa). Ne mijenja ponašanje — sprečava tihu pogrešnu konfiguraciju.
 - [ ] **DA_API_URL za uređaje** — treba staging ili LAN URL prije matrice; bez njega G12 stavka 3 pada.
 - [ ] **G12 izvršenje** — čeka Sentry, R2, SMS, staging, keystore i 3 telefona; `preflight` **5/12**
       (5/13 sa `--devices`).

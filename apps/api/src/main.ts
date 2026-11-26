@@ -6,9 +6,15 @@ import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { MonitoringService } from './common/monitoring/monitoring.service';
 import { env } from './config/env';
+import { collectProductionWarnings } from './config/production-warnings';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
+
+  const configLogger = new Logger('Config');
+  for (const warning of collectProductionWarnings(env)) {
+    configLogger.warn(warning);
+  }
 
   const monitoring = app.get(MonitoringService);
   app.useGlobalFilters(new AllExceptionsFilter(monitoring));
