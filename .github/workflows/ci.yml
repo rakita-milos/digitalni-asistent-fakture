@@ -358,6 +358,17 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon
 
+      # APK bez ugrađenog JS bundle-a bi se instalirao ali ne bi mogao da se pokrene bez Metro-a.
+      # Ovo je posljednja provjera prije nego artifact ode na telefone.
+      - name: Provjeri JS bundle u release APK
+        run: |
+          set -euo pipefail
+          APK=$(find apps/mobile/android/app/build/outputs/apk/release -name '*.apk' | head -n1)
+          test -n "$APK"
+          echo "APK: $APK"
+          unzip -l "$APK" | grep -q 'assets/index.android.bundle'
+          echo "JS bundle je u APK-u."
+
       - name: Sačuvaj release APK
         uses: actions/upload-artifact@v4
         with:
