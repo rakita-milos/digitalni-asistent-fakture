@@ -207,6 +207,10 @@ Cilj: kapija se izvršava bez improvizacije kad nalozi i telefoni stignu.
       `android-release`: artifact `digitalni-asistent-release-apk` (**32.256.627 B**) i AAB
       (**52.544.622 B**); `docker` image job takođe zelen. Release APK je debug-potpisan i bez
       `DA_API_URL` namjerno pada na guard-u — to je dokaz pipeline-a, ne build za telefone.
+- [x] **RC5 — provjera standalone APK-a (26. 11.)** — CI **#35 7/7 zeleno** na `v1.0.0-rc5`;
+      `android-release` sada prije uploada provjerava da release APK sadrži
+      `assets/index.android.bundle`. Provjera ✅, APK **32.256.666 B**, AAB **52.544.618 B**.
+      Time je artifact za matricu dokazano standalone (ne zavisi od Metro-a).
 - [ ] **DA_API_URL za uređaje** — treba staging ili LAN URL prije matrice; bez njega G12 stavka 3 pada.
 - [ ] **G12 izvršenje** — čeka Sentry, R2, SMS, staging, keystore i 3 telefona; `preflight` **5/12**
       (5/13 sa `--devices`).

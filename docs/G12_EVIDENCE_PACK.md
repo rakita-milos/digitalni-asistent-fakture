@@ -14,7 +14,7 @@ APK); ostalih šest čeka naloge i uređaje.
 | #   | Uslov G12                                       | Stanje | Dokaz koji se prilaže                                                                                                             | Ko                 |
 | --- | ----------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
 | 1   | CI `verify` + `e2e` + `android` zeleni          | ✅     | [run #33](https://github.com/rakita-milos/digitalni-asistent-fakture/actions/runs/45852302932) na `v1.0.0-rc4`; **7/7** jobova | —                  |
-| 2   | APK artifact se preuzima                        | ✅     | debug APK ~51,5 MB + `digitalni-asistent-release-apk` ~32,3 MB (rc4; proof, bez `DA_API_URL`)                                       | —                  |
+| 2   | APK artifact se preuzima                        | ✅     | debug APK ~51,5 MB + `digitalni-asistent-release-apk` ~32,3 MB (rc5; JS bundle provjeren, proof bez `DA_API_URL`)                 | —                  |
 | 3   | APK na **3 fizička uređaja** + matrica          | ⏳     | §4 ovog fajla, popunjena tabela                                                                                                   | ti + ja            |
 | 4   | Sentry prima testnu grešku + alarmi             | ⏳     | link na event sa `request_id` + screenshot alarma                                                                                 | ti (DSN) + ja      |
 | 5   | PDF preko **pravog** R2 + istek TTL-a           | ⏳     | `302` sa `X-Amz-Expires=900`, download `%PDF`, `403` poslije TTL-a                                                                | ti (ključevi) + ja |
@@ -171,8 +171,8 @@ kad su svi redovi §1 ✅ i kada je §5 potpisan.
 
 ## 6. Šta je već dokazano bez naloga (25. 11.)
 
-- CI #33 na `v1.0.0-rc4`: svih **7/7** jobova ✅ — verify, e2e, integracije, android APK, release
-  AAB, release APK i docker image.
+- CI #35 na `v1.0.0-rc5`: svih **7/7** jobova ✅ — verify, e2e, integracije, android APK, release
+  AAB, release APK (sa provjerenim `assets/index.android.bundle`) i docker image.
 - `release:preflight`: 5/12; `check-signing` OK (debug potpis dok nema keystore-a).
 - Lokalno: smoke 8/8, restore 3,2 s, rollback 1,3 s / 7,0 s, pilot dry-run 22/22.
 - Pravne stranice implementirane, AAB pipeline, Play screenshotovi i audit — urađeni 23. 11.
