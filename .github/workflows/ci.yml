@@ -190,6 +190,14 @@ jobs:
           ln -sfn ../../../node_modules/react-native node_modules/react-native
           ln -sfn ../../../node_modules/@react-native node_modules/@react-native
 
+      # Bez DA_API_URL ostaje razvojni 10.0.2.2 (emulator); za fizičke uređaje se postavlja
+      # staging/LAN URL u repository variable. Vidi docs/G12_EVIDENCE_PACK.md §3.6.
+      - name: API URL za build
+        env:
+          DA_API_URL: ${{ vars.DA_API_URL }}
+          DA_WEB_URL: ${{ vars.DA_WEB_URL }}
+        run: node apps/mobile/scripts/set-api-url.mjs
+
       - name: Debug APK
         working-directory: apps/mobile/android
         run: |
@@ -265,6 +273,26 @@ jobs:
       - name: Build shared paketa (za Metro bundle)
         run: pnpm --filter @digitalni-asistent/shared build
 
+      # Release AAB mora da gleda na pravi API (https). Bez URL-a dozvoljen je samo
+      # RC/proof build, i tada je AAB označen upozorenjem i nije za Play.
+      - name: API URL za release
+        env:
+          DA_API_URL: ${{ vars.DA_API_URL }}
+          DA_WEB_URL: ${{ vars.DA_WEB_URL }}
+          REF_NAME: ${{ github.ref_name }}
+          ALLOW_DEBUG_INPUT: ${{ inputs.allow_debug_signing }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DA_API_URL:-}" ]; then
+            if [[ "$REF_NAME" == *-rc* ]] || [ "$ALLOW_DEBUG_INPUT" = "true" ]; then
+              echo "::warning::DA_API_URL nije postavljen — proof AAB koristi razvojni URL."
+              exit 0
+            fi
+            echo "::error::DA_API_URL nije postavljen — release AAB ne može da se poveže na API."
+            exit 1
+          fi
+          node apps/mobile/scripts/set-api-url.mjs --release
+
       # GitHub-hosted runner nema fajl keystore-a; dostavlja se kao base64 secret.
       - name: Pripremi keystore iz base64
         env:
@@ -316,6 +344,25 @@ jobs:
         with:
           name: digitalni-asistent-aab
           path: apps/mobile/android/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: error
+
+      # Debug APK traži Metro (nema ugrađen JS bundle), pa nije pogodan za fizičke telefone.
+      # Release APK je standalone i služi za matricu uređaja; do keystore-a je debug-potpisan.
+      - name: Release APK za uređaje (assembleRelease)
+        working-directory: apps/mobile/android
+        env:
+          DA_KEYSTORE_PASSWORD: ${{ secrets.DA_KEYSTORE_PASSWORD }}
+          DA_KEY_ALIAS: ${{ secrets.DA_KEY_ALIAS }}
+          DA_KEY_PASSWORD: ${{ secrets.DA_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Sačuvaj release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: digitalni-asistent-release-apk
+          path: apps/mobile/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
 
   docker:

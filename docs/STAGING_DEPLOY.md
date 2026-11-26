@@ -48,6 +48,9 @@
 
 Tajne u GitHub Secrets (ili provider secret store): `DATABASE_URL`, `REDIS_URL`, JWT tajne, SMS/R2/Sentry ključevi.
 
+**Mobilni build:** `DA_API_URL` (repository variable) ide u `apps/mobile/src/app-config.json` kroz
+`scripts/set-api-url.mjs`; za release mora biti `https://`. Vidi `docs/G12_EVIDENCE_PACK.md` §3.6.
+
 ## 4. Prvi deploy (redoslijed)
 
 1. **Baza:** kreiraj Neon branch `staging`; uzmi connection string (pooled za API, direct za migracije).

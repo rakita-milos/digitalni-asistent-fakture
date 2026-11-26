@@ -8,7 +8,8 @@
     "start": "react-native start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "jest --runInBand --passWithNoTests"
+    "test": "jest --runInBand --passWithNoTests",
+    "config:api": "node scripts/set-api-url.mjs"
   },
   "dependencies": {
     "@digitalni-asistent/shared": "workspace:*",

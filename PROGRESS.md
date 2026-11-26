@@ -192,6 +192,15 @@ Cilj: kapija se izvršava bez improvizacije kad nalozi i telefoni stignu.
       CI-ja (posljednje **343**, 23. 11.).
 - [x] **`docs/G12_EVIDENCE_PACK.md`** — 8 uslova kapije sa tačnim komandama i dokazima, matrica
       **3 uređaja / 15 scenarija** i sign-off tabela; jedini izvor za G12 pregled.
+- [x] **Mobilni API URL nije više hardkodiran (26. 11.)** — `src/app-config.json` +
+      `scripts/set-api-url.mjs` (`DA_API_URL`; `--release` zahtijeva https); release build odbija
+      `10.0.2.2`/localhost, a CI `android` i `android-release` upisuju URL iz repository variable.
+      **Nađeno u audit-u:** stari `config.ts` je za svaki build vraćao `http://10.0.2.2:3001`, pa APK
+      na fizičkom telefonu nije mogao do API-ja — G12 matrica bi pala već na prijavi.
+- [x] **Standalone release APK za matricu (26. 11.)** — `android-release` job sada pravi i
+      `assembleRelease` APK (`digitalni-asistent-release-apk`); debug APK traži Metro, pa nije
+      pogodan za fizičke telefone.
+- [ ] **DA_API_URL za uređaje** — treba staging ili LAN URL prije matrice; bez njega G12 stavka 3 pada.
 - [ ] **G12 izvršenje** — čeka Sentry, R2, SMS, staging, keystore i 3 telefona; `preflight` **5/12**
       (5/13 sa `--devices`).
 

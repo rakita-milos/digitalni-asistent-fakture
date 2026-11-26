@@ -91,8 +91,22 @@ na restore bazi. Lokalni drill je 3,2 s — staging broj je onaj koji se upisuje
 
 ### 3.6 Uređaji (T12-3)
 
-Matrica u §4. Instalacija ide iz APK artifacta (ili AAB-a kad keystore postoji), ne iz lokalnog
-build-a. Na svakom uređaju uključen USB debugging i „Stay awake“.
+Matrica u §4. Instalacija ide iz **release APK** artifacta (`digitalni-asistent-release-apk`,
+standalone — ima ugrađen JS bundle), ne iz lokalnog build-a. Debug APK iz CI-ja traži Metro i
+nije pogodan za telefone bez razvojnog okruženja. Do keystore-a je release APK debug-potpisan.
+Na svakom uređaju uključen USB debugging i „Stay awake“.
+
+**API URL prije builda.** APK iz CI-ja podrazumijeva `10.0.2.2` (emulator). Za telefone se URL
+upisuje u `apps/mobile/src/app-config.json`:
+
+```bash
+DA_API_URL=https://api-staging.<domen> node apps/mobile/scripts/set-api-url.mjs
+# za release dodaj --release (zahtijeva https)
+```
+
+Isti URL se postavlja kao repository variable `DA_API_URL` da ga CI ubaci u APK/AAB. Release
+build odbija `http://10.0.2.2`/`localhost` (baca grešku pri startu) — namjerna zaštita od AAB-a
+koji na telefonu ne vidi API.
 
 ## 4. Matrica uređaja
 

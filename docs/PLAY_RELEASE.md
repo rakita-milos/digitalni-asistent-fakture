@@ -164,7 +164,8 @@ Popunjava se tačno prema stvarnom ponašanju aplikacije. Sažetak:
 - [ ] Data Safety popunjen tačno (gore)
 - [ ] Content rating upitnik
 - [ ] Interni test na 3 uređaja (jeftin/srednji/nov) — APK/AAB (matrica: `docs/G12_EVIDENCE_PACK.md` §4)
-- [ ] Nema `debuggable`/test naloga u release build-u; API URL je produkcijski
+- [x] API URL se postavlja pri build-u (`DA_API_URL` → `src/app-config.json`); release odbija razvojni URL
+- [ ] Produkcijski API URL postavljen u repository variable prije release taga
 - [ ] Pilot plan ako je account lični (12 testera / 14 dana)
 - [ ] Podrška: e-mail i FAQ spremni
 
