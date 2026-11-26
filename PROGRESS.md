@@ -200,6 +200,9 @@ Cilj: kapija se izvršava bez improvizacije kad nalozi i telefoni stignu.
 - [x] **Standalone release APK za matricu (26. 11.)** — `android-release` job sada pravi i
       `assembleRelease` APK (`digitalni-asistent-release-apk`); debug APK traži Metro, pa nije
       pogodan za fizičke telefone.
+- [x] **CI #32 na `ff524c2`** — `verify` (lint/typecheck/test/build), `e2e`, `integracije` i
+      `compose` ✅; Android APK job je sporiji od uobičajenog (debug build), ali ne zavisi od
+      mobilnog configa. README dopunjen za `DA_API_URL` i novi broj testova (**345**).
 - [ ] **DA_API_URL za uređaje** — treba staging ili LAN URL prije matrice; bez njega G12 stavka 3 pada.
 - [ ] **G12 izvršenje** — čeka Sentry, R2, SMS, staging, keystore i 3 telefona; `preflight` **5/12**
       (5/13 sa `--devices`).

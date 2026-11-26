@@ -143,6 +143,16 @@ pnpm --filter @digitalni-asistent/mobile start     # Metro
 pnpm --filter @digitalni-asistent/mobile android   # RN na emulator/uređaj
 ```
 
+Mobilni API URL se postavlja **pri build-u**, ne ručnim mijenjanjem koda:
+
+```bash
+DA_API_URL=https://api-staging.<domen> pnpm --filter @digitalni-asistent/mobile config:api
+# za release: pnpm --filter @digitalni-asistent/mobile config:api -- --release
+```
+
+Bez toga emulator koristi `10.0.2.2:3001`; release build odbija razvojni URL. Detalji:
+`docs/G12_EVIDENCE_PACK.md` §3.6.
+
 API rute su bez globalnog prefiksa (`/auth`, `/company`, `/customers`…).
 
 ## API rute
@@ -420,10 +430,10 @@ pnpm --filter web test:e2e                 # Playwright e2e (web)
 - `apps/web` — **25** testova (Vitest): format, obračun pregleda, parsiranje forme, pravila masovnih akcija,
   **Sentry instrumentacija** (`instrumentation.test.ts`) i **pravni tekstovi** (`lib/legal.test.ts`:
   sekcije, podprocesori, placeholderi, GDPR teme, PRAČUN).
-- `apps/mobile` — **99** testova (Jest): API klijenti (uključujući slanje fakture i **auto-refresh na 401**),
+- `apps/mobile` — **101** testova (Jest): API klijenti (uključujući slanje fakture i **auto-refresh na 401**),
   auth store (biometrijsko otključavanje, odjava offline), sync engine + retry/backoff, offline
   draft/detalj, setup helperi, obračun, biometrijska prijava i **URL-ovi pravnih stranica**.
-- **Ukupno 343 unit/API testa + 12 Playwright e2e** — zadnji puni prolaz lokalno 23. 11. 2026. i zeleni.
+- **Ukupno 345 unit/API testa + 12 Playwright e2e** — mobile 26. 11., ostalo 23. 11. 2026.
 
 API e2e koristi pravu bazu i Redis; testovi `TRUNCATE`-uju bazu, pa poslije njih pokreni `pnpm db:seed`.
 
@@ -493,8 +503,9 @@ curl -fsS http://localhost:3001/health
   i sa mobilnog ekrana **Nalog**.
 - Tekst je **radna verzija** iz `docs/LEGAL_DRAFT.md`; mjesta `<...>` (naziv firme, adresa, JIB,
   e-mail, rokovi, SLA, mjesto) popunjava firma, a tekst potvrđuje pravnik prije objave.
-- Mobilni URL-ovi su u `apps/mobile/src/config.ts` (`WEB_URL`, `PRIVACY_URL`, `TERMS_URL`);
-  `WEB_URL` je placeholder do finalnog domena i **mora se zamijeniti prije Play objave**.
+- Mobilni URL-ovi su u `apps/mobile/src/app-config.json` (`apiUrl`, `webUrl`), a čita ih
+  `src/config.ts` (`API_URL`, `WEB_URL`, `PRIVACY_URL`, `TERMS_URL`); `webUrl` je placeholder do
+  finalnog domena i **mora se zamijeniti prije Play objave**.
 
 ## Pilot (G14)
 
