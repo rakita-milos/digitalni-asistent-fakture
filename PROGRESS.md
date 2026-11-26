@@ -203,6 +203,10 @@ Cilj: kapija se izvršava bez improvizacije kad nalozi i telefoni stignu.
 - [x] **CI #32 na `ff524c2`** — `verify` (lint/typecheck/test/build), `e2e`, `integracije` i
       `compose` ✅; Android APK job je sporiji od uobičajenog (debug build), ali ne zavisi od
       mobilnog configa. README dopunjen za `DA_API_URL` i novi broj testova (**345**).
+- [x] **RC4 pipeline (26. 11.)** — tag `v1.0.0-rc4` → CI **#33 7/7 zeleno**, uključujući
+      `android-release`: artifact `digitalni-asistent-release-apk` (**32.256.627 B**) i AAB
+      (**52.544.622 B**); `docker` image job takođe zelen. Release APK je debug-potpisan i bez
+      `DA_API_URL` namjerno pada na guard-u — to je dokaz pipeline-a, ne build za telefone.
 - [ ] **DA_API_URL za uređaje** — treba staging ili LAN URL prije matrice; bez njega G12 stavka 3 pada.
 - [ ] **G12 izvršenje** — čeka Sentry, R2, SMS, staging, keystore i 3 telefona; `preflight` **5/12**
       (5/13 sa `--devices`).

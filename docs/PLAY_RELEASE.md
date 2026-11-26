@@ -153,7 +153,8 @@ Popunjava se tačno prema stvarnom ponašanju aplikacije. Sažetak:
 - [ ] Finalni package name i ime brenda
 - [ ] Release keystore generisan i sačuvan (2 kopije, sigurno)
 - [x] Signing config za release u `build.gradle` (keystore.properties / env)
-- [x] CI job `android-release` pravi AAB (`bundleRelease`, artifact `digitalni-asistent-aab`)
+- [x] CI job `android-release` pravi AAB (`bundleRelease`, artifact `digitalni-asistent-aab`) i
+  standalone release APK za matricu uređaja (`assembleRelease`, `digitalni-asistent-release-apk`)
 - [x] `versionCode`/`versionName` postavljeni (**1 / "1.0.0"**)
 - [ ] AAB potpisan **release** ključem (čeka keystore; bez njega CI potpisuje debug ključem)
 - [x] Placeholder ikona/feature graphic i launcher ikone generisane (feature graphic 24-bit)
