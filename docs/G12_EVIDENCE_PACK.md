@@ -40,7 +40,13 @@ Ako nalog ne stigne na vrijeme, taj red se **izbacuje iz sprinta** i kapija kliz
 
 ### 3.1 Staging (T12-7)
 
-Detalji: `docs/STAGING_DEPLOY.md` §4. Minimalni dokaz:
+Detalji: `docs/STAGING_DEPLOY.md` §4. Prije deploya provjeri env:
+
+```bash
+pnpm staging:check --file .env.staging          # 0 grešaka; upozorenja su očekivana do G0
+```
+
+Minimalni dokaz:
 
 ```bash
 curl -s "$STAGING_API_URL/health" | jq          # 200, checks.db i checks.redis ok

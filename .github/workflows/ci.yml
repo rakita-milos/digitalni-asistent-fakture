@@ -116,6 +116,9 @@ jobs:
       - name: Release preflight (informativno, bez tajni)
         run: node tools/release/preflight.mjs --json > /dev/null
 
+      - name: Staging env provjera (selftest)
+        run: pnpm staging:check --selftest
+
       - name: Prisma status
         run: pnpm --filter api exec prisma migrate status
 

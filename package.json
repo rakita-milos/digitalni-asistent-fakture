@@ -15,6 +15,7 @@
     "test": "pnpm -r --workspace-concurrency=1 run test",
     "test:integrations": "node tools/local-integration/run-all.mjs",
     "smoke:staging": "node tools/staging-smoke.mjs",
+    "staging:check": "node tools/staging/check-env.mjs",
     "check:play": "node tools/check-play-assets.mjs",
     "release:check-signing": "node tools/release/check-signing.mjs",
     "release:preflight": "node tools/release/preflight.mjs",

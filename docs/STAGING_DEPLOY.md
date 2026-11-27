@@ -53,6 +53,9 @@ Tajne u GitHub Secrets (ili provider secret store): `DATABASE_URL`, `REDIS_URL`,
 
 ## 4. Prvi deploy (redoslijed)
 
+0. **Env provjera:** `pnpm staging:check --file .env.staging` — hvata localhost URL-ove, kratke JWT
+   tajne, `CORS=*`, nedostajuće R2/SMS/Sentry i pogrešan `NODE_ENV` prije deploya. `--strict` pada
+   i na upozorenjima.
 1. **Baza:** kreiraj Neon branch `staging`; uzmi connection string (pooled za API, direct za migracije).
 2. **Migracije:** `pnpm db:deploy` (iz CI-ja ili lokalno sa staging `DATABASE_URL`).
    Provjeri: `pnpm --filter api exec prisma migrate status`.
