@@ -224,6 +224,8 @@ Cilj: kapija se izvršava bez improvizacije kad nalozi i telefoni stignu.
 - [x] **Trust proxy za realan IP (27. 11.)** — `TRUST_PROXY` (default `1` u produkciji, `false` u
       razvoju). Bez ovoga bi iza Railway/Fly proxy-ja rate limit bio **globalan** (npr. 5 prijava/min
       za sve korisnike). 4 testa + provjera u `staging:check`.
+- [x] **Sigurnosni headeri weba (27. 11.)** — `next.config.ts`: `nosniff`, `X-Frame-Options: DENY`,
+      `Referrer-Policy`, `Permissions-Policy`, HSTS u produkciji; novi Playwright test.
 - [ ] **Odluka o klizanju (27. 11.)** — nalozi nisu stigli do 9:30; ako ne stignu do kraja dana,
       po planu §9: **G12 7.12., G13 14.12., pilot 15.12.–12.1., G14 18.1.2027.**
 - [ ] **DA_API_URL za uređaje** — treba staging ili LAN URL prije matrice; bez njega G12 stavka 3 pada.
