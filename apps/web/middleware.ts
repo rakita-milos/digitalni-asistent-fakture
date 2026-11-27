@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+import { API_URL } from './lib/api-url';
 import {
   ACCESS_COOKIE,
   ACCESS_COOKIE_MAX_AGE,
@@ -16,8 +17,6 @@ import {
  * Napomena: refresh rotacija poništava stari refresh token; ako dva zahtjeva
  * istovremeno pokušaju refresh, jedan može ostati bez sesije (poznato ograničenje).
  */
-
-const API_URL = process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
 /** JWT `exp` provjera bez verifikacije potpisa (potpis provjerava API). */
 function isExpired(token: string): boolean {

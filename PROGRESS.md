@@ -214,6 +214,10 @@ Cilj: kapija se izvršava bez improvizacije kad nalozi i telefoni stignu.
 - [x] **Produkcijska upozorenja pri startu (26. 11.)** — API i worker loguju: `ESIR_MODE=mock`,
       `SMS_PROVIDER=log`, localhost `PUBLIC_API_URL`/`WEB_APP_URL` i Sentry bez DSN-a
       (`collectProductionWarnings`, 4 testa). Ne mijenja ponašanje — sprečava tihu pogrešnu konfiguraciju.
+- [x] **Web API URL — jedan izvor (27. 11.)** — `apps/web/lib/api-url.ts`; `lib/api.ts` i
+      `middleware.ts` ga koriste; u produkciji sa localhost fallback loguje upozorenje; 2 testa.
+- [ ] **Odluka o klizanju (27. 11.)** — nalozi nisu stigli do 9:30; ako ne stignu do kraja dana,
+      po planu §9: **G12 7.12., G13 14.12., pilot 15.12.–12.1., G14 18.1.2027.**
 - [ ] **DA_API_URL za uređaje** — treba staging ili LAN URL prije matrice; bez njega G12 stavka 3 pada.
 - [ ] **G12 izvršenje** — čeka Sentry, R2, SMS, staging, keystore i 3 telefona; `preflight` **5/12**
       (5/13 sa `--devices`).
