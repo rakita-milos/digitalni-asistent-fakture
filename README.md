@@ -420,20 +420,20 @@ pnpm --filter web test:e2e                 # Playwright e2e (web)
 ```
 
 - `packages/shared` — **51** testova: Zod šeme, numeracija, JIB, telefon, UUID v7, enumi, error envelope.
-- `apps/api` — **168** testova (32 fajla): e2e auth/firma/kupci/artikli/porezi, fakture (obračun,
+- `apps/api` — **176** testova (34 fajla): e2e auth/firma/kupci/artikli/porezi, fakture (obračun,
   draft, filteri, DRAFT-only, IDOR), fiskalizacija (mock, numeracija bez rupa, PRAČUN 409, PDF, ESIR pad),
   naplata, podsjetnici (uključujući opt-out), izvještaji, storno/refundacija, worker (retry + alarm),
   sync, idempotencija, reset lozinke, slanje fakture, GDPR, logout, setup-complete, **PATCH /items/:id**,
   **profil i promjena lozinke (M-12)** i **rate limiter na stvarnom Redis-u**; unit obračun/PDF
   token/alarm/R2/monitoring, health readiness (uključujući retry), request-id middleware, analitika i
-  **SMS adapter (`log` i generički `http`)**.
-- `apps/web` — **25** testova (Vitest): format, obračun pregleda, parsiranje forme, pravila masovnih akcija,
+  **SMS adapter (`log` i generički `http`)**, **produkcijska upozorenja** i **trust proxy**.
+- `apps/web` — **27** testova (Vitest): format, obračun pregleda, parsiranje forme, pravila masovnih akcija,
   **Sentry instrumentacija** (`instrumentation.test.ts`) i **pravni tekstovi** (`lib/legal.test.ts`:
   sekcije, podprocesori, placeholderi, GDPR teme, PRAČUN).
 - `apps/mobile` — **101** testova (Jest): API klijenti (uključujući slanje fakture i **auto-refresh na 401**),
   auth store (biometrijsko otključavanje, odjava offline), sync engine + retry/backoff, offline
   draft/detalj, setup helperi, obračun, biometrijska prijava i **URL-ovi pravnih stranica**.
-- **Ukupno 345 unit/API testa + 12 Playwright e2e** — mobile 26. 11., ostalo 23. 11. 2026.
+- **Ukupno 355 unit/API testa + 13 Playwright e2e** — provjereno 27. 11. 2026.
 
 API e2e koristi pravu bazu i Redis; testovi `TRUNCATE`-uju bazu, pa poslije njih pokreni `pnpm db:seed`.
 
