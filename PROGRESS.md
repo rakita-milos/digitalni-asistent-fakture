@@ -218,7 +218,8 @@ Cilj: kapija se izvršava bez improvizacije kad nalozi i telefoni stignu.
       `middleware.ts` ga koriste; u produkciji sa localhost fallback loguje upozorenje; 2 testa.
 - [x] **Staging env provjera (27. 11.)** — `tools/staging/check-env.mjs` (`pnpm staging:check`);
       `--file`, `--strict`, `--json`, `--selftest`. Provjerava NODE_ENV, baze, JWT ≥ 32, CORS,
-      https URL-ove, Sentry/R2/SMS, ESIR mock, rate limit i APP_RELEASE; **selftest 2/2** je u CI
+      https URL-ove, Sentry/R2/SMS, ESIR mock, rate limit i APP_RELEASE; poštuje default-e iz
+      `env.ts` (izostavljen `FEATURE_*`/`RATE_LIMIT` nije greška); **selftest 3/3** je u CI
       `verify`. Ne ispisuje tajne.
 - [ ] **Odluka o klizanju (27. 11.)** — nalozi nisu stigli do 9:30; ako ne stignu do kraja dana,
       po planu §9: **G12 7.12., G13 14.12., pilot 15.12.–12.1., G14 18.1.2027.**

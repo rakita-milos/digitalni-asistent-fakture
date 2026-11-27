@@ -204,20 +204,23 @@ export function validateStagingEnv(env) {
     );
   }
 
+  // ESIR_MODE ima default "mock" u env.ts: izostavljeno znači mock (upozorenje, ne greška).
   const esir = value(env, 'ESIR_MODE');
   add(
     checks,
     'ESIR_MODE',
     'ESIR_MODE je mock (G0)',
-    esir === 'mock' ? 'warn' : esir === 'esir' ? 'ok' : 'error',
+    esir === '' || esir === 'mock' ? 'warn' : esir === 'esir' ? 'ok' : 'error',
     'Do G0 samo mock; esir još nije implementiran.',
   );
 
+  // RATE_LIMIT_ENABLED ima default "true": izostavljeno je ispravno, samo "false" je rizik.
+  const rateLimit = value(env, 'RATE_LIMIT_ENABLED');
   add(
     checks,
     'RATE_LIMIT_ENABLED',
     'Rate limit uključen',
-    value(env, 'RATE_LIMIT_ENABLED') === 'true' ? 'ok' : 'warn',
+    rateLimit === '' || rateLimit === 'true' ? 'ok' : rateLimit === 'false' ? 'warn' : 'error',
     'Produkcija ne smije bez rate limita.',
   );
 
@@ -242,12 +245,13 @@ export function validateStagingEnv(env) {
   }
 
   for (const key of ['FEATURE_FISCAL_ENABLED', 'FEATURE_SMS_ENABLED', 'FEATURE_ACCOUNT_DELETION']) {
+    // Sva tri imaju default "true" u env.ts; izostavljeno je ispravno.
     const current = value(env, key);
     add(
       checks,
       key,
-      key + ' je true/false',
-      current === 'true' || current === 'false' ? 'ok' : 'error',
+      key + ' je true/false (default true)',
+      current === '' || current === 'true' || current === 'false' ? 'ok' : 'error',
       'env.ts prihvata samo true/false.',
     );
   }
@@ -321,7 +325,25 @@ function selftest() {
   };
   assert.ok(summarize(validateStagingEnv(broken)).errors >= 7, 'pokvaren env mora imati greške');
 
-  process.stdout.write('staging:check selftest 2/2\n');
+  const minimal = {
+    ...valid,
+    SENTRY_DSN: '',
+    R2_ACCOUNT_ID: '',
+    R2_ACCESS_KEY_ID: '',
+    R2_SECRET_ACCESS_KEY: '',
+    SMS_PROVIDER: '',
+    ESIR_MODE: '',
+    RATE_LIMIT_ENABLED: '',
+    APP_RELEASE: '',
+    FEATURE_FISCAL_ENABLED: '',
+    FEATURE_SMS_ENABLED: '',
+    FEATURE_ACCOUNT_DELETION: '',
+  };
+  const minimalSummary = summarize(validateStagingEnv(minimal));
+  assert.equal(minimalSummary.errors, 0, 'defaulti ne smiju biti greške');
+  assert.equal(minimalSummary.warnings, 5, 'Sentry, R2, SMS, ESIR i APP_RELEASE su upozorenja');
+
+  process.stdout.write('staging:check selftest 3/3\n');
 }
 
 function main() {
