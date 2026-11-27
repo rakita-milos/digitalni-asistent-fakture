@@ -224,6 +224,21 @@ export function validateStagingEnv(env) {
     'Produkcija ne smije bez rate limita.',
   );
 
+  // Bez trust proxy-ja Express vidi IP proxy-ja, pa je rate limit globalan.
+  const trustProxy = value(env, 'TRUST_PROXY');
+  const trustProxyValid =
+    trustProxy === '' ||
+    trustProxy === 'true' ||
+    trustProxy === 'false' ||
+    /^(?:[1-9]|10)$/.test(trustProxy);
+  add(
+    checks,
+    'TRUST_PROXY',
+    'Proxy hopovi za realan IP',
+    !trustProxyValid ? 'error' : trustProxy === 'false' ? 'warn' : 'ok',
+    'Iza Railway/Fly proxy-ja postavi TRUST_PROXY=1; bez toga rate limit je globalan.',
+  );
+
   const release = value(env, 'APP_RELEASE');
   add(
     checks,

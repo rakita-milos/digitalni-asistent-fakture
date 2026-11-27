@@ -30,6 +30,9 @@ const envSchema = z.object({
   REDIS_URL: z.string().min(1).default('redis://localhost:6379'),
   API_PORT: z.coerce.number().int().min(1).max(65535).default(3001),
   CORS_ORIGIN: z.string().default(''),
+  /// Express trust proxy: broj hopova (1 za Railway/Fly), true/false ili izostavljeno.
+  /// Default u produkciji je 1; bez toga rate limit po IP-u postaje globalan iza proxy-ja.
+  TRUST_PROXY: z.string().optional(),
   JWT_ACCESS_SECRET: z.string().min(16, 'JWT_ACCESS_SECRET mora imati najmanje 16 znakova'),
   JWT_REFRESH_SECRET: z.string().min(16, 'JWT_REFRESH_SECRET mora imati najmanje 16 znakova'),
   JWT_ACCESS_TTL: z.string().default('15m'),

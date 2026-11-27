@@ -7,6 +7,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { MonitoringService } from './common/monitoring/monitoring.service';
 import { env } from './config/env';
 import { collectProductionWarnings } from './config/production-warnings';
+import { parseTrustProxy } from './config/trust-proxy';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
@@ -19,6 +20,13 @@ async function bootstrap(): Promise<void> {
   const monitoring = app.get(MonitoringService);
   app.useGlobalFilters(new AllExceptionsFilter(monitoring));
   app.enableShutdownHooks();
+
+  // Rate limit ide po IP-u (rate-limit.guard.ts). Iza Railway/Fly proxy-ja bez ovoga bi svi
+  // korisnici dijelili IP proxy-ja, pa bi npr. 5 prijava/min važilo za cijeli sistem.
+  const httpAdapter = app.getHttpAdapter().getInstance() as {
+    set: (key: string, value: unknown) => void;
+  };
+  httpAdapter.set('trust proxy', parseTrustProxy(env.TRUST_PROXY, env.NODE_ENV));
 
   // Pre-Deployment Checklist §4: CORS samo za poznate origin-e, nikad "*".
   const corsOrigins = env.CORS_ORIGIN.split(',')

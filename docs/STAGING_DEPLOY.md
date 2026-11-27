@@ -43,6 +43,7 @@
 | `FEATURE_*` | ✓ | ✓ | — | po potrebi isključiti rizično |
 | `R2_*` | ✓ | — | — | opciono; bez njih stream fallback |
 | `SENTRY_DSN` / `SENTRY_ENVIRONMENT` / `APP_RELEASE` | ✓ | ✓ | — | `APP_RELEASE` = commit SHA |
+| `TRUST_PROXY` | ✓ | ✓ | — | `1` iza Railway/Fly proxy-ja; bez toga je rate limit globalan |
 | `API_URL` / `NEXT_PUBLIC_API_URL` | — | — | ✓ | web → API |
 | `NODE_ENV=production` | ✓ | ✓ | ✓ | obavezno na stagingu/produkciji |
 
